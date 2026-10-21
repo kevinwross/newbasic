@@ -40,6 +40,9 @@ public:
       body.Set("supportsStepBack", Json::Bool(true));
       body.Set("supportsTerminateRequest", Json::Bool(false));
       Respond(request, std::move(body), outgoing);
+      // DAP requires this event after the initialize response. Clients such as
+      // VS Code wait for it before sending breakpoints and configurationDone.
+      outgoing->push_back(Event("initialized"));
       return;
     }
     if (command == "launch" || command == "attach") {

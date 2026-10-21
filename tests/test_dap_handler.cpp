@@ -73,13 +73,15 @@ TEST_CASE("DAP: initialize advertises the supported capabilities", "[dap]") {
   Adapter adapter;
   const std::vector<Json> outgoing =
       adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\"}");
-  REQUIRE(outgoing.size() == 1);
+  REQUIRE(outgoing.size() == 2);
   CHECK(outgoing[0].Find("success")->AsBool());
   CHECK(outgoing[0].Find("request_seq")->AsNumber() == 1.0);
   const Json* body = outgoing[0].Find("body");
   REQUIRE(body != nullptr);
   CHECK(body->Find("supportsConfigurationDoneRequest")->AsBool());
   CHECK(body->Find("supportsConditionalBreakpoints")->AsBool());
+  CHECK(outgoing[1].Find("type")->AsString() == "event");
+  CHECK(outgoing[1].Find("event")->AsString() == "initialized");
 }
 
 TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {

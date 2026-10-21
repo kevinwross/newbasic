@@ -53,11 +53,16 @@ TEST_CASE("DAP session: a full handshake over framed streams", "[dap]") {
   std::stringstream out;
   CHECK(adapter.session.Run(in, out) == 5);
 
-  // First response: initialize, with its request_seq echoed.
+  // First response: initialize, with its request_seq echoed. DAP then requires
+  // an initialized event before the client sends breakpoints.
   const Json initialize = BodyOf(ReadFrame(out));
   CHECK(initialize.Find("success")->AsBool());
   CHECK(initialize.Find("command")->AsString() == "initialize");
   CHECK(initialize.Find("request_seq")->AsNumber() == 1.0);
+
+  const Json initialized = BodyOf(ReadFrame(out));
+  CHECK(initialized.Find("type")->AsString() == "event");
+  CHECK(initialized.Find("event")->AsString() == "initialized");
 
   const Json launch = BodyOf(ReadFrame(out));
   CHECK(launch.Find("command")->AsString() == "launch");
