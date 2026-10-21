@@ -22,6 +22,11 @@
 #include <string>
 #include <utility>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #include "newbasic/dap/session.h"
 #include "newbasic/debugger.h"
 #include "newbasic/host.h"
@@ -120,6 +125,13 @@ int RunPort(int port) {
 }
 
 int RunStdio() {
+#if defined(_WIN32)
+  // DAP framing is byte-oriented. Windows text mode turns the required CRLF
+  // into CRCRLF, which strict clients such as VS Code reject before they ever
+  // send launch.
+  _setmode(_fileno(stdin), _O_BINARY);
+  _setmode(_fileno(stdout), _O_BINARY);
+#endif
   newbasic::screen::ConsoleScreen screen;
   newbasic::SystemHost host;
   newbasic::Vm vm(screen, &host);

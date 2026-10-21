@@ -31,7 +31,7 @@ inline Frame ReadFrame(std::istream& in) {
   bool saw_any_line = false;
   std::string line;
   while (std::getline(in, line)) {
-    if (!line.empty() && line.back() == '\r')
+    while (!line.empty() && line.back() == '\r')
       line.pop_back();
     if (line.empty())
       break; // end of headers

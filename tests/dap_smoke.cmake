@@ -27,7 +27,9 @@ set(request "{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\"}")
 string(LENGTH "${request}" request_length)
 
 set(request_file "${TMP_DIR}/dap_request.tmp")
-file(WRITE "${request_file}" "Content-Length: ${request_length}\r\n\r\n${request}")
+# Use LF here: CMake's file(WRITE) translates it to CRLF on Windows. Writing
+# literal CRLF would produce CRCRLF there, which is not valid DAP framing.
+file(WRITE "${request_file}" "Content-Length: ${request_length}\n\n${request}")
 
 execute_process(
   COMMAND "${DAP_EXE}"
@@ -68,8 +70,8 @@ set(second "{\"seq\":2,\"type\":\"request\",\"command\":\"threads\"}")
 string(LENGTH "${two_requests}" first_length)
 string(LENGTH "${second}" second_length)
 file(WRITE "${request_file}"
-  "Content-Length: ${first_length}\r\n\r\n${two_requests}"
-  "Content-Length: ${second_length}\r\n\r\n${second}")
+  "Content-Length: ${first_length}\n\n${two_requests}"
+  "Content-Length: ${second_length}\n\n${second}")
 execute_process(
   COMMAND "${DAP_EXE}"
   INPUT_FILE "${request_file}"
