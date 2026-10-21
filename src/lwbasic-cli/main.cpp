@@ -17,6 +17,7 @@
 #include "lwbasic/errors.h"
 #include "lwbasic/frontend.h"
 #include "lwbasic/host.h"
+#include "lwbasic/host_path.h"
 #include "lwbasic/line_store.h"
 #include "lwbasic/repl.h"
 #include "lwbasic/screen/console_screen.h"
@@ -167,7 +168,7 @@ bool WriteViewPpm(const lwbasic::screen::Screen& screen, const std::string& path
     }
   }
 
-  std::ofstream out(path, std::ios::binary);
+  std::ofstream out(lwbasic::HostPath(path), std::ios::binary);
   if (!out)
     return false;
   out << "P6\n" << width << " " << height << "\n255\n";
@@ -290,7 +291,10 @@ void ReportResult(const lwbasic::RunResult& result) {
 
 // Loads a plain-text .BAS file, compiles it and runs it.
 int RunFile(const char* path) {
-  std::ifstream in(path, std::ios::binary);
+  // The program-file argument is a DOS-style path when the interpreter is used
+  // on Linux with a Windows-written command line, so translate it the same way
+  // the OPEN/SAVE/LOAD statements do.
+  std::ifstream in(lwbasic::HostPath(path), std::ios::binary);
   if (!in) {
     std::fprintf(stderr, "Can't open file: %s\n", path);
     return 1;

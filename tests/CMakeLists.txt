@@ -58,6 +58,19 @@ endif()
 
 add_test(NAME lwbasic-tests COMMAND lwbasic-tests)
 
+# Regression for the CLI program-file argument: a Windows-style path must be
+# translated at the host boundary on POSIX. --gpu-shot also gives the CLI a
+# headless fallback when no terminal or window is available.
+set(dos_fixture "${CMAKE_CURRENT_SOURCE_DIR}/../fixtures/m0/hello.bas")
+string(REPLACE "/" "\\\\" dos_fixture "${dos_fixture}")
+add_test(
+  NAME cli-dos-path
+  COMMAND $<TARGET_FILE:lwbasic-cli>
+          --gpu-shot "${CMAKE_CURRENT_BINARY_DIR}/cli-dos-path.ppm"
+          "${dos_fixture}"
+)
+set_tests_properties(cli-dos-path PROPERTIES TIMEOUT 60)
+
 # Covers the lwbasic-dap *process* boundary (framing over stdin/stdout), which
 # the in-process Catch2 tests cannot reach.
 add_test(

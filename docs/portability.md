@@ -27,9 +27,17 @@ status, or `128 + signal` when the child was killed by a signal.
 
 ## Paths and file names
 
-DOS-style paths are translated on POSIX: `\` becomes `/`. Drive letters such as
-`C:` are not mapped; use host paths for files outside the working directory.
-`SHELL` commands are passed to the shell unchanged.
+Paths are normalized at the host boundary, not inside string literals or the
+lexer: POSIX maps `\` to `/`, and Windows maps `/` to `\`. The conversion is
+applied to the program-file argument, `OPEN`, `SAVE`, `LOAD`, `CHAIN`,
+`MERGE`, the DOS commands, the printer path, `--gpu-shot` and
+`LWBASIC_FONT`. It is deliberately **not** applied to `SHELL` command lines,
+because the shell has its own quoting and path rules.
+
+Drive letters such as `C:` are not mapped on POSIX; use host paths for files
+outside the working directory. A DOS path like `C:\DATA\FILE.DAT` becomes
+`C:/DATA/FILE.DAT`, which is a relative path unless a directory named `C:`
+exists.
 
 DOS commands keep their DOS semantics where it matters:
 

@@ -1,5 +1,6 @@
 #include "glyph_atlas_internal.h"
 
+#include "lwbasic/host_path.h"
 #include "lwbasic/screen/screen.h"
 
 #include <algorithm>
@@ -30,7 +31,7 @@ std::vector<unsigned char> LoadFont() {
   std::vector<std::string> candidates;
   if (const char* configured = std::getenv("LWBASIC_FONT");
       configured != nullptr && *configured != '\0') {
-    candidates.emplace_back(configured);
+    candidates.emplace_back(HostPath(configured));
   }
 #if defined(LWBASIC_FONT_PATH)
   candidates.emplace_back(LWBASIC_FONT_PATH);

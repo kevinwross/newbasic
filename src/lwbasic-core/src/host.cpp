@@ -7,6 +7,8 @@
 #include <fstream>
 #include <string>
 
+#include "lwbasic/host_path.h"
+
 namespace lwbasic {
 namespace {
 
@@ -68,7 +70,7 @@ void SystemHost::WriteToPrinter(const std::string& text) {
   // exists, so a file is the honest equivalent.
   const std::string configured = GetEnv("LWBASIC_PRINTER");
   const std::string path = !configured.empty() ? configured : std::string("lwbasic.prn");
-  std::ofstream out(path, std::ios::app | std::ios::binary);
+  std::ofstream out(HostPath(path), std::ios::app | std::ios::binary);
   out << text;
 }
 

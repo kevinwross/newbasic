@@ -11,6 +11,7 @@
 #include "lwbasic/errors.h"
 #include "lwbasic/fstok/encoder.h"
 #include "lwbasic/fstok/protect.h"
+#include "lwbasic/host_path.h"
 #include "lwbasic/repl.h"
 #include "lwbasic/screen/headless_screen.h"
 #include "test_helpers.h"
@@ -171,6 +172,17 @@ TEST_CASE("Program files: errors", "[files]") {
   CHECK(s.repl.Process("LOAD").code == lwbasic::kErrSyntax);
   CHECK(s.repl.Process("LOAD \"no_such_file_xyz.bas\"").code == lwbasic::kErrFileNotFound);
   CHECK(s.repl.Process("RUN \"no_such_file_xyz.bas\"").code == lwbasic::kErrFileNotFound);
+}
+
+TEST_CASE("HostPath normalises DOS and host separators", "[files]") {
+#if defined(_WIN32)
+  CHECK(lwbasic::HostPath("samples/accounting.dat") == "samples\\accounting.dat");
+  CHECK(lwbasic::HostPath("samples\\accounting.dat") == "samples\\accounting.dat");
+#else
+  CHECK(lwbasic::HostPath("samples\\accounting.dat") == "samples/accounting.dat");
+  CHECK(lwbasic::HostPath("samples/accounting.dat") == "samples/accounting.dat");
+  CHECK(lwbasic::HostPath("a\\b\\c") == "a/b/c");
+#endif
 }
 
 TEST_CASE("DOS commands: NAME, KILL, MKDIR, CHDIR, RMDIR, FILES", "[files]") {
