@@ -15,7 +15,7 @@ std::string SignPrefix(bool negative) {
 
 // Two-digit (or wider for >= 100) GW-BASIC exponent: "E+07", "E-05".
 std::string FormatExponent(int exponent) {
-  char buf[8];
+  char buf[32];
   std::snprintf(buf, sizeof(buf), "E%c%02d", exponent >= 0 ? '+' : '-', std::abs(exponent));
   return std::string(buf);
 }

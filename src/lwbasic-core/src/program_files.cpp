@@ -7,13 +7,14 @@
 #include "lwbasic/errors.h"
 #include "lwbasic/fstok/codec.h"
 #include "lwbasic/fstok/protect.h"
+#include "lwbasic/host_path.h"
 #include "lwbasic/line_store.h"
 
 namespace lwbasic {
 
 bool LoadProgramFromFile(const std::string& path, LineStore* store, int* error_code,
                          std::string* error) {
-  std::ifstream in(path, std::ios::binary);
+  std::ifstream in(HostPath(path), std::ios::binary);
   if (!in) {
     if (error_code != nullptr)
       *error_code = kErrFileNotFound;
@@ -61,7 +62,7 @@ bool LoadProgramFromFile(const std::string& path, LineStore* store, int* error_c
 
 bool SaveProgramToFile(const std::string& path, const LineStore& store, int* error_code,
                        std::string* error) {
-  std::ofstream out(path, std::ios::binary);
+  std::ofstream out(HostPath(path), std::ios::binary);
   if (!out) {
     if (error_code != nullptr)
       *error_code = kErrPathNotFound;

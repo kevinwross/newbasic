@@ -22,6 +22,4 @@ target_compile_definitions(lwbasic-screen PRIVATE
   LWBASIC_FONT_PATH="${CMAKE_SOURCE_DIR}/third_party/fonts/DejaVuSansMono.ttf"
 )
 target_link_libraries(lwbasic-screen PUBLIC lwbasic-core)
-if(MSVC)
-  target_compile_options(lwbasic-screen PRIVATE /WX)
-endif()
+lwbasic_target_warnings(lwbasic-screen)

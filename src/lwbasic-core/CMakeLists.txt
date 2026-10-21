@@ -8,6 +8,7 @@ add_library(lwbasic-core STATIC
   src/errors.cpp
   src/lexer.cpp
   src/host.cpp
+  src/host_path.cpp
   src/line_store.cpp
   src/screen.cpp
   src/frontend.cpp
@@ -24,6 +25,4 @@ else()
   target_link_libraries(lwbasic-core PUBLIC m)
 endif()
 target_include_directories(lwbasic-core PUBLIC include)
-if(MSVC)
-  target_compile_options(lwbasic-core PRIVATE /WX)
-endif()
+lwbasic_target_warnings(lwbasic-core)

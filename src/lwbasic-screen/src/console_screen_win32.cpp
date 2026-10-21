@@ -178,8 +178,7 @@ void ConsoleScreen::ExitFullScreen() {
   if (impl_->out == nullptr || !impl_->full_screen)
     return;
   ShowCursor(impl_->saved_cursor_visible ? TRUE : FALSE);
-  const COORD buffer{static_cast<SHORT>(impl_->saved_cols),
-                     static_cast<SHORT>(impl_->saved_rows)};
+  const COORD buffer{static_cast<SHORT>(impl_->saved_cols), static_cast<SHORT>(impl_->saved_rows)};
   const SMALL_RECT window{0, 0, static_cast<SHORT>(impl_->saved_cols - 1),
                           static_cast<SHORT>(impl_->saved_rows - 1)};
   SetConsoleScreenBufferSize(static_cast<HANDLE>(impl_->out), buffer);
@@ -229,7 +228,9 @@ std::wstring ConsoleScreen::ReadLine() {
   return line;
 }
 
-void ConsoleScreen::ShowCaret(bool visible) { ShowCursor(visible ? TRUE : FALSE); }
+void ConsoleScreen::ShowCaret(bool visible) {
+  ShowCursor(visible ? TRUE : FALSE);
+}
 
 bool ConsoleScreen::TryGetKey(wchar_t* key) {
   if (impl_->out == nullptr)
@@ -260,7 +261,9 @@ bool ConsoleScreen::Closed() const {
   return false;
 }
 
-bool ConsoleScreen::InputExhausted() const { return false; }
+bool ConsoleScreen::InputExhausted() const {
+  return false;
+}
 
 void ConsoleScreen::SuspendForChildProcess() {}
 

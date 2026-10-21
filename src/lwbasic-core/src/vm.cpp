@@ -14,6 +14,7 @@
 #include "lwbasic/errors.h"
 #include "lwbasic/field.h"
 #include "lwbasic/frontend.h"
+#include "lwbasic/host_path.h"
 #include "lwbasic/line_store.h"
 #include "lwbasic/number_format.h"
 #include "lwbasic/program_files.h"
@@ -2959,15 +2960,16 @@ bool Vm::StepImpl() {
       flags |= std::ios::in;
       break;
     }
+    const std::string host_path = HostPath(name);
     if (mode == 4) {
-      std::ifstream probe(name);
+      std::ifstream probe(host_path);
       if (!probe.is_open()) {
-        std::ofstream create(name); // random files are created by OPEN
+        std::ofstream create(host_path); // random files are created by OPEN
       } else {
         probe.close();
       }
     }
-    std::fstream stream(name, flags);
+    std::fstream stream(host_path, flags);
     if (!stream.is_open()) {
       return Fail(mode == 0 ? kErrFileNotFound : kErrPathFileAccess);
     }

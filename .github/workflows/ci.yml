@@ -1,6 +1,5 @@
-# M0 CI (plan section 6.5): clang-format lint + CMake (VS generator) +
-# Release build + CTest. windows-latest ships a stock VS 2022 + CMake +
-# Python, so no explicit generator or extra action is needed here.
+# Build, test and lint on Windows and Linux. Linux gets a windowed (SDL2) job
+# and a dependency-free console-only job, so both configurations stay honest.
 name: ci
 
 on:
@@ -10,37 +9,62 @@ on:
 
 jobs:
   lint:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install clang-format 19 (matches .clang-format intent)
+      - name: Install clang-format 19
         run: python -m pip install --disable-pip-version-check "clang-format==19.1.0"
       - name: clang-format check
-        shell: pwsh
         run: |
           clang-format --version
-          $files = Get-ChildItem src, tests -Recurse -Include *.cpp, *.h
-          $bad = @()
-          foreach ($f in $files) {
-            clang-format --dry-run --Werror --style=file $f.FullName
-            if ($LASTEXITCODE -ne 0) { $bad += $f.FullName }
-          }
-          Write-Host "checked $($files.Count) files"
-          if ($bad.Count -gt 0) {
-            $bad | ForEach-Object { Write-Host "needs formatting: $_" }
-            throw "$($bad.Count) file(s) are not clang-formatted"
-          }
+          mapfile -t files < <(find src tests -type f \( -name '*.cpp' -o -name '*.h' \))
+          echo "checked ${#files[@]} files"
+          clang-format --dry-run --Werror --style=file "${files[@]}"
 
-  build-and-test:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configure
         run: cmake -S . -B out -A x64
-      - name: Build and test (verify.ps1, strict mode)
+      - name: Build and test (strict mode)
         shell: pwsh
-        # tools/verify.ps1 builds, kills stray test processes, captures every ctest
-        # run to out/test-logs/, and with -NoRetry treats the first failure as real
-        # (the retry exists for local runs, where a transient glitch should not look
-        # like a regression; CI should never retry).
         run: ./tools/verify.ps1 -NoRetry
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ clang libsdl2-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --timeout 180 --output-on-failure
+      - name: Headless SDL smoke
+        env:
+          SDL_VIDEODRIVER: dummy
+        run: ./build/tests/lwbasic-tests "[.gpu]"
+
+  linux-console-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+      - name: Configure without SDL
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLWBASIC_WINDOW_SDL=OFF
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --timeout 180 --output-on-failure

@@ -1,9 +1,17 @@
-# lwbasic
+# newbasic
 
-A terminal interpreter for the **GW-BASIC 3.23 dialect**, written in C++17 for
-Windows. Program files load and run, the direct-mode REPL accepts statements,
-and an in-process debugger is exposed through a Debug Adapter Protocol server so
-an editor can drive it.
+A dual-platform fork of **lwbasic**, a terminal interpreter for the **GW-BASIC
+3.23 dialect**, written in C++17 and buildable on Windows and Linux.
+
+Program files load and run, the direct-mode REPL accepts statements, and an
+in-process debugger is exposed through a Debug Adapter Protocol server so an
+editor can drive it.
+
+This repository was seeded from
+[kevinwross/lwbasic](https://github.com/kevinwross/lwbasic) at commit
+`925fde3`; see `UPSTREAM.md`. The dialect specification and upstream
+implementation plan are retained as `docs/lwbasic-spec-plan.md`. The
+porting plan is `plan.md`.
 
 ## Status
 
@@ -16,64 +24,102 @@ an editor can drive it.
 | M4 — tokenized `.BAS` read/write incl. protected files | ✅ (byte-fidelity to Microsoft files unproven) |
 | M5 — debugger library + `lwbasic-dap` | ✅ |
 | M6 — golden corpus, spec-driven conformance | ✅ |
-| M7 — D3D11 window backend, sound, time-travel debugging | ✅ (window awaiting a visual check) |
+| M7 — D3D11 window backend, sound, time-travel debugging | ✅ on Windows |
+| Linux port — console, POSIX host, stb glyph atlas, SDL2 window, DAP TCP | ✅ |
 
-`plan.md` is the specification and the source of truth for decisions, divergences
-and open items; `docs/status.md` is a dated snapshot of measured state.
+The full upstream test suite (365 cases) passes on Linux. The Windows D3D11
+backend is retained; Linux uses SDL2 when it is available and falls back to a
+terminal-only build otherwise.
 
 ## Build
+
+### Windows
 
 Requires Visual Studio (C++ workload) and the Windows 11 SDK. CMake comes with
 Visual Studio.
 
 ```
-cmake -S . -B out -G "Visual Studio 18 2026" -A x64
+cmake -S . -B out -A x64
 cmake --build out --config Release --parallel
 ```
+
+### Linux
+
+Requires CMake 3.20+, a C++17 compiler, and (for the windowed backend) the SDL2
+development package. Debian/Ubuntu:
+
+```
+sudo apt-get install cmake g++ libsdl2-dev
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
+
+For a dependency-free console-only build:
+
+```
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLWBASIC_WINDOW_SDL=OFF
+cmake --build build --parallel
+```
+
+The Linux glyph atlas uses the bundled DejaVu Sans Mono font in
+`third_party/fonts/`. Set `LWBASIC_FONT` to override it.
 
 ## Test
 
 ```
-ctest --test-dir out --build-config Release --timeout 120 --output-on-failure
+ctest --test-dir build --timeout 180 --output-on-failure
 ```
 
-or, with the hygiene this project needs (stray-process cleanup, captured logs, a
-single retry to separate a glitch from a regression):
+or, on either platform, the hygiene wrapper:
 
 ```
-pwsh tools/verify.ps1              # build, test, retry once on failure
-pwsh tools/verify.ps1 -NoRetry     # CI-style strictness
+pwsh tools/verify.ps1              # Windows: build, test, retry once
+./tools/verify.sh                  # Linux: build and test
 ```
 
 Some checks are deliberately **not** part of the default run because they make
-sound or need a GPU. Run them by hand:
+sound or need a GPU/display. Run them by hand:
 
 ```
-out\tests\Release\lwbasic-tests.exe "[.audio]" -s   # plays BEEP and an arpeggio
-out\tests\Release\lwbasic-tests.exe "[.gpu]" -s     # opens the D3D11 window
+build/tests/lwbasic-tests "[.audio]" -s      # real host audio timing
+build/tests/lwbasic-tests "[.gpu]" -s        # window backend
+SDL_VIDEODRIVER=dummy build/tests/lwbasic-tests "[.gpu]"  # headless SDL smoke
 ```
 
 ## Run
 
 ```
-lwbasic prog.bas          # run a program in a D3D11 window
+lwbasic prog.bas          # run a program in a window when a backend is built
 lwbasic                   # direct-mode REPL in a window
-lwbasic --cli prog.bas    # run in the console instead
+lwbasic --cli prog.bas    # run in the terminal instead
 lwbasic --gpu-scale 2     # bigger window (16x32 cells instead of 8x16)
 ```
+
+On Linux, if SDL2 is not available or no display is present, `lwbasic` falls
+back to the terminal. In a console-only build, use `SCREEN` graphics with
+`--gpu-shot FILE` to capture a PPM without a window.
 
 ## Layout
 
 ```
-src/lwbasic-core     VM, front end, values, screen grid, debugger, DAP protocol
-src/lwbasic-screen   console / D3D11 / headless backends, glyph atlas
-src/lwbasic-cli      lwbasic.exe
-src/lwbasic-dap      lwbasic-dap.exe (Debug Adapter Protocol server over stdio)
+src/lwbasic-core     VM, front end, values, screen grid, debugger, DAP protocol,
+                     portable host services (clock, shell, printer, sound)
+src/lwbasic-screen   console / headless backends, glyph atlas
+src/lwbasic-window   D3D11 (Windows) and SDL2 (Linux) window backends + factory
+src/lwbasic-cli      lwbasic.exe / lwbasic
+src/lwbasic-dap      lwbasic-dap.exe / lwbasic-dap (DAP server over stdio or TCP)
 tests                unit, property, conformance and integration tests
 fixtures             *.bas + *.expected pairs run by the golden-corpus test
-docs                 format notes, design notes, status snapshot
-third_party          vendored Catch2 v3 and RapidCheck
+docs                 format notes, design notes, status snapshot, portability notes
+third_party          vendored Catch2, RapidCheck, stb_truetype and DejaVu font
 ```
+
+## Platform notes
+
+See `docs/portability.md` for the host mapping and documented divergences:
+`SHELL` uses `cmd.exe` on Windows and `$SHELL` on POSIX; DOS path separators are
+translated on POSIX; audio is silent-but-correctly-timed unless a platform audio
+backend is added; and the window backends are not pixel-identical.
 
 ## Notes
 

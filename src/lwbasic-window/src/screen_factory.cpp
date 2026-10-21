@@ -32,8 +32,12 @@ std::unique_ptr<WindowScreen> CreateWindowScreen(std::string* error, int scale) 
 #endif
 }
 
-bool WindowBackendAvailable() { return kBackendName[0] != '\0'; }
+bool WindowBackendAvailable() {
+  return kBackendName[0] != '\0';
+}
 
-const char* WindowBackendName() { return kBackendName; }
+const char* WindowBackendName() {
+  return kBackendName;
+}
 
 } // namespace lwbasic::screen

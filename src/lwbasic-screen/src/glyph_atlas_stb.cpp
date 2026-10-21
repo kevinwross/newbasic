@@ -28,8 +28,8 @@ std::vector<unsigned char> ReadFile(const std::string& path) {
 
 std::vector<unsigned char> LoadFont() {
   std::vector<std::string> candidates;
-  if (const char* configured = std::getenv("LWBASIC_FONT"); configured != nullptr &&
-                                                             *configured != '\0') {
+  if (const char* configured = std::getenv("LWBASIC_FONT");
+      configured != nullptr && *configured != '\0') {
     candidates.emplace_back(configured);
   }
 #if defined(LWBASIC_FONT_PATH)
@@ -80,8 +80,7 @@ void RasterizeGlyphsStb(GlyphAtlas* atlas) {
   int line_gap = 0;
   stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
   (void)line_gap;
-  const int text_height =
-      static_cast<int>(std::ceil(static_cast<float>(ascent - descent) * scale));
+  const int text_height = static_cast<int>(std::ceil(static_cast<float>(ascent - descent) * scale));
   int top_offset = (atlas->glyph_height - text_height) / 2;
   if (top_offset < 0)
     top_offset = 0;
@@ -128,8 +127,8 @@ void RasterizeGlyphsStb(GlyphAtlas* atlas) {
           value = 0;
         if (value == 0)
           continue;
-        const std::size_t offset = static_cast<std::size_t>(ty) * atlas->width +
-                                   static_cast<std::size_t>(tx);
+        const std::size_t offset =
+            static_cast<std::size_t>(ty) * atlas->width + static_cast<std::size_t>(tx);
         atlas->pixels[offset] = static_cast<std::uint8_t>(value);
         drew_any = true;
       }

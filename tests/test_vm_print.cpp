@@ -62,7 +62,7 @@ bool GridMatches(const std::string& render, std::initializer_list<const char*> e
 // A headless screen that hands out scripted keys, so a corpus fixture can carry a key sequence
 // beside its program (a .keys file) for INKEY$-driven menus and forms.
 class KeyedScreen : public lwbasic::screen::HeadlessScreen {
- public:
+public:
   explicit KeyedScreen(std::wstring keys) : keys_(std::move(keys)) {}
   bool TryGetKey(wchar_t* key) override {
     if (next_ >= keys_.size())
@@ -71,7 +71,7 @@ class KeyedScreen : public lwbasic::screen::HeadlessScreen {
     return true;
   }
 
- private:
+private:
   std::wstring keys_;
   std::size_t next_ = 0;
 };
@@ -242,9 +242,9 @@ TEST_CASE("Golden corpus: every fixtures/**/*.bas matches its .expected", "[gold
     REQUIRE(fs::exists(expected_path));
     // An optional .keys file gives the program a scripted input stream.
     const std::string keys_path = program_path.substr(0, program_path.size() - 4) + ".keys";
-    const std::string rendered =
-        fs::exists(keys_path) ? RunSourceWithKeys(ReadAll(program_path), ReadAll(keys_path))
-                              : RunSource(ReadAll(program_path));
+    const std::string rendered = fs::exists(keys_path)
+                                     ? RunSourceWithKeys(ReadAll(program_path), ReadAll(keys_path))
+                                     : RunSource(ReadAll(program_path));
     CHECK(GridMatches(rendered, SplitLines(ReadAll(expected_path))));
   }
 }

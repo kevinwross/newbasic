@@ -205,6 +205,42 @@ TEST_CASE("DOS commands: NAME, KILL, MKDIR, CHDIR, RMDIR, FILES", "[files]") {
   CHECK_FALSE(s.screen.RenderRows()[0].empty());
 }
 
+TEST_CASE("DOS commands preserve path and type semantics", "[files]") {
+  Session s;
+  const std::string dir = "lwbasic_tmp_path_dir";
+  const std::string slash_file = "lwbasic_tmp_path_dir\\prog.bas";
+  const std::string host_file = "lwbasic_tmp_path_dir/prog.bas";
+  const std::string source = "lwbasic_tmp_name_a.txt";
+  const std::string target = "lwbasic_tmp_name_b.txt";
+  std::error_code ec;
+  std::filesystem::remove_all(dir, ec);
+  std::remove(source.c_str());
+  std::remove(target.c_str());
+
+  s.repl.Process("10 PRINT 1");
+  CHECK(s.repl.Process("MKDIR \"" + dir + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK(s.repl.Process("SAVE \"" + slash_file + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK(std::filesystem::exists(host_file));
+
+  // KILL is for files; a directory must not be removed.
+  CHECK(s.repl.Process("KILL \"" + dir + "\"").code == lwbasic::kErrFileNotFound);
+  CHECK(std::filesystem::is_directory(dir));
+  CHECK(s.repl.Process("KILL \"" + slash_file + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK_FALSE(std::filesystem::exists(host_file));
+  CHECK(s.repl.Process("RMDIR \"" + dir + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK_FALSE(std::filesystem::exists(dir));
+
+  // NAME must not overwrite an existing destination.
+  CHECK(s.repl.Process("SAVE \"" + source + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK(s.repl.Process("SAVE \"" + target + "\"").status == lwbasic::RunResult::Status::Done);
+  CHECK(s.repl.Process("NAME \"" + source + "\" AS \"" + target + "\"").code ==
+        lwbasic::kErrPathFileAccess);
+  CHECK(std::filesystem::exists(source));
+  CHECK(std::filesystem::exists(target));
+  std::remove(source.c_str());
+  std::remove(target.c_str());
+}
+
 TEST_CASE("SHELL runs commands through the host", "[shell]") {
   Session s;
   CHECK(s.repl.Process("SHELL \"dir\"").status == lwbasic::RunResult::Status::Done);

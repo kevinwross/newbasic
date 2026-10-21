@@ -67,10 +67,6 @@ const Json* FirstEvent(const std::vector<Json>& outgoing, const std::string& nam
   return nullptr;
 }
 
-const Json* LastMessage(const std::vector<Json>& outgoing) {
-  return outgoing.empty() ? nullptr : &outgoing.back();
-}
-
 } // namespace
 
 TEST_CASE("DAP: initialize advertises the supported capabilities", "[dap]") {

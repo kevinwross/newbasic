@@ -11,9 +11,9 @@
 
 #include "lwbasic/errors.h"
 #include "lwbasic/host.h"
-#include "lwbasic/sound.h"
 #include "lwbasic/repl.h"
 #include "lwbasic/screen/headless_screen.h"
+#include "lwbasic/sound.h"
 #include "test_helpers.h"
 
 // ---------------------------------------------------------------------------
@@ -156,14 +156,22 @@ TEST_CASE("Sound: the sixteen-bar Ode to Joy at speed", "[sound]") {
   lwbasic::ScriptedHost host;
   lwbasic::Repl repl(screen, &host);
   const char* bars[] = {
-      "10 PLAY \"T150 O3 L4 F# F# G A\"",  "20 PLAY \"T150 O3 L4 A G F# E\"",
-      "30 PLAY \"T150 O3 L4 D D E F#\"",   "40 PLAY \"T150 O3 L4 F# E E2\"",
-      "50 PLAY \"T150 O3 L4 F# F# G A\"",  "60 PLAY \"T150 O3 L4 A G F# E\"",
-      "70 PLAY \"T150 O3 L4 D D E F#\"",   "80 PLAY \"T150 O3 L4 E D D2\"",
-      "90 PLAY \"T150 O3 L4 E E F# D\"",   "100 PLAY \"T150 O3 L4 E F# G F#\"",
-      "110 PLAY \"T150 O3 L4 D E F# G\"",  "120 PLAY \"T150 O3 L4 F# E D2\"",
-      "130 PLAY \"T150 O3 L4 E E F# D\"",  "140 PLAY \"T150 O3 L4 E F# G F#\"",
-      "150 PLAY \"T150 O3 L4 D E F# G\"",  "160 PLAY \"T150 O3 L4 F# E D2\"",
+      "10 PLAY \"T150 O3 L4 F# F# G A\"",
+      "20 PLAY \"T150 O3 L4 A G F# E\"",
+      "30 PLAY \"T150 O3 L4 D D E F#\"",
+      "40 PLAY \"T150 O3 L4 F# E E2\"",
+      "50 PLAY \"T150 O3 L4 F# F# G A\"",
+      "60 PLAY \"T150 O3 L4 A G F# E\"",
+      "70 PLAY \"T150 O3 L4 D D E F#\"",
+      "80 PLAY \"T150 O3 L4 E D D2\"",
+      "90 PLAY \"T150 O3 L4 E E F# D\"",
+      "100 PLAY \"T150 O3 L4 E F# G F#\"",
+      "110 PLAY \"T150 O3 L4 D E F# G\"",
+      "120 PLAY \"T150 O3 L4 F# E D2\"",
+      "130 PLAY \"T150 O3 L4 E E F# D\"",
+      "140 PLAY \"T150 O3 L4 E F# G F#\"",
+      "150 PLAY \"T150 O3 L4 D E F# G\"",
+      "160 PLAY \"T150 O3 L4 F# E D2\"",
       "170 END",
   };
   for (const char* line : bars)
@@ -171,10 +179,10 @@ TEST_CASE("Sound: the sixteen-bar Ode to Joy at speed", "[sound]") {
   repl.Process("RUN");
   REQUIRE(host.tones.size() == 60);
   // The opening phrase, the half note that closes bar 4, and the tonic the tune ends on.
-  CHECK(std::abs(host.tones[0].first - 370) <= 3);  // F#4
+  CHECK(std::abs(host.tones[0].first - 370) <= 3); // F#4
   CHECK(std::abs(host.tones[1].first - 370) <= 3);
-  CHECK(std::abs(host.tones[2].first - 392) <= 3);  // G4
-  CHECK(std::abs(host.tones[3].first - 440) <= 3);  // A4
+  CHECK(std::abs(host.tones[2].first - 392) <= 3); // G4
+  CHECK(std::abs(host.tones[3].first - 440) <= 3); // A4
   // Bar 4 is F# E E2, and bars 1-3 hold four notes each, so the long E is the fourteenth tone.
   CHECK(std::abs(host.tones[14].first - 330) <= 3); // E4, the long note ending bar 4
   CHECK(host.tones[14].second == 700);              // a half note at T150

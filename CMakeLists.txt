@@ -66,9 +66,15 @@ if(NOT LWBASIC_WINDOW_SDL STREQUAL "OFF")
   endif()
 endif()
 
-if(LWBASIC_WERROR AND NOT MSVC)
-  add_compile_options(-Werror)
-endif()
+# Apply warnings-as-errors only to first-party targets. Vendored Catch2 and
+# RapidCheck keep their own warning posture.
+function(lwbasic_target_warnings target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /WX)
+  elseif(LWBASIC_WERROR)
+    target_compile_options(${target} PRIVATE -Werror)
+  endif()
+endfunction()
 
 add_subdirectory(third_party/catch2)
 add_subdirectory(src/lwbasic-core)
@@ -84,7 +90,7 @@ add_subdirectory(src/lwbasic-dap)
 file(GLOB_RECURSE RC_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/rapidcheck/src/*.cpp")
 add_library(rapidcheck-vendored STATIC ${RC_SOURCES})
-target_include_directories(rapidcheck-vendored PUBLIC
+target_include_directories(rapidcheck-vendored SYSTEM PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/rapidcheck/include"
   # Catch2 integration header (RC_CHECK/RC_ASSERT/RC_GEN): extras/catch is
   # header-only and lives outside the main include tree.

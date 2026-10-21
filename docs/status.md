@@ -1,4 +1,10 @@
-# Status snapshot — 2026-10-17 (resume point for a new machine)
+# Upstream status snapshot — 2026-10-17
+
+> **Port note.** This is the Windows snapshot inherited from upstream `lwbasic`.
+> For the dual-platform state of `newbasic`, see `README.md` and
+> `docs/portability.md`. On Linux the full default suite passes, the hidden
+> audio timing check passes silently, and the SDL2 window backend passes the
+> GPU check headlessly with `SDL_VIDEODRIVER=dummy`.
 
 **Everything is in git; nothing lives only on the old machine.** Clone, build, run the
 tests, and you are exactly where the previous session stopped.

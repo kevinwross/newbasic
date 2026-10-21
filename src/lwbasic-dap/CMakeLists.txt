@@ -9,6 +9,4 @@ endif()
 # debugger and the protocol headers) as well as the core. It deliberately does not link
 # the window library: a debug adapter has no display.
 target_link_libraries(lwbasic-dap PRIVATE lwbasic-debug lwbasic-screen lwbasic-core)
-if(MSVC)
-  target_compile_options(lwbasic-dap PRIVATE /WX)
-endif()
+lwbasic_target_warnings(lwbasic-dap)

@@ -1,5 +1,6 @@
 #include "lwbasic/repl.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <filesystem>
@@ -7,10 +8,12 @@
 #include <sstream>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include "lwbasic/errors.h"
 #include "lwbasic/fstok/encoder.h"
 #include "lwbasic/fstok/protect.h"
+#include "lwbasic/host_path.h"
 #include "lwbasic/program_files.h"
 #include "lwbasic/renum.h"
 
@@ -18,7 +21,7 @@ namespace lwbasic {
 
 RunResult Repl::SaveProgramFile(const std::string& path) {
   RunResult result;
-  std::ofstream out(path, std::ios::binary);
+  std::ofstream out(HostPath(path), std::ios::binary);
   if (!out) {
     result.status = RunResult::Status::Error;
     result.code = kErrPathNotFound;
@@ -36,7 +39,7 @@ RunResult Repl::SaveProgramFile(const std::string& path) {
 
 RunResult Repl::LoadProgramFile(const std::string& path) {
   RunResult result;
-  std::ifstream in(path, std::ios::binary);
+  std::ifstream in(HostPath(path), std::ios::binary);
   if (!in) {
     result.status = RunResult::Status::Error;
     result.code = kErrFileNotFound;
@@ -319,7 +322,7 @@ RunResult Repl::Process(const std::string& line) {
         const std::string bytes = protected_format
                                       ? fstok::ProtectTokenized(fstok::EncodeTokenized(lines))
                                       : fstok::EncodeTokenized(lines);
-        std::ofstream file(tokens[1].str, std::ios::binary | std::ios::trunc);
+        std::ofstream file(HostPath(tokens[1].str), std::ios::binary | std::ios::trunc);
         if (!file) {
           result.status = RunResult::Status::Error;
           result.code = kErrPathFileAccess;
@@ -362,18 +365,27 @@ RunResult Repl::Process(const std::string& line) {
       std::error_code ec;
       if (keyword == "FILES") {
         // Lists the working directory (the guide's optional pattern is not
-        // implemented yet).
+        // implemented yet), sorted so the output does not depend on the host
+        // filesystem's iteration order.
         std::error_code list_error;
+        std::vector<std::string> names;
         for (const auto& entry :
              std::filesystem::directory_iterator(std::filesystem::current_path(), list_error)) {
-          PrintLine(entry.path().filename().string());
+          names.push_back(entry.path().filename().string());
         }
+        std::sort(names.begin(), names.end());
+        for (const std::string& name : names)
+          PrintLine(name);
         return result;
       }
-      const std::string first = argument(1);
+      const std::string first = HostPath(argument(1));
       if (first.empty())
         return dos_error(kErrBadFileName);
       if (keyword == "KILL") {
+        // DOS KILL removes files only. std::filesystem::remove would also
+        // remove an empty directory.
+        if (!std::filesystem::is_regular_file(first, ec) || ec)
+          return dos_error(kErrFileNotFound);
         if (!std::filesystem::remove(first, ec) || ec)
           return dos_error(kErrFileNotFound);
         return result;
@@ -384,6 +396,9 @@ RunResult Repl::Process(const std::string& line) {
         return result;
       }
       if (keyword == "RMDIR") {
+        // DOS RMDIR removes an empty directory, not a file.
+        if (!std::filesystem::is_directory(first, ec) || ec)
+          return dos_error(kErrPathNotFound);
         if (!std::filesystem::remove(first, ec) || ec)
           return dos_error(kErrPathNotFound);
         return result;
@@ -394,10 +409,14 @@ RunResult Repl::Process(const std::string& line) {
           return dos_error(kErrPathNotFound);
         return result;
       }
-      // NAME <old> AS <new>
-      const std::string second = argument(3);
+      // NAME <old> AS <new>. DOS refuses to overwrite an existing target;
+      // POSIX rename would silently replace it, so check first.
+      const std::string second = HostPath(argument(3));
       if (second.empty())
         return dos_error(kErrSyntax);
+      std::error_code exists_error;
+      if (std::filesystem::exists(second, exists_error) && !exists_error)
+        return dos_error(kErrPathFileAccess);
       std::filesystem::rename(first, second, ec);
       if (ec)
         return dos_error(kErrPathFileAccess);

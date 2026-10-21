@@ -13,8 +13,8 @@ namespace lwbasic {
 //   numeric fields   #  .  ,  leading +  trailing +  trailing -
 //                    **  (asterisk fill)  $$  (sign beside the digits)  **$
 //                    ^^^^  (exponent form)
-//   string fields    !  &  \...\
-  //   literals, `_` to print the next character even when it is a field character.
+//   string fields    !  &  backslash-delimited fixed-width strings
+//   literals, `_` to print the next character even when it is a field character.
 //   A literal trailing the last field of a cycle prints with the next value.
 //
 // The field width is the field text length, and a prefix such as `**` or `$$` also

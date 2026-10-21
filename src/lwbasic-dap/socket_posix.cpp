@@ -8,9 +8,13 @@
 
 namespace lwbasic::dap {
 
-Socket::~Socket() { Close(); }
+Socket::~Socket() {
+  Close();
+}
 
-Socket::Socket(Socket&& other) noexcept : handle_(other.handle_) { other.handle_ = kInvalid; }
+Socket::Socket(Socket&& other) noexcept : handle_(other.handle_) {
+  other.handle_ = kInvalid;
+}
 
 Socket& Socket::operator=(Socket&& other) noexcept {
   if (this != &other) {

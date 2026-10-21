@@ -32,6 +32,28 @@ packaging. Keep the Windows D3D11 backend as-is; add SDL2 only for Linux in v1.
 Critical path: **0 → 1 → 2 → 3** gets a working Linux interpreter; **4 → 5**
 adds graphics; **6 → 8** makes it maintainable and releasable.
 
+### Implementation status (2026-10-21)
+
+Phases 0–7 are implemented in this repository:
+
+- Platform-aware CMake with separate `lwbasic-screen` and `lwbasic-window`
+  targets, and a console-only configuration that needs no window library.
+- Portable host split (`host.cpp`, `host_win32.cpp`, `host_posix.cpp`), POSIX
+  `SHELL`, timed silent tone output and printer/environment handling.
+- Win32 console retained; POSIX termios/ANSI console with break handling,
+  resize handling, UTF-8 output and `SHELL` suspend/resume.
+- GDI atlas on Windows; `stb_truetype` + bundled DejaVu Sans Mono on Linux.
+- `WindowScreen` factory; D3D11 retained on Windows; SDL2 backend on Linux.
+- POSIX DAP socket transport; portable CLI (`sscanf`, factory, generic text).
+- DOS path translation (`\` -> `/` on POSIX), deterministic `FILES` ordering
+  and DOS-compatible `NAME`/`KILL`/`RMDIR` type checks are implemented.
+
+Verification on this Linux host: the full upstream suite passes (365 test
+cases, 31,110 assertions), the hidden `[.audio]` timing test passes, and the
+hidden `[.gpu]` test passes with SDL2 under `SDL_VIDEODRIVER=dummy`.
+`LWBASIC_WERROR=ON` builds the first-party targets cleanly. The Windows build
+still needs a CI/MSVC run; it was not compiled on this Linux machine.
+
 ---
 
 ## 1. What the Linux compile probe already showed

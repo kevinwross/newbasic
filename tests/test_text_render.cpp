@@ -199,8 +199,7 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
 
   // The clear reaches the target too: a pixel far from anything drawn is black.
   std::uint8_t dark[4] = {255, 255, 255, 255};
-  REQUIRE(
-      screen.get()->ReadBackCanvasPixel(5, 195, dark));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(5, 195, dark));
   CHECK(dark[0] < 60);
   CHECK(dark[1] < 60);
   CHECK(dark[2] < 60);
@@ -211,8 +210,7 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
   screen->FillGraphicsBox(8, 8, 12, 12, 1);
   screen->Present();
   std::uint8_t white[4] = {0, 0, 0, 0};
-  REQUIRE(
-      screen.get()->ReadBackCanvasPixel(10, 10, white));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(10, 10, white));
   CHECK(white[0] > 200);
   CHECK(white[1] > 200);
   CHECK(white[2] > 200);
@@ -226,10 +224,8 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
   screen->Present();
   std::uint8_t inside[4] = {0, 0, 0, 0};
   std::uint8_t outside[4] = {255, 255, 255, 255};
-  REQUIRE(screen.get()
-              ->ReadBackCanvasPixel(60, 60, inside));
-  REQUIRE(screen.get()
-              ->ReadBackCanvasPixel(200, 60, outside));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(60, 60, inside));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(200, 60, outside));
   CHECK(inside[0] > 120); // the plot inside was drawn
   CHECK(outside[0] < 60); // the clipped one was not
   CHECK(outside[1] < 60);
@@ -241,8 +237,7 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
   screen->FillGraphicsBox(116, 116, 124, 124, 1);
   screen->Present();
   std::uint8_t magenta[4] = {0, 0, 0, 0};
-  REQUIRE(screen.get()
-              ->ReadBackCanvasPixel(120, 120, magenta));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(120, 120, magenta));
   CHECK(magenta[0] > 120); // red
   CHECK(magenta[1] < 90);  // no green
   CHECK(magenta[2] > 120); // blue
@@ -255,8 +250,7 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
   screen->FillGraphicsBox(312, 167, 328, 183, 7);
   screen->Present();
   std::uint8_t mode9[4] = {0, 0, 0, 0};
-  REQUIRE(screen.get()
-              ->ReadBackCanvasPixel(320, 175, mode9));
+  REQUIRE(screen.get()->ReadBackCanvasPixel(320, 175, mode9));
   CHECK(mode9[0] > 120);
   CHECK(mode9[1] < 90);
   CHECK(mode9[2] > 120);

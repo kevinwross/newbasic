@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
+#include <vector>
 
 namespace lwbasic::screen {
 namespace {
@@ -205,10 +206,10 @@ struct ConsoleScreen::Impl {
   bool saved_cursor_visible = true;
   bool caret_visible = true;
   std::atomic<bool>* break_flag = nullptr;
-  struct sigaction old_int {};
-  struct sigaction old_winch {};
-  struct sigaction old_term {};
-  struct sigaction old_hup {};
+  struct sigaction old_int{};
+  struct sigaction old_winch{};
+  struct sigaction old_term{};
+  struct sigaction old_hup{};
 };
 
 ConsoleScreen::ConsoleScreen() : impl_(std::make_unique<Impl>()) {}
@@ -243,7 +244,7 @@ bool ConsoleScreen::Init(std::atomic<bool>* break_flag) {
   }
   impl_->break_flag = break_flag;
 
-  struct sigaction action {};
+  struct sigaction action{};
   action.sa_handler = SignalHandler;
   sigemptyset(&action.sa_mask);
   action.sa_flags = 0;
@@ -277,7 +278,31 @@ void ConsoleScreen::EnterFullScreen() {
 void ConsoleScreen::ExitFullScreen() {
   if (impl_ == nullptr || !impl_->full_screen)
     return;
+
+  // Leaving the alternate screen discards it. Dump the final grid to the
+  // normal screen first, so `lwbasic prog.bas` leaves the program's output
+  // visible instead of returning to an empty terminal. This mirrors what the
+  // Win32 backend's restored console buffer shows.
+  std::vector<std::string> lines;
+  lines.reserve(static_cast<std::size_t>(Height()));
+  for (int row = 0; row < Height(); ++row) {
+    std::string line;
+    for (int col = 0; col < Width(); ++col)
+      AppendUtf8(&line, CellAt(row, col));
+    while (!line.empty() && line.back() == ' ')
+      line.pop_back();
+    lines.push_back(std::move(line));
+  }
+  while (!lines.empty() && lines.back().empty())
+    lines.pop_back();
+  std::string final_screen = "\x1b[0m";
+  for (const std::string& line : lines) {
+    final_screen += line;
+    final_screen += "\r\n";
+  }
+
   WriteText("\x1b[0m\x1b[?25h\x1b[?1049l");
+  WriteText(final_screen);
   if (impl_->raw && impl_->have_saved)
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &impl_->saved);
   impl_->raw = false;
@@ -314,8 +339,7 @@ void ConsoleScreen::Present() {
       out += "\r\n";
   }
   out += "\x1b[0m";
-  out += "\x1b[" + std::to_string(CursorRow() + 1) + ";" +
-         std::to_string(CursorCol() + 1) + "H";
+  out += "\x1b[" + std::to_string(CursorRow() + 1) + ";" + std::to_string(CursorCol() + 1) + "H";
   out += CursorVisible() ? "\x1b[?25h" : "\x1b[?25l";
   WriteText(out);
 }
@@ -377,9 +401,13 @@ void ConsoleScreen::PumpMessages() {
   }
 }
 
-bool ConsoleScreen::Closed() const { return impl_ != nullptr && impl_->closed; }
+bool ConsoleScreen::Closed() const {
+  return impl_ != nullptr && impl_->closed;
+}
 
-bool ConsoleScreen::InputExhausted() const { return Closed(); }
+bool ConsoleScreen::InputExhausted() const {
+  return Closed();
+}
 
 void ConsoleScreen::SuspendForChildProcess() {
   if (impl_ == nullptr || !impl_->full_screen || impl_->suspended)

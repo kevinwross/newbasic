@@ -20,9 +20,13 @@ bool EnsureWinsock() {
 
 } // namespace
 
-Socket::~Socket() { Close(); }
+Socket::~Socket() {
+  Close();
+}
 
-Socket::Socket(Socket&& other) noexcept : handle_(other.handle_) { other.handle_ = kInvalid; }
+Socket::Socket(Socket&& other) noexcept : handle_(other.handle_) {
+  other.handle_ = kInvalid;
+}
 
 Socket& Socket::operator=(Socket&& other) noexcept {
   if (this != &other) {
@@ -102,7 +106,8 @@ std::ptrdiff_t Socket::Send(const char* data, std::size_t size) {
 int Socket::BoundPort() const {
   sockaddr_in bound{};
   int length = static_cast<int>(sizeof(bound));
-  if (::getsockname(static_cast<SOCKET>(handle_), reinterpret_cast<sockaddr*>(&bound), &length) != 0)
+  if (::getsockname(static_cast<SOCKET>(handle_), reinterpret_cast<sockaddr*>(&bound), &length) !=
+      0)
     return -1;
   return ntohs(bound.sin_port);
 }

@@ -199,6 +199,7 @@ void ApplyScriptedClicks(lwbasic::screen::WindowScreen* screen) {
 struct ScreenChoice {
   std::unique_ptr<lwbasic::screen::WindowScreen> gpu;
   lwbasic::screen::ConsoleScreen console;
+  lwbasic::screen::HeadlessScreen headless;
   lwbasic::screen::Screen* screen = nullptr;
   lwbasic::screen::WindowScreen* window = nullptr;
   bool is_console = false;
@@ -228,7 +229,15 @@ bool ChooseScreen(std::atomic<bool>* break_flag, ScreenChoice* choice) {
                  error.c_str());
   }
   if (!choice->console.Init(break_flag)) {
-    std::fprintf(stderr, "lwbasic requires a terminal.\n");
+    // A screenshot run does not need an interactive device: the PPM dump is
+    // written from the grid and canvas, so a headless screen is enough. This
+    // keeps `--gpu-shot` usable in CI and over SSH.
+    if (!g_shot_path.empty()) {
+      choice->screen = &choice->headless;
+      return true;
+    }
+    std::fprintf(stderr, "lwbasic requires a terminal (or use --gpu-shot for a "
+                         "headless capture).\n");
     return false;
   }
   choice->screen = &choice->console;

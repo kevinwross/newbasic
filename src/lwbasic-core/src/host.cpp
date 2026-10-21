@@ -49,7 +49,7 @@ double SystemHost::SecondsSinceMidnight() {
 
 std::string SystemHost::DateString() {
   const std::tm local = LocalTime(std::time(nullptr));
-  char buf[16];
+  char buf[32];
   std::snprintf(buf, sizeof(buf), "%02d-%02d-%04d", local.tm_mon + 1, local.tm_mday,
                 local.tm_year + 1900);
   return buf;
@@ -57,7 +57,7 @@ std::string SystemHost::DateString() {
 
 std::string SystemHost::TimeString() {
   const std::tm local = LocalTime(std::time(nullptr));
-  char buf[16];
+  char buf[32];
   std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", local.tm_hour, local.tm_min, local.tm_sec);
   return buf;
 }

@@ -16,6 +16,4 @@ if(LWBASIC_HAVE_SDL)
   target_link_libraries(lwbasic-window PRIVATE ${SDL2_TARGET})
 endif()
 
-if(MSVC)
-  target_compile_options(lwbasic-window PRIVATE /WX)
-endif()
+lwbasic_target_warnings(lwbasic-window)
