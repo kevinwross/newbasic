@@ -381,6 +381,12 @@ public:
   virtual void Present() = 0;
   virtual void EnterFullScreen() = 0;
   virtual void ExitFullScreen() = 0;
+
+  // A child process (SHELL) needs the terminal in its normal cooked mode and
+  // without the alternate screen. Backends that do not own the terminal leave
+  // these as no-ops; the POSIX console restores and then re-enters raw mode.
+  virtual void SuspendForChildProcess() {}
+  virtual void ResumeAfterChildProcess() {}
   // True once the backend can no longer display anything, for example because the user
   // closed the window. The VM ends the run instead of looping forever into a destroyed
   // window.

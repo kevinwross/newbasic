@@ -8,9 +8,10 @@
 #include <memory>
 #include <string>
 
-#include "lwbasic/screen/d3d11_screen.h"
 #include "lwbasic/screen/glyph_atlas.h"
 #include "lwbasic/screen/text_render.h"
+#include "lwbasic/window/screen_factory.h"
+#include "lwbasic/window/window_screen.h"
 
 using lwbasic::screen::BackgroundColor;
 using lwbasic::screen::CellQuad;
@@ -151,12 +152,12 @@ TEST_CASE("Renderer: the glyph atlas rasterises the CP437 set", "[render]") {
 // It proves the whole pipeline constructs and presents one frame. Whether the
 // picture is *correct* still needs a human eye - see docs/m7-d3d11-backend.md.
 // ---------------------------------------------------------------------------
-TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]") {
+TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu]") {
   std::string error;
-  const std::unique_ptr<lwbasic::screen::Screen> screen =
-      lwbasic::screen::D3D11Screen::Create(&error);
+  const std::unique_ptr<lwbasic::screen::WindowScreen> screen =
+      lwbasic::screen::CreateWindowScreen(&error);
   if (screen == nullptr) {
-    WARN("no D3D11 device available here (" << error << "); skipping the GPU check");
+    WARN("no window backend available here (" << error << "); skipping the GPU check");
     SUCCEED();
     return;
   }
@@ -188,8 +189,7 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   screen->FillGraphicsBox(158, 98, 162, 102, 4); // red at the canvas centre
   screen->Present();
   std::uint8_t rgba[4] = {0, 0, 0, 0};
-  const bool read =
-      static_cast<lwbasic::screen::D3D11Screen*>(screen.get())->ReadBackCanvasPixel(160, 100, rgba);
+  const bool read = screen->ReadBackCanvasPixel(160, 100, rgba);
   INFO("readback ok=" << read << " rgba=" << static_cast<int>(rgba[0]) << ","
                       << static_cast<int>(rgba[1]) << "," << static_cast<int>(rgba[2]));
   REQUIRE(read);
@@ -200,7 +200,7 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   // The clear reaches the target too: a pixel far from anything drawn is black.
   std::uint8_t dark[4] = {255, 255, 255, 255};
   REQUIRE(
-      static_cast<lwbasic::screen::D3D11Screen*>(screen.get())->ReadBackCanvasPixel(5, 195, dark));
+      screen.get()->ReadBackCanvasPixel(5, 195, dark));
   CHECK(dark[0] < 60);
   CHECK(dark[1] < 60);
   CHECK(dark[2] < 60);
@@ -212,7 +212,7 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   screen->Present();
   std::uint8_t white[4] = {0, 0, 0, 0};
   REQUIRE(
-      static_cast<lwbasic::screen::D3D11Screen*>(screen.get())->ReadBackCanvasPixel(10, 10, white));
+      screen.get()->ReadBackCanvasPixel(10, 10, white));
   CHECK(white[0] > 200);
   CHECK(white[1] > 200);
   CHECK(white[2] > 200);
@@ -226,9 +226,9 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   screen->Present();
   std::uint8_t inside[4] = {0, 0, 0, 0};
   std::uint8_t outside[4] = {255, 255, 255, 255};
-  REQUIRE(static_cast<lwbasic::screen::D3D11Screen*>(screen.get())
+  REQUIRE(screen.get()
               ->ReadBackCanvasPixel(60, 60, inside));
-  REQUIRE(static_cast<lwbasic::screen::D3D11Screen*>(screen.get())
+  REQUIRE(screen.get()
               ->ReadBackCanvasPixel(200, 60, outside));
   CHECK(inside[0] > 120); // the plot inside was drawn
   CHECK(outside[0] < 60); // the clipped one was not
@@ -241,7 +241,7 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   screen->FillGraphicsBox(116, 116, 124, 124, 1);
   screen->Present();
   std::uint8_t magenta[4] = {0, 0, 0, 0};
-  REQUIRE(static_cast<lwbasic::screen::D3D11Screen*>(screen.get())
+  REQUIRE(screen.get()
               ->ReadBackCanvasPixel(120, 120, magenta));
   CHECK(magenta[0] > 120); // red
   CHECK(magenta[1] < 90);  // no green
@@ -255,7 +255,7 @@ TEST_CASE("Renderer: the D3D11 backend constructs and presents a frame", "[.gpu]
   screen->FillGraphicsBox(312, 167, 328, 183, 7);
   screen->Present();
   std::uint8_t mode9[4] = {0, 0, 0, 0};
-  REQUIRE(static_cast<lwbasic::screen::D3D11Screen*>(screen.get())
+  REQUIRE(screen.get()
               ->ReadBackCanvasPixel(320, 175, mode9));
   CHECK(mode9[0] > 120);
   CHECK(mode9[1] < 90);

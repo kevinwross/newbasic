@@ -1,4 +1,4 @@
-#include "lwbasic/screen/d3d11_screen.h"
+#include "lwbasic/window/d3d11_screen.h"
 
 #include <windows.h>
 
@@ -590,7 +590,7 @@ D3D11Screen::~D3D11Screen() {
     DestroyWindow(impl_->window);
 }
 
-std::unique_ptr<Screen> D3D11Screen::Create(std::string* error, int scale) {
+std::unique_ptr<WindowScreen> D3D11Screen::Create(std::string* error, int scale) {
   std::unique_ptr<D3D11Screen> screen(new D3D11Screen());
   Impl* impl = screen->impl_.get();
   if (scale < 1)

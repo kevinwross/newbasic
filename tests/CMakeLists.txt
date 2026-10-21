@@ -45,6 +45,7 @@ target_link_libraries(lwbasic-tests PRIVATE
   lwbasic-core
   lwbasic-debug
   lwbasic-screen
+  lwbasic-window
   Catch2::Catch2WithMain
   rapidcheck-vendored
 )

@@ -2897,7 +2897,9 @@ bool Vm::StepImpl() {
       if (!String(v, &command))
         return false;
     }
+    screen_.SuspendForChildProcess();
     const int exit_code = host_->RunShell(command);
+    screen_.ResumeAfterChildProcess();
     if (exit_code < 0) {
       return Fail(kErrAdvancedFeature, "SHELL could not start the command interpreter");
     }

@@ -20,18 +20,18 @@
 #include "lwbasic/line_store.h"
 #include "lwbasic/repl.h"
 #include "lwbasic/screen/console_screen.h"
-#include "lwbasic/screen/d3d11_screen.h"
 #include "lwbasic/screen/glyph_atlas.h"
 #include "lwbasic/screen/headless_screen.h"
 #include "lwbasic/screen/text_render.h"
 #include "lwbasic/vm.h"
+#include "lwbasic/window/screen_factory.h"
+#include "lwbasic/window/window_screen.h"
 
 namespace {
 
-// The windowed D3D11 backend is opt-in (--gpu) and best-effort: when it cannot be
-// created the console backend is used instead, with one line saying why. See
-// docs/m7-d3d11-backend.md.
-bool g_use_gpu = true; // the window is the default front end; --cli asks for the console
+// The windowed backend is the default when this build has one; when it cannot
+// be created the console backend is used instead, with one line saying why.
+bool g_use_gpu = lwbasic::screen::WindowBackendAvailable();
 // Window scale, as a multiple of the 8x16 text cell (--gpu-scale).
 int g_gpu_scale = 1;
 // When set, the canvas is written to this file after the run (--gpu-shot).
@@ -47,20 +47,19 @@ std::string g_pixel_probe;
 
 // Reads the requested pixel from the window's back buffer and reports it. Doing nothing when
 // --gpu-pixel was not given keeps the call sites free of conditionals.
-void ProbeWindowPixel(lwbasic::screen::Screen& screen, bool is_console) {
+void ProbeWindowPixel(lwbasic::screen::WindowScreen* window) {
   if (g_pixel_probe.empty())
     return;
   int x = 0;
   int y = 0;
-  if (sscanf_s(g_pixel_probe.c_str(), "%d,%d", &x, &y) < 2) {
+  if (std::sscanf(g_pixel_probe.c_str(), "%d,%d", &x, &y) < 2) {
     std::fprintf(stderr, "lwbasic: --gpu-pixel takes x,y\n");
     return;
   }
-  if (is_console) {
+  if (window == nullptr) {
     std::fprintf(stderr, "lwbasic: --gpu-pixel needs the window backend\n");
     return;
   }
-  auto* window = static_cast<lwbasic::screen::D3D11Screen*>(&screen);
   std::uint8_t rgba[4] = {0, 0, 0, 0};
   if (!window->ReadBackCanvasPixel(x, y, rgba)) {
     std::fprintf(stderr, "lwbasic: --gpu-pixel could not read %d,%d\n", x, y);
@@ -178,7 +177,7 @@ bool WriteViewPpm(const lwbasic::screen::Screen& screen, const std::string& path
 }
 
 // Feeds scripted clicks to the window, in canvas pixels.
-void ApplyScriptedClicks(lwbasic::screen::D3D11Screen* screen) {
+void ApplyScriptedClicks(lwbasic::screen::WindowScreen* screen) {
   if (screen == nullptr || g_clicks.empty())
     return;
   std::size_t start = 0;
@@ -189,7 +188,7 @@ void ApplyScriptedClicks(lwbasic::screen::D3D11Screen* screen) {
     int x = 0;
     int y = 0;
     int button = 1;
-    if (sscanf_s(entry.c_str(), "%d,%d,%d", &x, &y, &button) >= 2)
+    if (std::sscanf(entry.c_str(), "%d,%d,%d", &x, &y, &button) >= 2)
       screen->InjectClick(x, y, button);
     if (end == std::string::npos)
       break;
@@ -198,16 +197,17 @@ void ApplyScriptedClicks(lwbasic::screen::D3D11Screen* screen) {
 }
 
 struct ScreenChoice {
-  std::unique_ptr<lwbasic::screen::Screen> gpu;
+  std::unique_ptr<lwbasic::screen::WindowScreen> gpu;
   lwbasic::screen::ConsoleScreen console;
   lwbasic::screen::Screen* screen = nullptr;
+  lwbasic::screen::WindowScreen* window = nullptr;
   bool is_console = false;
 };
 
 bool ChooseScreen(std::atomic<bool>* break_flag, ScreenChoice* choice) {
   if (g_use_gpu) {
     std::string error;
-    choice->gpu = lwbasic::screen::D3D11Screen::Create(&error, g_gpu_scale);
+    choice->gpu = lwbasic::screen::CreateWindowScreen(&error, g_gpu_scale);
     if (choice->gpu != nullptr) {
       // A scripted session feeds the same queue the window fills, so it exercises the real
       // input path rather than a shortcut.
@@ -215,18 +215,20 @@ bool ChooseScreen(std::atomic<bool>* break_flag, ScreenChoice* choice) {
         std::wstring wide;
         for (const char c : g_keys)
           wide.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
-        static_cast<lwbasic::screen::D3D11Screen*>(choice->gpu.get())->InjectKeys(wide);
+        choice->gpu->InjectKeys(wide);
       }
       // Scripted clicks go through the same queue a real click fills, so the program
       // cannot tell the difference.
-      ApplyScriptedClicks(static_cast<lwbasic::screen::D3D11Screen*>(choice->gpu.get()));
+      ApplyScriptedClicks(choice->gpu.get());
       choice->screen = choice->gpu.get();
+      choice->window = choice->gpu.get();
       return true;
     }
-    std::fprintf(stderr, "lwbasic: --gpu unavailable (%s); using the console.\n", error.c_str());
+    std::fprintf(stderr, "lwbasic: window backend unavailable (%s); using the console.\n",
+                 error.c_str());
   }
   if (!choice->console.Init(break_flag)) {
-    std::fprintf(stderr, "lwbasic requires a console (conhost or Windows Terminal).\n");
+    std::fprintf(stderr, "lwbasic requires a terminal.\n");
     return false;
   }
   choice->screen = &choice->console;
@@ -241,8 +243,9 @@ const char* kUsage =
     "\n"
     "Options:\n"
     "  -? | --help      Show this help.\n"
-    "  --gpu            Render in a D3D11 window. This is the default.\n"
-    "  --cli            Use the console instead of the window (the old default).\n"
+    "  --gpu            Render in a window (D3D11 on Windows, SDL2 on Linux). This\n"
+    "                   is the default when this build has a window backend.\n"
+    "  --cli            Use the terminal instead of the window.\n"
     "  --gpu-scale N    Window size as a multiple of the 8x16 text cell:\n"
     "                   1 is 640x400 at 96 DPI, 2 is 1280x800.\n"
     "  --keys KEYS      Feed KEYS to the windowed terminal as typed input, so a session\n"
@@ -315,7 +318,7 @@ int RunFile(const char* path) {
   const lwbasic::RunResult result = vm.Run();
   // The final frame must show even if the throttle skipped it moments ago.
   screen.PresentNow();
-  ProbeWindowPixel(screen, choice.is_console);
+  ProbeWindowPixel(choice.window);
   if (!g_shot_path.empty()) {
     // Written after the run, which ends when the window is closed, so the file holds
     // the finished picture.
@@ -346,7 +349,7 @@ int RunRepl() {
   }
   if (choice.is_console)
     choice.console.ShowCaret(false);
-  ProbeWindowPixel(screen, choice.is_console);
+  ProbeWindowPixel(choice.window);
   // A session ends with SYSTEM or a closed window; either way a requested screenshot is
   // written here as well as after a program run.
   if (!g_shot_path.empty()) {
@@ -487,13 +490,13 @@ int main(int argc, char** argv) {
     // right" from "the window shows it", which is the pair that confused this project
     // once already.
     std::string error;
-    const std::unique_ptr<lwbasic::screen::Screen> screen =
-        lwbasic::screen::D3D11Screen::Create(&error, g_gpu_scale);
+    const std::unique_ptr<lwbasic::screen::WindowScreen> screen =
+        lwbasic::screen::CreateWindowScreen(&error, g_gpu_scale);
     if (screen == nullptr) {
       std::printf("gpu-check: no windowed backend (%s)\n", error.c_str());
       return 1;
     }
-    auto* d3d = static_cast<lwbasic::screen::D3D11Screen*>(screen.get());
+    auto* d3d = screen.get();
     screen->SetGraphicsMode(1);
     screen->ClearGraphics(0);
     screen->Plot(160, 100, 4); // red at the canvas centre

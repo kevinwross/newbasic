@@ -43,8 +43,10 @@ if(NOT status EQUAL 0)
   message(FATAL_ERROR "lwbasic-dap exited with ${status}; stderr: ${errors}")
 endif()
 
-# The response must be framed and well formed.
-if(NOT response MATCHES "^Content-Length: [0-9]+\r\n\r\n")
+# The response must be framed and well formed. CMake's execute_process may
+# normalise CRLF to LF on POSIX, so accept either line ending here while the
+# producer still writes the protocol's required CRLF.
+if(NOT response MATCHES "^Content-Length: [0-9]+\r?\n\r?\n")
   message(FATAL_ERROR "response is not framed: [${response}]")
 endif()
 if(NOT response MATCHES "\"type\":\"response\"")

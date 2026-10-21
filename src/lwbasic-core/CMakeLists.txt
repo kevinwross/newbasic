@@ -14,8 +14,16 @@ add_library(lwbasic-core STATIC
   src/vm.cpp
   src/repl.cpp
 )
+if(WIN32)
+  target_sources(lwbasic-core PRIVATE src/host_win32.cpp)
+  target_link_libraries(lwbasic-core PUBLIC winmm)
+else()
+  target_sources(lwbasic-core PRIVATE src/host_posix.cpp)
+  find_package(Threads REQUIRED)
+  target_link_libraries(lwbasic-core PUBLIC Threads::Threads)
+  target_link_libraries(lwbasic-core PUBLIC m)
+endif()
 target_include_directories(lwbasic-core PUBLIC include)
-target_link_libraries(lwbasic-core PUBLIC winmm)
 if(MSVC)
   target_compile_options(lwbasic-core PRIVATE /WX)
 endif()
