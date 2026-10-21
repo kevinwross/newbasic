@@ -27,9 +27,11 @@ porting plan is `plan.md`.
 | M7 — D3D11 window backend, sound, time-travel debugging | ✅ on Windows |
 | Linux port — console, POSIX host, stb glyph atlas, SDL2 window, DAP TCP | ✅ |
 
-The full upstream test suite (365 cases) passes on Linux. The Windows D3D11
-backend is retained; Linux uses SDL2 when it is available and falls back to a
-terminal-only build otherwise.
+All 365 upstream test cases pass on Linux, plus one portability regression case
+(366 total, 31,124 assertions). The Windows D3D11 backend is retained; Linux
+uses SDL2 when it is available and falls back to a terminal-only build
+otherwise. The Windows targets are cross-built in CI and were compiled here
+with LLVM-MinGW, but the MSVC job is the authoritative Windows check.
 
 ## Build
 

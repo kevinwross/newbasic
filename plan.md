@@ -34,7 +34,8 @@ adds graphics; **6 → 8** makes it maintainable and releasable.
 
 ### Implementation status (2026-10-21)
 
-Phases 0–7 are implemented in this repository:
+Phases 0–8 are implemented in this repository (optional ALSA output and
+packaging rules remain future work):
 
 - Platform-aware CMake with separate `lwbasic-screen` and `lwbasic-window`
   targets, and a console-only configuration that needs no window library.
