@@ -25,13 +25,13 @@ Variable names carry their type suffix, so a single-precision `A` appears as `A!
 
 ## A verified session
 
-This ran successfully and stopped at line 30 with `A!` = 1 and `B!` = 2:
+This ran successfully and stopped at editor line 3 (BASIC line 30) with `A!` = 1 and `B!` = 2:
 
 ```powershell
 $reqs = @(
   '{"seq":1,"type":"request","command":"initialize"}',
   '{"seq":2,"type":"request","command":"launch","arguments":{"programText":"10 A = 1\n20 B = 2\n30 C = A + B\n40 END\n"}}',
-  '{"seq":3,"type":"request","command":"setBreakpoints","arguments":{"breakpoints":[{"line":30}]}}',
+  '{"seq":3,"type":"request","command":"setBreakpoints","arguments":{"breakpoints":[{"line":3}]}}',
   '{"seq":4,"type":"request","command":"configurationDone"}',
   '{"seq":5,"type":"request","command":"variables","arguments":{"variablesReference":1}}'
 )
@@ -49,6 +49,11 @@ Get-Content dap_out.txt
 `launch` accepts either a `program` path or inline `programText`. `configurationDone` (or
 `continue`) is what starts execution; execution stops at the first breakpoint and a `stopped` event
 is emitted.
+
+DAP line numbers are physical editor lines, 1-based, as every DAP client expects. The adapter maps
+them to and from BASIC line numbers using the loaded source: in the inline program above, editor
+line 3 is BASIC line 30. Breakpoints on blank lines or lines without a BASIC number are reported as
+unverified rather than silently landing on a different line.
 
 ## Driving it from an editor
 

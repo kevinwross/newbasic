@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cctype>
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -35,11 +37,13 @@ public:
       body.Set("supportsConfigurationDoneRequest", Json::Bool(true));
       body.Set("supportsConditionalBreakpoints", Json::Bool(true));
       body.Set("supportsEvaluateForHovers", Json::Bool(true));
+      body.Set("supportsStepBack", Json::Bool(true));
       body.Set("supportsTerminateRequest", Json::Bool(false));
       Respond(request, std::move(body), outgoing);
       return;
     }
     if (command == "launch" || command == "attach") {
+      ResetLineMap();
       if (arguments != nullptr) {
         const std::string text = String(*arguments, "programText");
         const std::string path = String(*arguments, "program");
@@ -48,9 +52,10 @@ public:
           return;
         }
         if (!path.empty()) {
+          const std::string source = ReadFile(path);
           LineStore store;
           std::string error;
-          if (!LineStore::ParseTextBas(ReadFile(path), &store, &error)) {
+          if (!LineStore::ParseTextBas(source, &store, &error)) {
             Fail(request, error, outgoing);
             return;
           }
@@ -63,6 +68,8 @@ public:
           debugger_.ClearBreakpoints();
           debugger_.ClearHistory(); // a new program invalidates recorded history
           vm_.Load(std::move(program));
+          BuildLineMap(source);
+          source_path_ = path;
           Respond(request, Json::Object(), outgoing);
           return;
         }
@@ -83,15 +90,21 @@ public:
             const Json* line = entry.Find("line");
             if (line == nullptr || !line->IsNumber())
               continue;
-            const int number = static_cast<int>(line->AsNumber());
-            debugger_.SetBreakpoint(number);
-            const Json* condition = entry.Find("condition");
-            if (condition != nullptr && condition->IsString()) {
-              debugger_.SetCondition(number, condition->AsString());
-            }
+            const int file_line = static_cast<int>(line->AsNumber());
+            const int program_line = FileLineToProgramLine(file_line);
             Json item = Json::Object();
-            item.Set("verified", Json::Bool(true));
-            item.Set("line", Json::Number(number));
+            item.Set("line", Json::Number(file_line));
+            if (program_line == 0) {
+              item.Set("verified", Json::Bool(false));
+              item.Set("message", Json::Str("No BASIC line on this source line"));
+            } else {
+              debugger_.SetBreakpoint(program_line);
+              const Json* condition = entry.Find("condition");
+              if (condition != nullptr && condition->IsString()) {
+                debugger_.SetCondition(program_line, condition->AsString());
+              }
+              item.Set("verified", Json::Bool(true));
+            }
             verified.Push(std::move(item));
           }
         }
@@ -136,9 +149,11 @@ public:
       int id = 0;
       Json top = Json::Object();
       top.Set("id", Json::Number(id++));
-      top.Set("name", Json::Str("line " + std::to_string(debugger_.CurrentLine())));
-      top.Set("line", Json::Number(debugger_.CurrentLine()));
+      const int current_program_line = debugger_.CurrentLine();
+      top.Set("name", Json::Str("line " + std::to_string(current_program_line)));
+      top.Set("line", Json::Number(ProgramLineToFileLine(current_program_line)));
       top.Set("column", Json::Number(1));
+      AddSource(&top);
       frames.Push(std::move(top));
       for (const Vm::CallFrame& frame : debugger_.CallFrames()) {
         Json item = Json::Object();
@@ -147,8 +162,9 @@ public:
                                       ? "GOSUB line " + std::to_string(frame.line)
                                       : "FOR " + frame.name + " line " + std::to_string(frame.line);
         item.Set("name", Json::Str(label));
-        item.Set("line", Json::Number(frame.line));
+        item.Set("line", Json::Number(ProgramLineToFileLine(frame.line)));
         item.Set("column", Json::Number(1));
+        AddSource(&item);
         frames.Push(std::move(item));
       }
       body.Set("stackFrames", std::move(frames));
@@ -230,6 +246,87 @@ private:
     return buffer;
   }
 
+  // DAP clients (VS Code) use physical editor lines, while the debugger's
+  // breakpoints and StopState use BASIC line numbers. Build both directions
+  // from the loaded source so a gutter breakpoint on editor line 2 maps to
+  // BASIC line 20, and a stop at BASIC 20 is reported back as editor line 2.
+  void ResetLineMap() {
+    file_line_to_program_line_.clear();
+    program_line_to_file_line_.clear();
+    source_path_.clear();
+  }
+
+  void BuildLineMap(const std::string& text) {
+    file_line_to_program_line_.clear();
+    program_line_to_file_line_.clear();
+    std::size_t pos = 0;
+    while (pos < text.size()) {
+      const std::size_t nl = text.find('\n', pos);
+      const std::size_t end = nl == std::string::npos ? text.size() : nl;
+      std::string line = text.substr(pos, end - pos);
+      if (!line.empty() && line.back() == '\r')
+        line.pop_back();
+      const int number = ParseProgramLine(line);
+      file_line_to_program_line_.push_back(number);
+      if (number != 0)
+        program_line_to_file_line_[number] = static_cast<int>(file_line_to_program_line_.size());
+      pos = nl == std::string::npos ? text.size() : nl + 1;
+    }
+  }
+
+  static int ParseProgramLine(const std::string& line) {
+    std::size_t i = 0;
+    while (i < line.size() && (line[i] == ' ' || line[i] == '\t'))
+      ++i;
+    if (i >= line.size() || !std::isdigit(static_cast<unsigned char>(line[i])))
+      return 0;
+    int number = 0;
+    int digits = 0;
+    while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])) && digits < 6) {
+      number = number * 10 + (line[i] - '0');
+      ++i;
+      ++digits;
+    }
+    if (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])))
+      return 0;
+    if (number < 1)
+      return 0;
+    if (i < line.size() && line[i] != ' ' && line[i] != '\t')
+      return 0;
+    return number;
+  }
+
+  int FileLineToProgramLine(int file_line) const {
+    // With no source map (for example an attach without a program), keep the
+    // historical identity behaviour instead of rejecting every breakpoint.
+    if (file_line_to_program_line_.empty())
+      return file_line;
+    if (file_line < 1 || file_line > static_cast<int>(file_line_to_program_line_.size()))
+      return 0;
+    return file_line_to_program_line_[static_cast<std::size_t>(file_line - 1)];
+  }
+
+  int ProgramLineToFileLine(int program_line) const {
+    if (program_line_to_file_line_.empty())
+      return program_line;
+    const auto it = program_line_to_file_line_.find(program_line);
+    return it == program_line_to_file_line_.end() ? program_line : it->second;
+  }
+
+  static std::string BaseName(const std::string& path) {
+    const std::size_t slash = path.find_last_of("\\/");
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+  }
+
+  void AddSource(Json* frame) const {
+    if (source_path_.empty())
+      return;
+    Json source = Json::Object();
+    source.Set("name", Json::Str(BaseName(source_path_)));
+    source.Set("path", Json::Str(source_path_));
+    frame->Set("source", std::move(source));
+  }
+
   void LoadSource(const std::string& text, std::vector<Json>* outgoing) {
     // Requests are handled one at a time; the failing request is unknown here,
     // so report through a synthetic response.
@@ -251,6 +348,8 @@ private:
     debugger_.ClearBreakpoints();
     debugger_.ClearHistory(); // a new program invalidates recorded history
     vm_.Load(std::move(program));
+    BuildLineMap(text);
+    source_path_.clear();
     Respond(request, Json::Object(), outgoing);
   }
 
@@ -275,7 +374,7 @@ private:
     body.Set("reason", Json::Str(reason));
     body.Set("threadId", Json::Number(1));
     body.Set("allThreadsStopped", Json::Bool(true));
-    body.Set("line", Json::Number(state.line));
+    body.Set("line", Json::Number(ProgramLineToFileLine(state.line)));
     if (state.reason == debug::StopReason::Error) {
       body.Set("text", Json::Str(ErrorMessage(state.result.code)));
     }
@@ -321,6 +420,9 @@ private:
   Vm& vm_;
   debug::Debugger& debugger_;
   double seq_ = 1;
+  std::vector<int> file_line_to_program_line_;
+  std::map<int, int> program_line_to_file_line_;
+  std::string source_path_;
 };
 
 } // namespace newbasic::dap

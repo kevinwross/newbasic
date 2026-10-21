@@ -46,7 +46,7 @@ TEST_CASE("DAP session: a full handshake over framed streams", "[dap]") {
   WriteFrame(in, "{\"seq\":2,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
                  "{\"programText\":\"10 A=1\\n20 A=A+1\\n30 END\\n\"}}");
   WriteFrame(in, "{\"seq\":3,\"type\":\"request\",\"command\":\"setBreakpoints\",\"arguments\":"
-                 "{\"breakpoints\":[{\"line\":20}]}}");
+                 "{\"breakpoints\":[{\"line\":2}]}}");
   WriteFrame(in, "{\"seq\":4,\"type\":\"request\",\"command\":\"configurationDone\"}");
   WriteFrame(in, "{\"seq\":5,\"type\":\"request\",\"command\":\"disconnect\"}");
 

@@ -93,7 +93,7 @@ TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {
   bool found = false;
   adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
                   "\"arguments\":{\"source\":{\"path\":\"x.bas\"},"
-                  "\"breakpoints\":[{\"line\":20}]}}");
+                  "\"breakpoints\":[{\"line\":2}]}}");
   ResponseWithCommand(outgoing, "setBreakpoints", &found);
   CHECK(adapter.debugger.HasBreakpoint(20));
 
@@ -108,11 +108,14 @@ TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {
   const Json* stopped = FirstEvent(outgoing, "stopped");
   REQUIRE(stopped != nullptr);
   CHECK(stopped->Find("body")->Find("reason")->AsString() == "breakpoint");
-  CHECK(stopped->Find("body")->Find("line")->AsNumber() == 20.0);
+  CHECK(stopped->Find("body")->Find("line")->AsNumber() == 2.0);
 
-  // Inspection at the stop.
+  // Inspection at the stop. The stack frame reports the editor line (2) while
+  // the debugger internally stopped on BASIC line 20.
   outgoing = adapter.Request("{\"seq\":5,\"type\":\"request\",\"command\":\"stackTrace\"}");
-  CHECK(outgoing[0].Find("body")->Find("stackFrames")->Size() >= 1);
+  const Json& frame = outgoing[0].Find("body")->Find("stackFrames")->Items()[0];
+  REQUIRE(frame.Find("line") != nullptr);
+  CHECK(frame.Find("line")->AsNumber() == 2.0);
   outgoing = adapter.Request("{\"seq\":6,\"type\":\"request\",\"command\":\"variables\"}");
   const Json* variables = outgoing[0].Find("body")->Find("variables");
   REQUIRE(variables->Size() == 1);
@@ -134,7 +137,7 @@ TEST_CASE("DAP: conditional breakpoints", "[dap]") {
                   "{\"programText\":\"10 FOR I=1 TO 5\\n20 A=A+1\\n30 NEXT I\\n40 END\\n\"}}");
   const std::vector<Json> set = adapter.Request(
       "{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\",\"arguments\":{"
-      "\"breakpoints\":[{\"line\":20,\"condition\":\"I=4\"}]}}");
+      "\"breakpoints\":[{\"line\":2,\"condition\":\"I=4\"}]}}");
   CHECK(set[0].Find("body")->Find("breakpoints")->Items()[0].Find("verified")->AsBool());
   CHECK(adapter.debugger.Condition(20) == "I=4");
 
@@ -142,7 +145,7 @@ TEST_CASE("DAP: conditional breakpoints", "[dap]") {
       adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
   const Json* stopped = FirstEvent(run, "stopped");
   REQUIRE(stopped != nullptr);
-  CHECK(stopped->Find("body")->Find("line")->AsNumber() == 20.0);
+  CHECK(stopped->Find("body")->Find("line")->AsNumber() == 2.0);
   CHECK(adapter.debugger.Variable("I")->AsNumber() == 4.0);
 }
 
