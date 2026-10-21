@@ -328,7 +328,10 @@ public:
         return false;
       if (key == L'\r' || key == L'\n')
         break;
-      if (key == 0x08) {
+      // Some terminals send DEL (0x7F) for the Backspace key and others send
+      // BS (0x08). Both must edit the line; the POSIX backend additionally
+      // normalises 0x7F to 0x08 for INKEY$ compatibility.
+      if (key == 0x08 || key == 0x7F) {
         if (!line.empty()) {
           line.pop_back();
           Backspace();

@@ -63,6 +63,9 @@ CRLF) survive checkout.
 - `Ctrl+C` maps to the GW-BASIC break (`Break in <line>`) on both. On POSIX the
   signal handler only sets a `sig_atomic_t`; `PumpMessages` forwards it to the
   VM's break flag.
+- Backspace and DEL (0x7F) both edit input; POSIX also normalizes DEL to
+  `CHR$(8)` so programs that test `INKEY$ = CHR$(8)` (including the accounting
+  sample's custom field editor) work as they do on Windows.
 - Arrow/function-key sequences are consumed rather than inserted into line
   input. Mapping them to `INKEY$` codes is not implemented; the original
   backend also left this for the interpreter's key-mapping milestone.

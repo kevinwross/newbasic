@@ -959,6 +959,21 @@ TEST_CASE("Input: backspace removes the character and its cell", "[input]") {
   CHECK(second == L"X");
 }
 
+TEST_CASE("Input: DEL also acts as backspace", "[input]") {
+  lwbasic::screen::HeadlessScreen screen;
+  // xterm and many other terminals send 0x7F for the Backspace key rather than
+  // the 0x08 that the Win32 console reports.
+  ScriptedKeys keys(L"AB"
+                    L"\x7F"
+                    L"C\r");
+  std::wstring line;
+  REQUIRE(screen.EditLine(keys, &line));
+  CHECK(line == L"AC");
+  CHECK(screen.CellAt(0, 0) == L'A');
+  CHECK(screen.CellAt(0, 1) == L'C');
+  CHECK(screen.CellAt(0, 2) == L' ');
+}
+
 TEST_CASE("Input: Escape abandons the line, end of input reports itself", "[input]") {
   lwbasic::screen::HeadlessScreen screen;
   ScriptedKeys keys(L"AB\x1b");

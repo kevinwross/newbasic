@@ -146,7 +146,10 @@ int ReadKey(bool blocking, wchar_t* key) {
   }
 
   if (byte < 0x80) {
-    *key = static_cast<wchar_t>(byte);
+    // GW-BASIC's INKEY$ reports the Backspace key as CHR$(8). Most POSIX
+    // terminals send DEL (0x7F), so normalise it here as well as accepting
+    // it in the line editor.
+    *key = byte == 0x7F ? static_cast<wchar_t>(0x08) : static_cast<wchar_t>(byte);
     return 1;
   }
 
