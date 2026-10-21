@@ -28,6 +28,16 @@
 #include "newbasic/window/screen_factory.h"
 #include "newbasic/window/window_screen.h"
 
+// The two scripted-input options below parse fixed "int,int[,int]" strings.
+// MSVC marks the portable scanf family deprecated (C4996), and first-party
+// targets build with /W4 /WX, so use the secure variant there. For numeric
+// conversions the two functions behave identically.
+#if defined(_MSC_VER)
+#define NEWBASIC_SSCANF sscanf_s
+#else
+#define NEWBASIC_SSCANF std::sscanf
+#endif
+
 namespace {
 
 // The windowed backend is the default when this build has one; when it cannot
@@ -53,7 +63,7 @@ void ProbeWindowPixel(newbasic::screen::WindowScreen* window) {
     return;
   int x = 0;
   int y = 0;
-  if (std::sscanf(g_pixel_probe.c_str(), "%d,%d", &x, &y) < 2) {
+  if (NEWBASIC_SSCANF(g_pixel_probe.c_str(), "%d,%d", &x, &y) < 2) {
     std::fprintf(stderr, "newbasic: --gpu-pixel takes x,y\n");
     return;
   }
@@ -189,7 +199,7 @@ void ApplyScriptedClicks(newbasic::screen::WindowScreen* screen) {
     int x = 0;
     int y = 0;
     int button = 1;
-    if (std::sscanf(entry.c_str(), "%d,%d,%d", &x, &y, &button) >= 2)
+    if (NEWBASIC_SSCANF(entry.c_str(), "%d,%d,%d", &x, &y, &button) >= 2)
       screen->InjectClick(x, y, button);
     if (end == std::string::npos)
       break;
