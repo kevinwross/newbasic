@@ -7,14 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 namespace {
 
-std::string AllRows(const lwbasic::screen::HeadlessScreen& screen) {
+std::string AllRows(const newbasic::screen::HeadlessScreen& screen) {
   std::string all;
   for (const std::string& row : screen.RenderRows())
     all += row + "\n";
@@ -28,9 +28,9 @@ const char kLoop[] = "30 FOR I=1 TO 3000: NEXT";
 } // namespace
 
 TEST_CASE("M11: ON KEY(n) fires when a key is pending", "[m11]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 ON KEY(1) GOSUB 100");
   repl.Process("20 KEY(1) ON");
   repl.Process(kLoop);
@@ -39,7 +39,7 @@ TEST_CASE("M11: ON KEY(n) fires when a key is pending", "[m11]") {
   repl.Process("100 PRINT \"TRAP\": RETURN");
   screen.ScriptKey(L'X');
   screen.Clear();
-  const lwbasic::RunResult result = repl.Process("RUN");
+  const newbasic::RunResult result = repl.Process("RUN");
   const std::string all = AllRows(screen);
   INFO("status=" << static_cast<int>(result.status) << " code=" << result.code
                  << " line=" << result.line << " screen: [" << all << "]");
@@ -48,9 +48,9 @@ TEST_CASE("M11: ON KEY(n) fires when a key is pending", "[m11]") {
 }
 
 TEST_CASE("M11: KEY(n) OFF stops the trap firing", "[m11]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 ON KEY(1) GOSUB 100");
   repl.Process("20 KEY(1) OFF");
   repl.Process(kLoop);
@@ -66,9 +66,9 @@ TEST_CASE("M11: KEY(n) OFF stops the trap firing", "[m11]") {
 }
 
 TEST_CASE("M11: the trap hands the key to INKEY$ in the handler", "[m11]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 ON KEY(1) GOSUB 100");
   repl.Process("20 KEY(1) ON");
   repl.Process(kLoop);
@@ -84,18 +84,18 @@ TEST_CASE("M11: the trap hands the key to INKEY$ in the handler", "[m11]") {
 }
 
 TEST_CASE("M11: KEY(n) ON without a handler is Illegal function call", "[m11]") {
-  CHECK(lwtest::RunErrorCode("10 KEY(1) ON\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 KEY(11) ON\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 KEY(1) ON\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 KEY(11) ON\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 ON KEY(11) GOSUB 100\n100 RETURN\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("M11: hardware-only traps report Advanced Feature with a reason", "[m11]") {
   CHECK(lwtest::RunErrorCode("10 ON COM(1) GOSUB 100\n100 RETURN\n") ==
-        lwbasic::kErrAdvancedFeature);
+        newbasic::kErrAdvancedFeature);
   CHECK(lwtest::RunErrorCode("10 ON STRIG(1) GOSUB 100\n100 RETURN\n") ==
-        lwbasic::kErrAdvancedFeature);
+        newbasic::kErrAdvancedFeature);
   CHECK(lwtest::RunErrorCode("10 ON PLAY(1) GOSUB 100\n100 RETURN\n") ==
-        lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 ON PEN GOSUB 100\n100 RETURN\n") == lwbasic::kErrAdvancedFeature);
+        newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 ON PEN GOSUB 100\n100 RETURN\n") == newbasic::kErrAdvancedFeature);
 }

@@ -9,10 +9,10 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/frontend.h"
-#include "lwbasic/line_store.h"
-#include "lwbasic/screen/headless_screen.h"
-#include "lwbasic/vm.h"
+#include "newbasic/frontend.h"
+#include "newbasic/line_store.h"
+#include "newbasic/screen/headless_screen.h"
+#include "newbasic/vm.h"
 
 namespace {
 
@@ -61,7 +61,7 @@ bool GridMatches(const std::string& render, std::initializer_list<const char*> e
 
 // A headless screen that hands out scripted keys, so a corpus fixture can carry a key sequence
 // beside its program (a .keys file) for INKEY$-driven menus and forms.
-class KeyedScreen : public lwbasic::screen::HeadlessScreen {
+class KeyedScreen : public newbasic::screen::HeadlessScreen {
 public:
   explicit KeyedScreen(std::wstring keys) : keys_(std::move(keys)) {}
   bool TryGetKey(wchar_t* key) override {
@@ -92,21 +92,21 @@ std::wstring KeysFromText(const std::string& text) {
 // The same runner, with scripted keys. A program that runs out of keys sees TryGetKey return
 // false, which is what a closed input stream looks like.
 std::string RunSourceWithKeys(const std::string& source, const std::string& keys_text) {
-  lwbasic::LineStore store;
+  newbasic::LineStore store;
   std::string error;
-  if (!lwbasic::LineStore::ParseTextBas(source, &store, &error)) {
+  if (!newbasic::LineStore::ParseTextBas(source, &store, &error)) {
     FAIL("Parse failed: " << error);
   }
-  lwbasic::Program program;
-  lwbasic::CompileError cerr;
-  if (!lwbasic::Compile(store, &program, &cerr)) {
+  newbasic::Program program;
+  newbasic::CompileError cerr;
+  if (!newbasic::Compile(store, &program, &cerr)) {
     FAIL("Compile failed (line " << cerr.line << "): " << cerr.message);
   }
   KeyedScreen screen(KeysFromText(keys_text));
-  lwbasic::Vm vm(screen);
+  newbasic::Vm vm(screen);
   vm.Load(std::move(program));
-  const lwbasic::RunResult result = vm.Run();
-  if (result.status != lwbasic::RunResult::Status::Done) {
+  const newbasic::RunResult result = vm.Run();
+  if (result.status != newbasic::RunResult::Status::Done) {
     FAIL("Run failed: " << result.message);
   }
   return screen.Render();
@@ -114,21 +114,21 @@ std::string RunSourceWithKeys(const std::string& source, const std::string& keys
 
 // Compiles source text and runs it on a fresh headless screen.
 std::string RunSource(const std::string& source) {
-  lwbasic::LineStore store;
+  newbasic::LineStore store;
   std::string error;
-  if (!lwbasic::LineStore::ParseTextBas(source, &store, &error)) {
+  if (!newbasic::LineStore::ParseTextBas(source, &store, &error)) {
     FAIL("Parse failed: " << error);
   }
-  lwbasic::Program program;
-  lwbasic::CompileError cerr;
-  if (!lwbasic::Compile(store, &program, &cerr)) {
+  newbasic::Program program;
+  newbasic::CompileError cerr;
+  if (!newbasic::Compile(store, &program, &cerr)) {
     FAIL("Compile failed (line " << cerr.line << "): " << cerr.message);
   }
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::Vm vm(screen);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::Vm vm(screen);
   vm.Load(std::move(program));
-  const lwbasic::RunResult result = vm.Run();
-  if (result.status != lwbasic::RunResult::Status::Done) {
+  const newbasic::RunResult result = vm.Run();
+  if (result.status != newbasic::RunResult::Status::Done) {
     FAIL("Run failed: " << result.message);
   }
   return screen.Render();
@@ -137,14 +137,14 @@ std::string RunSource(const std::string& source) {
 // Returns the parse/compile error for source that is expected to fail, or
 // an empty string when it compiles.
 std::string CompileErrorFor(const std::string& source) {
-  lwbasic::LineStore store;
+  newbasic::LineStore store;
   std::string error;
-  if (!lwbasic::LineStore::ParseTextBas(source, &store, &error)) {
+  if (!newbasic::LineStore::ParseTextBas(source, &store, &error)) {
     return error;
   }
-  lwbasic::Program program;
-  lwbasic::CompileError cerr;
-  if (!lwbasic::Compile(store, &program, &cerr)) {
+  newbasic::Program program;
+  newbasic::CompileError cerr;
+  if (!newbasic::Compile(store, &program, &cerr)) {
     return cerr.message;
   }
   return "";
@@ -212,8 +212,8 @@ TEST_CASE("Compile: unknown statements are rejected", "[vm]") {
 }
 
 TEST_CASE("Golden fixture: fixtures/m0/hello.bas", "[golden]") {
-  const std::string source = ReadAll(std::string(LWBASIC_FIXTURES_DIR) + "/m0/hello.bas");
-  const std::string expected = ReadAll(std::string(LWBASIC_FIXTURES_DIR) + "/m0/hello.expected");
+  const std::string source = ReadAll(std::string(NEWBASIC_FIXTURES_DIR) + "/m0/hello.bas");
+  const std::string expected = ReadAll(std::string(NEWBASIC_FIXTURES_DIR) + "/m0/hello.expected");
   CHECK(GridMatches(RunSource(source), SplitLines(expected)));
 }
 
@@ -223,7 +223,7 @@ TEST_CASE("Golden fixture: fixtures/m0/hello.bas", "[golden]") {
 
 TEST_CASE("Golden corpus: every fixtures/**/*.bas matches its .expected", "[golden][corpus]") {
   namespace fs = std::filesystem;
-  const fs::path root(LWBASIC_FIXTURES_DIR);
+  const fs::path root(NEWBASIC_FIXTURES_DIR);
   REQUIRE(fs::exists(root));
 
   std::vector<fs::path> programs;

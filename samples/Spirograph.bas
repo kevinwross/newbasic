@@ -1,0 +1,121 @@
+10 REM SPIROGRAPH - a harmonograph mandala in SCREEN 720.
+11 REM
+12 REM Three decaying two-frequency curves are drawn and mirrored across both axes,
+13 REM which turns each segment into a four-fold symmetry. The colours come from a
+14 REM 240-entry hue wheel that is rotated through the palette, so the finished
+15 REM drawing flows without repainting a single pixel.
+16 REM
+17 REM Controls: ESC quits, SPACE or a click draws a new pattern, C changes the
+18 REM palette rotation speed.
+19 REM
+20 SCREEN 720
+30 CLS
+40 CX = 640: CY = 360: PN = 0: OF = 0: PSPD = 1
+50 DIM PAL(239)
+60 GOSUB 2000
+70 GOSUB 2200
+80 GOSUB 3000
+90 GOSUB 7000
+100 TF = TIMER
+110 REM ---- MAIN LOOP ----
+120 B = MOUSEB
+130 IF B <> 0 THEN GOSUB 8000
+140 K$ = INKEY$
+150 IF K$ <> "" THEN GOSUB 8100
+160 GOSUB 6000
+170 IF TIMER - TF < .033 THEN 170
+180 TF = TIMER
+190 GOTO 110
+200 END
+
+3000 REM ---- DRAW THE ROSETTES ----
+3010 FOR I = 0 TO 2
+3020 IF I = 0 THEN RR = 230: RS = 70: DD = 110: TT = 7: HB = 0
+3030 IF I = 1 THEN RR = 250: RS = 80: DD = 120: TT = 8: HB = 80
+3040 IF I = 2 THEN RR = 260: RS = 100: DD = 130: TT = 5: HB = 160
+3045 IF PN > 0 THEN DD = DD + 8 * (PN MOD 5)
+3050 NS = TT * 140
+3060 OX = 0: OY = 0
+3070 FOR K = 0 TO NS
+3080 T = K / NS * TT * 6.283185 + PN * .35
+3090 X = (RR - RS) * COS(T) + DD * COS((RR - RS) / RS * T)
+3100 Y = (RR - RS) * SIN(T) - DD * SIN((RR - RS) / RS * T)
+3110 IF K = 0 THEN 3140
+3120 C = 16 + ((HB + INT(K * 240 / NS)) MOD 240)
+3130 LINE (CX + X, CY + Y)-(CX + OX, CY + OY), C
+3140 OX = X: OY = Y
+3150 NEXT K
+3160 NEXT I
+3170 RETURN
+
+4000 REM ---- FOUR MIRRORED SEGMENTS for the segment OX,OY -> X,Y ----
+4010 C = 16 + ((BC + INT(K * 240 / 1300)) MOD 240)
+4020 LINE (CX + X, CY + Y)-(CX + OX, CY + OY), C
+4030 C2 = 16 + ((C - 16 + 60) MOD 240)
+4040 LINE (CX - X, CY + Y)-(CX - OX, CY + OY), C2
+4050 C3 = 16 + ((C - 16 + 120) MOD 240)
+4060 LINE (CX + X, CY - Y)-(CX + OX, CY - OY), C3
+4070 C4 = 16 + ((C - 16 + 180) MOD 240)
+4080 LINE (CX - X, CY - Y)-(CX - OX, CY - OY), C4
+4090 RETURN
+
+6000 REM ---- ROTATE THE HUE WHEEL THROUGH THE PALETTE ----
+6010 IF PSPD = 0 THEN 6070
+6020 OF = (OF + PSPD) MOD 240
+6030 FOR I = 0 TO 239
+6040 J = (I + OF) MOD 240
+6050 PALETTE 16 + I, PAL(J)
+6060 NEXT I
+6070 RETURN
+
+7000 REM ---- HUD ----
+7010 LOCATE 2, 58
+7020 PRINT "S P I R O G R A P H";
+7030 LOCATE 45, 2
+7040 PRINT "ESC QUIT   SPACE NEW   C COLOR SPEED   CLICK NEW";
+7045 LOCATE 45, 1, 0
+7050 RETURN
+
+8000 REM ---- NEW PATTERN ----
+8010 PN = PN + 1
+8020 LINE (0, 0)-(1279, 719), 0, BF
+8030 GOSUB 2200
+8040 GOSUB 3000
+8050 OF = 0
+8060 RETURN
+
+8100 REM ---- INPUT ----
+8110 C = ASC(K$)
+8120 IF C = 27 THEN END
+8130 IF K$ = " " THEN GOSUB 8000
+8140 IF K$ = "c" OR K$ = "C" THEN PSPD = PSPD * 2: IF PSPD > 4 THEN PSPD = 0
+8150 RETURN
+
+9000 REM ---- 8-bit RGB in PR,PG,PB -> 18-bit PALETTE colour in PC ----
+9010 PC = INT(PR * 63 / 255 + .5) + INT(PG * 63 / 255 + .5) * 256 + INT(PB * 63 / 255 + .5) * 65536
+9020 RETURN
+
+2000 REM ---- HUE WHEEL: 240 fully saturated colours in PAL() ----
+2010 FOR I = 0 TO 239
+2020 HN = I / 240 * 6
+2030 HS = INT(HN)
+2040 F = HN - HS
+2050 Q = 1 - F: TT = F
+2060 IF HS = 0 THEN PR = 1: PG = TT: PB = 0
+2070 IF HS = 1 THEN PR = Q: PG = 1: PB = 0
+2080 IF HS = 2 THEN PR = 0: PG = 1: PB = TT
+2090 IF HS = 3 THEN PR = 0: PG = Q: PB = 1
+2100 IF HS = 4 THEN PR = TT: PG = 0: PB = 1
+2110 IF HS = 5 THEN PR = 1: PG = 0: PB = Q
+2120 PR = PR * 255: PG = PG * 255: PB = PB * 255
+2130 GOSUB 9000
+2140 PAL(I) = PC
+2150 NEXT I
+2160 PR = 235: PG = 240: PB = 255: GOSUB 9000: PALETTE 7, PC
+2170 RETURN
+
+2200 REM ---- APPLY THE BASE HUE WHEEL ----
+2210 FOR I = 0 TO 239
+2220 PALETTE 16 + I, PAL(I)
+2230 NEXT I
+2240 RETURN

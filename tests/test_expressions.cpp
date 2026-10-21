@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "lwbasic/host.h"
+#include "newbasic/host.h"
 #include "test_helpers.h"
 
 using lwtest::Row0;
@@ -92,7 +92,7 @@ TEST_CASE("Expressions: variables and assignment typing", "[expr]") {
 }
 
 TEST_CASE("Expressions: host functions and screen state", "[expr]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   host.timer = 1234.5;
   const std::vector<std::string> rows =
       lwtest::RunRowsWithInput("10 PRINT TIMER\n20 PRINT DATE$\n30 PRINT TIME$\n", {}, &host);
@@ -105,7 +105,7 @@ TEST_CASE("Expressions: host functions and screen state", "[expr]") {
 }
 
 TEST_CASE("Expressions: RND is reproducible and RND(0) repeats", "[expr][rnd]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   const std::vector<std::string> rows =
       lwtest::RunRowsWithInput("10 RANDOMIZE 42\n20 A=RND\n30 B=RND(0)\n40 PRINT A=B\n", {}, &host);
   REQUIRE(!rows.empty());
@@ -113,19 +113,19 @@ TEST_CASE("Expressions: RND is reproducible and RND(0) repeats", "[expr][rnd]") 
 }
 
 TEST_CASE("Expressions: runtime errors", "[expr][errors]") {
-  CHECK(lwtest::RunErrorCode("10 PRINT 1/0\n") == lwbasic::kErrDivisionByZero);
-  CHECK(lwtest::RunErrorCode("10 PRINT 1+\"A\"\n") == lwbasic::kErrTypeMismatch);
-  CHECK(lwtest::RunErrorCode("10 A$=1\n") == lwbasic::kErrTypeMismatch);
-  CHECK(lwtest::RunErrorCode("10 A%=40000\n") == lwbasic::kErrOverflow);
-  CHECK(lwtest::RunErrorCode("10 PRINT SQR(-1)\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT LOG(0)\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT CHR$(-1)\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT MID$(\"abc\",0)\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT LEFT$(\"abc\",-1)\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT CINT(99999)\n") == lwbasic::kErrOverflow);
+  CHECK(lwtest::RunErrorCode("10 PRINT 1/0\n") == newbasic::kErrDivisionByZero);
+  CHECK(lwtest::RunErrorCode("10 PRINT 1+\"A\"\n") == newbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 A$=1\n") == newbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 A%=40000\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::RunErrorCode("10 PRINT SQR(-1)\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT LOG(0)\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT CHR$(-1)\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT MID$(\"abc\",0)\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT LEFT$(\"abc\",-1)\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT CINT(99999)\n") == newbasic::kErrOverflow);
   // Errors report the line they occurred in.
   int line = 0;
-  CHECK(lwtest::RunErrorCode("10 A=1\n20 PRINT 1/0\n", &line) == lwbasic::kErrDivisionByZero);
+  CHECK(lwtest::RunErrorCode("10 A=1\n20 PRINT 1/0\n", &line) == newbasic::kErrDivisionByZero);
   CHECK(line == 20);
 }
 
@@ -133,9 +133,9 @@ TEST_CASE("Expressions: unsupported statements fail predictably", "[expr]") {
   int line = 0;
   // PEN is still unimplemented (it needs light-pen hardware); it reports Advanced
   // Feature at run time and names the line.
-  CHECK(lwtest::RunErrorCode("10 PEN ON\n", &line) == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 PEN ON\n", &line) == newbasic::kErrAdvancedFeature);
   CHECK(line == 10);
   // SOUND and PLAY are implemented (M7); the graphics statements, WINDOW/PMAP and PCOPY
   // since M12.
-  CHECK(lwtest::RunErrorCode("10 CALL X\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrAdvancedFeature);
 }

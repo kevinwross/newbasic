@@ -1,5 +1,5 @@
 ---
-# lwbasic code style (plan section 6.5). CI lints with clang-format (19).
+# newbasic code style (plan section 6.5). CI lints with clang-format (19).
 BasedOnStyle: LLVM
 IndentWidth: 2
 ColumnLimit: 100

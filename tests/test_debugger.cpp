@@ -4,91 +4,91 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/debugger.h"
-#include "lwbasic/errors.h"
+#include "newbasic/debugger.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 namespace {
 
 struct DebugSession {
   explicit DebugSession(const std::string& source) {
-    lwbasic::CompileError error;
+    newbasic::CompileError error;
     if (!lwtest::CompileSource(source, &program, &error)) {
       FAIL("Compile failed (line " << error.line << "): " << error.message);
     }
     vm.Load(program);
   }
 
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Program program;
-  lwbasic::Vm vm{screen, &host};
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Program program;
+  newbasic::Vm vm{screen, &host};
 };
 
 } // namespace
 
 TEST_CASE("Debugger: breakpoints stop execution on a line", "[debug]") {
   DebugSession s("10 A=1\n20 A=2\n30 A=3\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(20);
   CHECK(debugger.HasBreakpoint(20));
   CHECK(debugger.Breakpoints().size() == 1);
 
-  const lwbasic::debug::StopState first = debugger.Continue();
-  CHECK(first.reason == lwbasic::debug::StopReason::Breakpoint);
+  const newbasic::debug::StopState first = debugger.Continue();
+  CHECK(first.reason == newbasic::debug::StopReason::Breakpoint);
   CHECK(first.line == 20);
   // Line 10 has run, line 20 has not.
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
 
-  const lwbasic::debug::StopState second = debugger.Continue();
-  CHECK(second.reason == lwbasic::debug::StopReason::ProgramEnd);
+  const newbasic::debug::StopState second = debugger.Continue();
+  CHECK(second.reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == 3.0);
 }
 
 TEST_CASE("Debugger: clearing breakpoints resumes to the end", "[debug]") {
   DebugSession s("10 A=1\n20 A=2\n30 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(10);
   debugger.SetBreakpoint(20);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
   debugger.ClearBreakpoint(10);
   CHECK_FALSE(debugger.HasBreakpoint(10));
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
   debugger.ClearBreakpoints();
   CHECK(debugger.Breakpoints().empty());
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
 }
 
 TEST_CASE("Debugger: single stepping", "[debug]") {
   DebugSession s("10 A=1\n20 A=2\n30 PRINT A\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   // Instruction stepping starts at line 10.
-  const lwbasic::debug::StopState one = debugger.StepInstruction();
-  CHECK(one.reason == lwbasic::debug::StopReason::Step);
+  const newbasic::debug::StopState one = debugger.StepInstruction();
+  CHECK(one.reason == newbasic::debug::StopReason::Step);
   // Line stepping lands on each subsequent line.
   CHECK(debugger.StepLine().line == 20);
   CHECK(debugger.StepLine().line == 30);
   CHECK(debugger.Variable("A")->AsNumber() == 2.0);
   CHECK(debugger.StepLine().line == 40); // the END statement
-  const lwbasic::debug::StopState last = debugger.StepLine();
+  const newbasic::debug::StopState last = debugger.StepLine();
   CHECK(last.AtEnd());
 }
 
 TEST_CASE("Debugger: errors stop with the GW-BASIC code", "[debug]") {
   DebugSession s("10 A=1\n20 PRINT 1/0\n30 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
-  const lwbasic::debug::StopState state = debugger.Continue();
-  CHECK(state.reason == lwbasic::debug::StopReason::Error);
-  CHECK(state.result.code == lwbasic::kErrDivisionByZero);
+  newbasic::debug::Debugger debugger(s.vm);
+  const newbasic::debug::StopState state = debugger.Continue();
+  CHECK(state.reason == newbasic::debug::StopReason::Error);
+  CHECK(state.result.code == newbasic::kErrDivisionByZero);
   CHECK(state.line == 20);
 }
 
 TEST_CASE("Debugger: inspection", "[debug]") {
   DebugSession s("10 A=1\n20 B$=\"hi\"\n30 DIM C(3)\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   CHECK(debugger.ProgramLines() == std::vector<int>{10, 20, 30, 40});
   debugger.SetBreakpoint(30);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
   CHECK(debugger.Variable("B$")->AsString() == "hi");
   CHECK_FALSE(debugger.Variable("NOPE").has_value());
@@ -108,34 +108,34 @@ TEST_CASE("Debugger: inspection", "[debug]") {
 
 TEST_CASE("Debugger: stepping over a trapped error", "[debug]") {
   DebugSession s("10 ON ERROR GOTO 100\n20 ERROR 7\n30 A=1\n40 END\n100 RESUME NEXT\n");
-  lwbasic::debug::Debugger debugger(s.vm);
-  const lwbasic::debug::StopState state = debugger.Continue();
-  CHECK(state.reason == lwbasic::debug::StopReason::ProgramEnd);
+  newbasic::debug::Debugger debugger(s.vm);
+  const newbasic::debug::StopState state = debugger.Continue();
+  CHECK(state.reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
 }
 
 TEST_CASE("Debugger: a breakpoint in a loop hits on every iteration", "[debug]") {
   DebugSession s("10 FOR I=1 TO 3\n20 A=A+1\n30 NEXT I\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(20);
   // Stop-before-the-line semantics: at the first stop, line 20 has not run.
   CHECK(debugger.Continue().line == 20);
   // A has not been assigned yet at the first stop (the variable may not even
   // exist), so only assert the safe part.
-  const std::optional<lwbasic::Value> initial = debugger.Variable("A");
+  const std::optional<newbasic::Value> initial = debugger.Variable("A");
   CHECK((!initial.has_value() || initial->AsNumber() == 0.0));
   CHECK(debugger.Continue().line == 20);
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
   CHECK(debugger.Continue().line == 20);
   CHECK(debugger.Variable("A")->AsNumber() == 2.0);
-  const lwbasic::debug::StopState last = debugger.Continue();
-  CHECK(last.reason == lwbasic::debug::StopReason::ProgramEnd);
+  const newbasic::debug::StopState last = debugger.Continue();
+  CHECK(last.reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == 3.0);
 }
 
 TEST_CASE("Debugger: line stepping follows GOSUB and RETURN", "[debug]") {
   DebugSession s("10 GOSUB 100\n20 PRINT \"B\"\n30 END\n100 A=7\n110 RETURN\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   CHECK(debugger.StepLine().line == 100); // into the subroutine
   CHECK(debugger.StepLine().line == 110);
   CHECK(debugger.StepLine().line == 20); // back from RETURN
@@ -146,11 +146,11 @@ TEST_CASE("Debugger: line stepping follows GOSUB and RETURN", "[debug]") {
 
 TEST_CASE("Debugger: variables set inside a subroutine stay visible", "[debug]") {
   DebugSession s("10 GOSUB 100\n20 B=A*2\n30 END\n100 A=21\n110 RETURN\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(20);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
   CHECK(debugger.Variable("A")->AsNumber() == 21.0);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("B")->AsNumber() == 42.0);
 }
 
@@ -163,28 +163,28 @@ TEST_CASE("Inspection: GOSUB and FOR call frames", "[debug]") {
                  "60 END\n"
                  "100 B=1\n"
                  "110 RETURN\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(100);
   CHECK(debugger.Continue().line == 100);
 
-  const std::vector<lwbasic::Vm::CallFrame> frames = s.vm.CallStack();
+  const std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
   REQUIRE(frames.size() == 2);
-  CHECK(frames[0].kind == lwbasic::Vm::CallFrame::Kind::Gosub);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::Gosub);
   CHECK(frames[0].line == 50); // returns to the statement after the GOSUB
-  CHECK(frames[1].kind == lwbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::For_);
   CHECK(frames[1].name == "I!"); // canonical name keeps the type suffix
 }
 
 TEST_CASE("Inspection: array contents and bounds", "[debug]") {
   DebugSession s("10 DIM A(3)\n20 A(2)=7\n30 DIM S$(1)\n40 S$(0)=\"hi\"\n50 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(50);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
 
-  const std::vector<lwbasic::Vm::ArrayInfo> arrays = s.vm.Arrays();
+  const std::vector<newbasic::Vm::ArrayInfo> arrays = s.vm.Arrays();
   REQUIRE(arrays.size() == 2);
   CHECK(arrays[0].name == "A!");
-  CHECK(arrays[0].kind == lwbasic::Value::Kind::Sgl);
+  CHECK(arrays[0].kind == newbasic::Value::Kind::Sgl);
   CHECK(arrays[0].base == 0);
   CHECK(arrays[0].dims == std::vector<int>{3});
   CHECK(arrays[0].elements == 4); // OPTION BASE 0: indices 0..3
@@ -202,12 +202,12 @@ TEST_CASE("Inspection: array contents and bounds", "[debug]") {
 
 TEST_CASE("Snapshots: restoring replays the same continuation", "[debug][snapshot]") {
   DebugSession s("10 A=1\n20 A=A+2\n30 A=A*3\n40 PRINT A\n50 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   CHECK(debugger.StepLine().line == 20); // line 10 has run, A == 1
-  const lwbasic::Vm::Snapshot snapshot = s.vm.SaveState();
+  const newbasic::Vm::Snapshot snapshot = s.vm.SaveState();
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
 
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
   const double first = debugger.Variable("A")->AsNumber();
   CHECK(first == 9.0); // (1 + 2) * 3
 
@@ -215,7 +215,7 @@ TEST_CASE("Snapshots: restoring replays the same continuation", "[debug][snapsho
   s.vm.RestoreState(snapshot);
   CHECK(debugger.Variable("A")->AsNumber() == 1.0);
   CHECK(debugger.CurrentLine() == 20);
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == first);
 }
 
@@ -227,19 +227,19 @@ TEST_CASE("Snapshots: capture loops, arrays and DATA position", "[debug][snapsho
                  "50 NEXT I\n"
                  "60 PRINT A(1);A(3)\n"
                  "70 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(50); // fires before each NEXT
   CHECK(debugger.Continue().line == 50);
-  const lwbasic::Vm::Snapshot snapshot = s.vm.SaveState();
+  const newbasic::Vm::Snapshot snapshot = s.vm.SaveState();
   // The first iteration has run; the rest have not.
   CHECK(s.vm.ArrayElement("A", {1})->AsNumber() == 5.0);
   CHECK(s.vm.ArrayElement("A", {2})->AsNumber() == 0.0);
-  const std::vector<lwbasic::Vm::CallFrame> frames = s.vm.CallStack();
+  const std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
   REQUIRE(frames.size() == 1);
-  CHECK(frames[0].kind == lwbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
 
   // Run to completion (a stop per remaining iteration, then the end).
-  lwbasic::debug::StopState state = debugger.Continue();
+  newbasic::debug::StopState state = debugger.Continue();
   while (!state.AtEnd())
     state = debugger.Continue();
   CHECK(s.vm.ArrayElement("A", {3})->AsNumber() == 7.0);
@@ -247,7 +247,7 @@ TEST_CASE("Snapshots: capture loops, arrays and DATA position", "[debug][snapsho
   // Restoring brings back the loop frame, the array contents, the DATA
   // cursor and the instruction pointer together, so the run replays.
   s.vm.RestoreState(snapshot);
-  const std::vector<lwbasic::Vm::CallFrame> restored = s.vm.CallStack();
+  const std::vector<newbasic::Vm::CallFrame> restored = s.vm.CallStack();
   REQUIRE(restored.size() == 1);
   CHECK(restored[0].name == frames[0].name);
   CHECK(s.vm.ArrayElement("A", {2})->AsNumber() == 0.0);
@@ -267,16 +267,16 @@ TEST_CASE("Debugger: surfaces frames, arrays and snapshots", "[debug]") {
                  "60 END\n"
                  "100 B=1\n"
                  "110 RETURN\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(100);
   CHECK(debugger.Continue().line == 100);
 
   // Structural inspection through the debugger itself (the DAP surface).
-  const std::vector<lwbasic::Vm::CallFrame> frames = debugger.CallFrames();
+  const std::vector<newbasic::Vm::CallFrame> frames = debugger.CallFrames();
   REQUIRE(frames.size() == 2);
-  CHECK(frames[0].kind == lwbasic::Vm::CallFrame::Kind::Gosub);
-  CHECK(frames[1].kind == lwbasic::Vm::CallFrame::Kind::For_);
-  const std::vector<lwbasic::Vm::ArrayInfo> arrays = debugger.Arrays();
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::Gosub);
+  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::For_);
+  const std::vector<newbasic::Vm::ArrayInfo> arrays = debugger.Arrays();
   REQUIRE(arrays.size() == 1);
   CHECK(arrays[0].name == "A!");
   CHECK(arrays[0].elements == 3);
@@ -284,8 +284,8 @@ TEST_CASE("Debugger: surfaces frames, arrays and snapshots", "[debug]") {
   CHECK_FALSE(debugger.ArrayElement("A", {9}).has_value());
 
   // Snapshots are reachable through the debugger as well.
-  const lwbasic::Vm::Snapshot snapshot = debugger.SaveState();
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::Breakpoint);
+  const newbasic::Vm::Snapshot snapshot = debugger.SaveState();
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
   debugger.RestoreState(snapshot);
   CHECK(debugger.CurrentLine() == 100);
   CHECK(debugger.CallFrames().size() == 2);
@@ -293,7 +293,7 @@ TEST_CASE("Debugger: surfaces frames, arrays and snapshots", "[debug]") {
 
 TEST_CASE("Debugger: conditional breakpoints", "[debug]") {
   DebugSession s("10 FOR I=1 TO 5\n20 A=A+1\n30 NEXT I\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(20);
   debugger.SetCondition(20, "I=3");
   CHECK(debugger.HasCondition(20));
@@ -301,8 +301,8 @@ TEST_CASE("Debugger: conditional breakpoints", "[debug]") {
   CHECK(debugger.Condition(99).empty());
 
   // Only the third iteration stops (the first two pass the condition false).
-  const lwbasic::debug::StopState state = debugger.Continue();
-  CHECK(state.reason == lwbasic::debug::StopReason::Breakpoint);
+  const newbasic::debug::StopState state = debugger.Continue();
+  CHECK(state.reason == newbasic::debug::StopReason::Breakpoint);
   CHECK(state.line == 20);
   CHECK(debugger.Variable("I")->AsNumber() == 3.0);
   // Evaluating the condition did not disturb the program.
@@ -311,28 +311,28 @@ TEST_CASE("Debugger: conditional breakpoints", "[debug]") {
 
   // A condition that never holds runs to the end.
   debugger.SetCondition(20, "I=99");
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == 5.0);
 }
 
 TEST_CASE("Debugger: a malformed condition never breaks", "[debug]") {
   DebugSession s("10 A=1\n20 A=2\n30 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetBreakpoint(20);
   debugger.SetCondition(20, "1 +");
-  CHECK(debugger.Continue().reason == lwbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
   CHECK(debugger.Variable("A")->AsNumber() == 2.0);
 }
 
 TEST_CASE("Time travel: StepBack restores the previous line and its variables", "[debug][travel]") {
   DebugSession s("10 A=1\n20 A=A+1\n30 A=A+1\n40 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   CHECK(debugger.StepLine().line == 20); // line 10 has run: A == 1
   CHECK(debugger.StepLine().line == 30); // line 20 has run: A == 2
   CHECK(debugger.Variable("A")->AsNumber() == 2.0);
 
-  const lwbasic::debug::StopState back = debugger.StepBack();
-  CHECK(back.reason == lwbasic::debug::StopReason::Step);
+  const newbasic::debug::StopState back = debugger.StepBack();
+  CHECK(back.reason == newbasic::debug::StopReason::Step);
   CHECK(debugger.CurrentLine() == 20);
   CHECK(debugger.Variable("A")->AsNumber() == 1.0); // the value *before* line 20
 
@@ -343,18 +343,18 @@ TEST_CASE("Time travel: StepBack restores the previous line and its variables", 
   // Undo everything; an empty history reports None rather than inventing a stop.
   while (debugger.HistorySize() > 0)
     debugger.StepBack();
-  CHECK(debugger.StepBack().reason == lwbasic::debug::StopReason::None);
+  CHECK(debugger.StepBack().reason == newbasic::debug::StopReason::None);
 }
 
 TEST_CASE("Time travel: ReverseContinue stops at the previous line", "[debug][travel]") {
   DebugSession s("10 A=1\n20 A=2\n30 A=3\n40 A=4\n50 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   CHECK(debugger.StepLine().line == 20);
   CHECK(debugger.StepLine().line == 30);
   CHECK(debugger.StepLine().line == 40);
   CHECK(debugger.Variable("A")->AsNumber() == 3.0);
 
-  const lwbasic::debug::StopState back = debugger.ReverseContinue();
+  const newbasic::debug::StopState back = debugger.ReverseContinue();
   CHECK(back.line == 30);
   CHECK(debugger.Variable("A")->AsNumber() == 2.0);
   CHECK(debugger.ReverseContinue().line == 20);
@@ -363,7 +363,7 @@ TEST_CASE("Time travel: ReverseContinue stops at the previous line", "[debug][tr
 
 TEST_CASE("Time travel: the history ring is bounded and drops the oldest", "[debug][travel]") {
   DebugSession s("10 A=1\n20 A=2\n30 A=3\n40 A=4\n50 END\n");
-  lwbasic::debug::Debugger debugger(s.vm);
+  newbasic::debug::Debugger debugger(s.vm);
   debugger.SetHistoryLimit(2);
   CHECK(debugger.HistoryLimit() == 2);
   for (int i = 0; i < 3; ++i)
@@ -371,9 +371,9 @@ TEST_CASE("Time travel: the history ring is bounded and drops the oldest", "[deb
   CHECK(debugger.HistorySize() <= 2);
 
   // Only the retained entries can be undone.
-  CHECK(debugger.StepBack().reason == lwbasic::debug::StopReason::Step);
-  CHECK(debugger.StepBack().reason == lwbasic::debug::StopReason::Step);
-  CHECK(debugger.StepBack().reason == lwbasic::debug::StopReason::None);
+  CHECK(debugger.StepBack().reason == newbasic::debug::StopReason::Step);
+  CHECK(debugger.StepBack().reason == newbasic::debug::StopReason::Step);
+  CHECK(debugger.StepBack().reason == newbasic::debug::StopReason::None);
 
   debugger.ClearHistory();
   CHECK(debugger.HistorySize() == 0);

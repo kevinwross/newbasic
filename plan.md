@@ -1,12 +1,12 @@
-# newbasic — dual-platform lwbasic port plan
+# newbasic — dual-platform newbasic port plan
 
-**Goal:** turn the Windows-only `lwbasic` interpreter into a project in
+**Goal:** turn the Windows-only `newbasic` interpreter into a project in
 `~/repos/newbasic` that configures, builds, tests and runs on both **Windows
 (MSVC)** and **Linux (GCC/Clang)**, with the GW-BASIC behaviour and the golden
 fixtures unchanged.
 
 **Approach:** one source tree with narrow platform seams. Do **not** fork the
-interpreter into "lwbasic-win" and "lwbasic-linux". The VM, lexer, front end,
+interpreter into "newbasic-win" and "newbasic-linux". The VM, lexer, front end,
 FSTOK codec, debugger and DAP protocol are already portable; only the host
 services, console, font rasteriser, window backend and DAP socket are
 Windows-bound.
@@ -37,7 +37,7 @@ adds graphics; **6 → 8** makes it maintainable and releasable.
 Phases 0–8 are implemented in this repository (optional ALSA output and
 packaging rules remain future work):
 
-- Platform-aware CMake with separate `lwbasic-screen` and `lwbasic-window`
+- Platform-aware CMake with separate `newbasic-screen` and `newbasic-window`
   targets, and a console-only configuration that needs no window library.
 - Portable host split (`host.cpp`, `host_win32.cpp`, `host_posix.cpp`), POSIX
   `SHELL`, timed silent tone output and printer/environment handling.
@@ -52,9 +52,9 @@ packaging rules remain future work):
 Verification on this Linux host: the full upstream suite passes (365 test
 cases, 31,110 assertions), the hidden `[.audio]` timing test passes, and the
 hidden `[.gpu]` test passes with SDL2 under `SDL_VIDEODRIVER=dummy`.
-`LWBASIC_WERROR=ON` builds the first-party targets cleanly. The Windows side
-was cross-compiled and linked with LLVM-MinGW (D3D11 backend, `lwbasic.exe`,
-`lwbasic-dap.exe` and `lwbasic-tests.exe`); the MSVC CI job still needs to run
+`NEWBASIC_WERROR=ON` builds the first-party targets cleanly. The Windows side
+was cross-compiled and linked with LLVM-MinGW (D3D11 backend, `newbasic.exe`,
+`newbasic-dap.exe` and `newbasic-tests.exe`); the MSVC CI job still needs to run
 on Windows itself.
 
 ---
@@ -65,14 +65,14 @@ A probe against upstream commit `925fde3` with GCC 15.2 on Linux:
 
 | Area | Result |
 |---|---|
-| All 13 `lwbasic-core` `.cpp` files except `host.cpp` | compile clean |
-| `src/lwbasic-core/src/host.cpp` | fails: `#include <windows.h>`; uses `localtime_s`, `CreateProcessW`, `waveOut`, `Beep`, `Sleep`, `_dupenv_s` |
-| `src/lwbasic-screen/src/headless_screen.cpp` | compiles clean |
-| `src/lwbasic-cli/main.cpp` | fails: `sscanf_s` is MSVC-only (also includes `d3d11_screen.h` and casts to `D3D11Screen`) |
-| `src/lwbasic-dap/main.cpp` | fails: `#include <winsock2.h>` |
-| `src/lwbasic-screen/src/console_screen.cpp` | fails: Win32 console API |
-| `src/lwbasic-screen/src/glyph_atlas.cpp` | fails: GDI (`CreateDIBSection`, `CreateFontW`, `TextOutW`, …) |
-| `src/lwbasic-screen/src/d3d11_screen.cpp` | Windows/D3D11 by definition |
+| All 13 `newbasic-core` `.cpp` files except `host.cpp` | compile clean |
+| `src/newbasic-core/src/host.cpp` | fails: `#include <windows.h>`; uses `localtime_s`, `CreateProcessW`, `waveOut`, `Beep`, `Sleep`, `_dupenv_s` |
+| `src/newbasic-screen/src/headless_screen.cpp` | compiles clean |
+| `src/newbasic-cli/main.cpp` | fails: `sscanf_s` is MSVC-only (also includes `d3d11_screen.h` and casts to `D3D11Screen`) |
+| `src/newbasic-dap/main.cpp` | fails: `#include <winsock2.h>` |
+| `src/newbasic-screen/src/console_screen.cpp` | fails: Win32 console API |
+| `src/newbasic-screen/src/glyph_atlas.cpp` | fails: GDI (`CreateDIBSection`, `CreateFontW`, `TextOutW`, …) |
+| `src/newbasic-screen/src/d3d11_screen.cpp` | Windows/D3D11 by definition |
 
 So the port is roughly **one core file, the three screen backends, one CLI
 file, one DAP file and the build system**. That is a good sign: the
@@ -83,17 +83,17 @@ interpreter proper does not need a rewrite.
 | File | Windows dependency | Replacement / treatment |
 |---|---|---|
 | `CMakeLists.txt` | MSVC-only flags | compiler-specific blocks; platform subdirectories |
-| `src/lwbasic-core/CMakeLists.txt` | links `winmm` | `winmm` on Windows only; `Threads::Threads` and `m` on POSIX |
-| `src/lwbasic-screen/CMakeLists.txt` | always builds `d3d11_screen.cpp`; D3D libs under `if(MSVC)` | split into `lwbasic-screen` and `lwbasic-window`; select sources/libraries by platform |
-| `src/lwbasic-dap/CMakeLists.txt` | links `ws2_32` | `ws2_32` on Windows only |
-| `src/lwbasic-core/src/host.cpp` | `windows.h`, time, shell, sound, environment | split into portable + Win32 + POSIX units |
-| `src/lwbasic-screen/include/lwbasic/screen/console_screen.h` | opaque `HANDLE`, Win32 state | pimpl; platform-neutral header |
-| `src/lwbasic-screen/src/console_screen.cpp` | Win32 console API | keep as `console_screen_win32.cpp`; add `console_screen_posix.cpp` |
-| `src/lwbasic-screen/src/glyph_atlas.cpp` | GDI font rasteriser | extract common glyph work; GDI on Windows, `stb_truetype` on Linux |
-| `src/lwbasic-screen/src/d3d11_screen.cpp` | Win32 + D3D11 | Windows-only; add `sdl_screen.cpp` for Linux |
-| `src/lwbasic-screen/include/lwbasic/screen/d3d11_screen.h` | D3D-specific public type used by CLI/tests | introduce `WindowScreen` interface + factory |
-| `src/lwbasic-cli/main.cpp` | `sscanf_s`, `D3D11Screen` casts, Win32 wording | portable parsing, factory, generic messages |
-| `src/lwbasic-dap/main.cpp` | Winsock types and lifecycle | portable socket wrapper (`socket_win32.cpp` / `socket_posix.cpp`) |
+| `src/newbasic-core/CMakeLists.txt` | links `winmm` | `winmm` on Windows only; `Threads::Threads` and `m` on POSIX |
+| `src/newbasic-screen/CMakeLists.txt` | always builds `d3d11_screen.cpp`; D3D libs under `if(MSVC)` | split into `newbasic-screen` and `newbasic-window`; select sources/libraries by platform |
+| `src/newbasic-dap/CMakeLists.txt` | links `ws2_32` | `ws2_32` on Windows only |
+| `src/newbasic-core/src/host.cpp` | `windows.h`, time, shell, sound, environment | split into portable + Win32 + POSIX units |
+| `src/newbasic-screen/include/newbasic/screen/console_screen.h` | opaque `HANDLE`, Win32 state | pimpl; platform-neutral header |
+| `src/newbasic-screen/src/console_screen.cpp` | Win32 console API | keep as `console_screen_win32.cpp`; add `console_screen_posix.cpp` |
+| `src/newbasic-screen/src/glyph_atlas.cpp` | GDI font rasteriser | extract common glyph work; GDI on Windows, `stb_truetype` on Linux |
+| `src/newbasic-screen/src/d3d11_screen.cpp` | Win32 + D3D11 | Windows-only; add `sdl_screen.cpp` for Linux |
+| `src/newbasic-screen/include/newbasic/screen/d3d11_screen.h` | D3D-specific public type used by CLI/tests | introduce `WindowScreen` interface + factory |
+| `src/newbasic-cli/main.cpp` | `sscanf_s`, `D3D11Screen` casts, Win32 wording | portable parsing, factory, generic messages |
+| `src/newbasic-dap/main.cpp` | Winsock types and lifecycle | portable socket wrapper (`socket_win32.cpp` / `socket_posix.cpp`) |
 | `tests/test_text_render.cpp` | includes `d3d11_screen.h`, `[.gpu]` test | use factory; skip cleanly when no window backend |
 | `tests/test_sound.cpp` | `SystemHost` real audio check | no source change; POSIX host must block for the tone duration |
 | `tools/verify.ps1` | PowerShell/Windows paths | add `tools/verify.sh` |
@@ -102,7 +102,7 @@ interpreter proper does not need a rewrite.
 
 Four non-obvious behavioural hotspots found in the core:
 
-- `src/lwbasic-core/src/repl.cpp` implements `NAME old AS new` with
+- `src/newbasic-core/src/repl.cpp` implements `NAME old AS new` with
   `std::filesystem::rename`. POSIX `rename` **silently overwrites** an
   existing destination, which DOS `NAME` must not do. Add an explicit
   no-replace shim and a test for the existing-destination case; confirm the
@@ -126,8 +126,8 @@ Four non-obvious behavioural hotspots found in the core:
    expectations. Platform code sits behind `Host`, `Screen`, the window
    factory and the socket wrapper.
 2. **Keep upstream names.** Project name can be `newbasic`, but keep the
-   `lwbasic::` namespace, target names and binary names (`lwbasic`,
-   `lwbasic-dap`, `lwbasic-tests`) so upstream fixes can be merged with a
+   `newbasic::` namespace, target names and binary names (`newbasic`,
+   `newbasic-dap`, `newbasic-tests`) so upstream fixes can be merged with a
    small diff and existing docs/scripts keep working.
 3. **Platform selection belongs in CMake, not in `#ifdef` forests.** Prefer
    separate translation units (`*_win32.cpp`, `*_posix.cpp`) over preprocessor
@@ -156,16 +156,16 @@ newbasic/
     portability.md               # behaviour matrix + divergences
     ...                          # upstream docs retained
   src/
-    lwbasic-core/
-      include/lwbasic/...        # unchanged public API
+    newbasic-core/
+      include/newbasic/...        # unchanged public API
       src/
         host.cpp                 # portable: clock/date/time/printer
         host_win32.cpp           # SHELL + PlayTone
         host_posix.cpp           # SHELL + PlayTone
         host_path.cpp            # DOS path -> host path helper
         ...                      # unchanged
-    lwbasic-screen/                # console + headless + atlas (no window libs)
-      include/lwbasic/screen/
+    newbasic-screen/                # console + headless + atlas (no window libs)
+      include/newbasic/screen/
         console_screen.h         # pimpl, platform-neutral
         glyph_atlas.h            # unchanged interface
         ...
@@ -177,18 +177,18 @@ newbasic/
         glyph_atlas_stb.cpp      # Linux (stb_truetype + bundled font)
         headless_screen.cpp
         text_render.cpp
-    lwbasic-window/                # always built; may contain zero backends
-      include/lwbasic/window/
+    newbasic-window/                # always built; may contain zero backends
+      include/newbasic/window/
         window_screen.h          # new: windowed-backend interface
         screen_factory.h         # new: CreateWindowScreen()
-        d3d11_screen.h           # moved from lwbasic-screen
+        d3d11_screen.h           # moved from newbasic-screen
         sdl_screen.h             # new
       src/
         d3d11_screen.cpp         # Windows only
         sdl_screen.cpp           # Linux (optionally Windows)
         screen_factory.cpp
-    lwbasic-cli/main.cpp
-    lwbasic-dap/
+    newbasic-cli/main.cpp
+    newbasic-dap/
       main.cpp
       socket_win32.cpp
       socket_posix.cpp
@@ -217,7 +217,7 @@ v1** — it adds risk to the known-good Windows path for no porting benefit.
 1. Copy the upstream tree without build output or Git metadata:
    ```sh
    rsync -a --exclude '.git' --exclude 'out' \
-     ~/repos/lwbasic/ ~/repos/newbasic/
+     ~/repos/newbasic/ ~/repos/newbasic/
    ```
 2. Record provenance (upstream URL + commit `925fde3`) in `README.md` or
    `UPSTREAM.md`.
@@ -265,86 +265,86 @@ new `CMakePresets.json`.
   Keep `/WX` scoped to first-party targets, as upstream does. Do not turn on
   `-Werror` for vendored Catch2/RapidCheck; add targeted `-Wno-*` only after
   seeing real warnings.
-- Add platform definitions once, e.g. `LWBASIC_PLATFORM_WINDOWS` /
-  `LWBASIC_PLATFORM_POSIX`, or prefer the standard `_WIN32`/`__unix__` macros
+- Add platform definitions once, e.g. `NEWBASIC_PLATFORM_WINDOWS` /
+  `NEWBASIC_PLATFORM_POSIX`, or prefer the standard `_WIN32`/`__unix__` macros
   and use CMake only for source selection.
 - Add options:
   ```cmake
-  option(LWBASIC_WINDOW_D3D11 "Build the Win32/D3D11 window backend" ${WIN32})
-  option(LWBASIC_WINDOW_SDL   "Build the SDL2 window backend" ${UNIX})
-  set(LWBASIC_ALSA "AUTO" CACHE STRING "POSIX tone output: AUTO, ON or OFF")
-  option(LWBASIC_BUILD_TESTS  "Build the test suite" ON)
-  option(LWBASIC_WERROR       "Treat first-party warnings as errors" OFF)
+  option(NEWBASIC_WINDOW_D3D11 "Build the Win32/D3D11 window backend" ${WIN32})
+  option(NEWBASIC_WINDOW_SDL   "Build the SDL2 window backend" ${UNIX})
+  set(NEWBASIC_ALSA "AUTO" CACHE STRING "POSIX tone output: AUTO, ON or OFF")
+  option(NEWBASIC_BUILD_TESTS  "Build the test suite" ON)
+  option(NEWBASIC_WERROR       "Treat first-party warnings as errors" OFF)
   ```
   Defaults must produce a working build on each OS once the documented
   prerequisites are installed. In particular, Linux defaults need the SDL2
-  development package; `-DLWBASIC_WINDOW_SDL=OFF` is the supported
+  development package; `-DNEWBASIC_WINDOW_SDL=OFF` is the supported
   no-extra-dependencies build.
 - Core target:
-  - Windows: `target_link_libraries(lwbasic-core PUBLIC winmm)`.
+  - Windows: `target_link_libraries(newbasic-core PUBLIC winmm)`.
   - POSIX: `find_package(Threads REQUIRED)` and link `Threads::Threads`;
     link `m` for `std::pow`/`std::sin` on platforms that need it.
 - **Split the screen library** so the DAP server and console-only builds do
   not inherit SDL2 or D3D link dependencies:
-  - `lwbasic-screen` — console, headless, glyph atlas, text helpers. No window
+  - `newbasic-screen` — console, headless, glyph atlas, text helpers. No window
     libraries.
-  - `lwbasic-window` — always exists (even with zero backends), contains the
+  - `newbasic-window` — always exists (even with zero backends), contains the
     `WindowScreen` interface, the factory and whichever backends are enabled;
-    links `lwbasic-screen`.
-  - `lwbasic-cli` and `lwbasic-tests` link `lwbasic-window`;
-    `lwbasic-dap` links only `lwbasic-screen`.
+    links `newbasic-screen`.
+  - `newbasic-cli` and `newbasic-tests` link `newbasic-window`;
+    `newbasic-dap` links only `newbasic-screen`.
   This matters for static libraries: a `PRIVATE` SDL2 dependency on a static
-  `lwbasic-screen` would still propagate to every executable that links it.
+  `newbasic-screen` would still propagate to every executable that links it.
 - Screen target: select sources:
   ```cmake
-  set(LWBASIC_SCREEN_SOURCES
+  set(NEWBASIC_SCREEN_SOURCES
     src/headless_screen.cpp
     src/glyph_atlas.cpp)
   if(WIN32)
-    list(APPEND LWBASIC_SCREEN_SOURCES
+    list(APPEND NEWBASIC_SCREEN_SOURCES
       src/console_screen_win32.cpp
       src/glyph_atlas_gdi.cpp)
   else()
-    list(APPEND LWBASIC_SCREEN_SOURCES
+    list(APPEND NEWBASIC_SCREEN_SOURCES
       src/console_screen_posix.cpp
       src/glyph_atlas_stb.cpp)
   endif()
-  add_library(lwbasic-screen STATIC ${LWBASIC_SCREEN_SOURCES})
+  add_library(newbasic-screen STATIC ${NEWBASIC_SCREEN_SOURCES})
   ```
 - Window target: select zero or one backend:
   ```cmake
-  set(LWBASIC_WINDOW_SOURCES src/screen_factory.cpp)
-  if(LWBASIC_WINDOW_D3D11)
-    list(APPEND LWBASIC_WINDOW_SOURCES src/d3d11_screen.cpp)
+  set(NEWBASIC_WINDOW_SOURCES src/screen_factory.cpp)
+  if(NEWBASIC_WINDOW_D3D11)
+    list(APPEND NEWBASIC_WINDOW_SOURCES src/d3d11_screen.cpp)
   endif()
-  if(LWBASIC_WINDOW_SDL)
-    list(APPEND LWBASIC_WINDOW_SOURCES src/sdl_screen.cpp)
+  if(NEWBASIC_WINDOW_SDL)
+    list(APPEND NEWBASIC_WINDOW_SOURCES src/sdl_screen.cpp)
   endif()
-  add_library(lwbasic-window STATIC ${LWBASIC_WINDOW_SOURCES})
-  target_include_directories(lwbasic-window PUBLIC include)
-  target_link_libraries(lwbasic-window PUBLIC lwbasic-screen)
-  if(LWBASIC_WINDOW_D3D11)
-    target_link_libraries(lwbasic-window PRIVATE d3d11 dxgi d3dcompiler)
+  add_library(newbasic-window STATIC ${NEWBASIC_WINDOW_SOURCES})
+  target_include_directories(newbasic-window PUBLIC include)
+  target_link_libraries(newbasic-window PUBLIC newbasic-screen)
+  if(NEWBASIC_WINDOW_D3D11)
+    target_link_libraries(newbasic-window PRIVATE d3d11 dxgi d3dcompiler)
   endif()
-  if(LWBASIC_WINDOW_SDL)
-    target_link_libraries(lwbasic-window PRIVATE ${SDL2_TARGET})
+  if(NEWBASIC_WINDOW_SDL)
+    target_link_libraries(newbasic-window PRIVATE ${SDL2_TARGET})
   endif()
   ```
-  Pass `LWBASIC_WINDOW_D3D11` / `LWBASIC_WINDOW_SDL` as compile definitions so
+  Pass `NEWBASIC_WINDOW_D3D11` / `NEWBASIC_WINDOW_SDL` as compile definitions so
   `screen_factory.cpp` and `--help` can report the backend. Add
-  `add_subdirectory(src/lwbasic-window)` after `lwbasic-screen` and before
-  `lwbasic-cli`/tests.
+  `add_subdirectory(src/newbasic-window)` after `newbasic-screen` and before
+  `newbasic-cli`/tests.
 - SDL2 discovery: try `find_package(SDL2 CONFIG QUIET)`, then
   `pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)`. Normalise the
   imported target into `SDL2_TARGET` (e.g. `SDL2::SDL2` or
-  `PkgConfig::SDL2`). If not found and `LWBASIC_WINDOW_SDL=ON`, fail with a
+  `PkgConfig::SDL2`). If not found and `NEWBASIC_WINDOW_SDL=ON`, fail with a
   package-install hint (`libsdl2-dev` on Debian/Ubuntu). If `OFF`, build a
   console-only binary.
-- DAP target: link `ws2_32` only on Windows. Link `lwbasic-screen` only, not
-  `lwbasic-window`.
+- DAP target: link `ws2_32` only on Windows. Link `newbasic-screen` only, not
+  `newbasic-window`.
 - Add `CMakePresets.json` with `windows-msvc`, `linux-gcc`, `linux-clang`,
   `linux-console-only`, `linux-asan`.
-- Keep test registration and `LWBASIC_FIXTURES_DIR` working on both.
+- Keep test registration and `NEWBASIC_FIXTURES_DIR` working on both.
 
 **Exit criteria**
 
@@ -355,17 +355,17 @@ cmake -S . -B build -G Ninja && cmake --build build
 cmake -S . -B out -A x64 && cmake --build out --config Release
 ```
 The configure step must succeed on both. Before the source port lands, a
-temporary `-DLWBASIC_WINDOW_SDL=OFF` build can prove the core/headless path.
+temporary `-DNEWBASIC_WINDOW_SDL=OFF` build can prove the core/headless path.
 
 ---
 
 ### Phase 2 — Portable `Host` services
 
-**Files:** `src/lwbasic-core/src/host.cpp`,
-`src/lwbasic-core/src/host_win32.cpp`,
-`src/lwbasic-core/src/host_posix.cpp`,
-`src/lwbasic-core/include/lwbasic/host.h` (probably unchanged),
-`src/lwbasic-core/include/lwbasic/screen/screen.h` and `src/lwbasic-core/src/vm.cpp`
+**Files:** `src/newbasic-core/src/host.cpp`,
+`src/newbasic-core/src/host_win32.cpp`,
+`src/newbasic-core/src/host_posix.cpp`,
+`src/newbasic-core/include/newbasic/host.h` (probably unchanged),
+`src/newbasic-core/include/newbasic/screen/screen.h` and `src/newbasic-core/src/vm.cpp`
 (for the `SHELL` suspend/resume hooks).
 
 **Design**
@@ -401,7 +401,7 @@ Environment/printer:
 - Replace `_dupenv_s` with a small `GetEnv(name)` helper. On Windows use
   `_dupenv_s` to keep the current warning-clean behaviour; on POSIX use
   `std::getenv`.
-- Keep `LWBASIC_PRINTER` and the default `lwbasic.prn` file. Path semantics
+- Keep `NEWBASIC_PRINTER` and the default `newbasic.prn` file. Path semantics
   are the same.
 
 `SHELL`:
@@ -439,7 +439,7 @@ Tone output:
   ```
   That preserves `PLAY`/`SOUND`/`BEEP` timing and makes the `[.audio]` test
   pass.
-- Optional audio (recommended, behind `LWBASIC_ALSA`): use `libasound`
+- Optional audio (recommended, behind `NEWBASIC_ALSA`): use `libasound`
   (`snd_pcm_open` / `snd_pcm_writei`) with the same `RenderTone` samples.
   Default `AUTO`: enable when `alsa/asoundlib.h` and `libasound` are found.
   If no device opens, sleep for the duration instead of failing.
@@ -455,7 +455,7 @@ Tone output:
 - `[.audio]` "real host blocks for the tone duration" passes on Linux.
 - `SHELL "echo hi"` returns 0 and prints on both; `SHELL` with no argument
   starts an interactive shell with a cooked terminal.
-- `LWBASIC_PRINTER` and `lwbasic.prn` work on both.
+- `NEWBASIC_PRINTER` and `newbasic.prn` work on both.
 
 ---
 
@@ -559,7 +559,7 @@ semantically identical while moving it into `Impl`.
 
 **Exit criteria**
 
-- `lwbasic` starts a REPL in an xterm/konsole/GNOME Terminal; typing, Enter,
+- `newbasic` starts a REPL in an xterm/konsole/GNOME Terminal; typing, Enter,
   Backspace and Escape work; `SYSTEM` restores the terminal.
 - `PRINT`, `INPUT`, `LINE INPUT`, `LOCATE`, `COLOR`, `CLS`, `WIDTH`, `VIEW
   PRINT` and `INKEY$` behave.
@@ -641,16 +641,16 @@ as the emergency fallback.
 
 ### Phase 5 — Window backend abstraction + SDL2 on Linux
 
-**Files:** new `src/lwbasic-window/include/lwbasic/window/window_screen.h`,
-`screen_factory.h`, `src/lwbasic-window/src/screen_factory.cpp`,
-`sdl_screen.h/.cpp`; move `d3d11_screen.h/.cpp` from `lwbasic-screen` to
-`lwbasic-window`; changes to `lwbasic-cli/main.cpp`,
-`tests/test_text_render.cpp`, `src/lwbasic-screen/CMakeLists.txt` and the new
-`src/lwbasic-window/CMakeLists.txt`.
+**Files:** new `src/newbasic-window/include/newbasic/window/window_screen.h`,
+`screen_factory.h`, `src/newbasic-window/src/screen_factory.cpp`,
+`sdl_screen.h/.cpp`; move `d3d11_screen.h/.cpp` from `newbasic-screen` to
+`newbasic-window`; changes to `newbasic-cli/main.cpp`,
+`tests/test_text_render.cpp`, `src/newbasic-screen/CMakeLists.txt` and the new
+`src/newbasic-window/CMakeLists.txt`.
 
 **Problem**
 
-`lwbasic-cli/main.cpp` and `tests/test_text_render.cpp` include
+`newbasic-cli/main.cpp` and `tests/test_text_render.cpp` include
 `d3d11_screen.h`, call `D3D11Screen::Create`, and `static_cast` to
 `D3D11Screen` for `InjectKeys`, `InjectClick` and `ReadBackCanvasPixel`.
 Linux must not compile that header's implementation, and a second backend
@@ -660,7 +660,7 @@ must satisfy the same CLI features.
 
 ```cpp
 // window_screen.h
-namespace lwbasic::screen {
+namespace newbasic::screen {
 
 class WindowScreen : public Screen {
 public:
@@ -683,7 +683,7 @@ bool WindowBackendAvailable();
 // Name for diagnostics: "D3D11", "SDL2", or "".
 const char* WindowBackendName();
 
-} // namespace lwbasic::screen
+} // namespace newbasic::screen
 ```
 
 - `D3D11Screen` derives from `WindowScreen`; its `Create` can remain for
@@ -692,9 +692,9 @@ const char* WindowBackendName();
 - `screen_factory.cpp` contains the compile-time selection:
   ```cpp
   std::unique_ptr<WindowScreen> CreateWindowScreen(std::string* error, int scale) {
-  #if defined(LWBASIC_WINDOW_D3D11)
+  #if defined(NEWBASIC_WINDOW_D3D11)
     return D3D11Screen::Create(error, scale);
-  #elif defined(LWBASIC_WINDOW_SDL)
+  #elif defined(NEWBASIC_WINDOW_SDL)
     return SdlScreen::Create(error, scale);
   #else
     if (error) *error = "no window backend in this build";
@@ -709,7 +709,7 @@ const char* WindowBackendName();
 - Tests use `CreateWindowScreen`; when it returns null, `WARN` + `SKIP` the
   `[.gpu]` case instead of failing. Tag backend-specific assertions if
   pixel-exact results differ. Update `tests/CMakeLists.txt` to link
-  `lwbasic-window` additively (it already links `lwbasic-screen`), so the
+  `newbasic-window` additively (it already links `newbasic-screen`), so the
   `[.gpu]` case can see the factory on both platforms.
 
 **SDL2 backend design**
@@ -735,7 +735,7 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
     simple, testable and fast enough at 640x400: ~1 MB per frame, 30 fps.
   - Alternative: two textures (atlas + canvas) with `SDL_RenderCopy`; only
     do this if profiling shows CPU composition is a bottleneck. `--bench`
-    and a frame-time log (the `LWBASIC_TIMING` equivalent) should decide.
+    and a frame-time log (the `NEWBASIC_TIMING` equivalent) should decide.
 - `OnGridChanged`: resize the window for `SCREEN 720` (160x45) and other
   modes; keep the client area equal to cells × cell size × scale.
 - `Present`: render, then `SDL_RenderPresent`.
@@ -773,8 +773,8 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
   - `--cli` → "Use the terminal instead of the window."
   - `--gpu-pixel` → "read a pixel from the presented window".
   - Remove "D3D11" from user-facing errors; use `WindowBackendName()`.
-- Change "lwbasic requires a console (conhost or Windows Terminal)." to a
-  generic "lwbasic requires a terminal." message.
+- Change "newbasic requires a console (conhost or Windows Terminal)." to a
+  generic "newbasic requires a terminal." message.
 - Default `g_use_gpu` should be `WindowBackendAvailable()`; on Linux without
   SDL2 it is false, so the console is used without an error.
 - Keep `--gpu-scale`, `--keys`, `--clicks`, `--gpu-shot`, `--gpu-pixel`,
@@ -786,12 +786,12 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
 **Exit criteria**
 
 - On Linux with SDL2:
-  - `lwbasic samples/Beethoven.bas` opens a window and plays.
-  - `lwbasic samples/Mandelbrot1200.bas` displays graphics at a reasonable
+  - `newbasic samples/Beethoven.bas` opens a window and plays.
+  - `newbasic samples/Mandelbrot1200.bas` displays graphics at a reasonable
     frame rate; `--gpu-shot` writes a correct PPM.
-  - `lwbasic --gpu-check` reports PASS.
+  - `newbasic --gpu-check` reports PASS.
   - `--keys` and `--clicks` drive a scripted session.
-- On Linux without SDL2 (`-DLWBASIC_WINDOW_SDL=OFF`):
+- On Linux without SDL2 (`-DNEWBASIC_WINDOW_SDL=OFF`):
   - the binary builds and runs console-only; `--gpu` prints a clear
     "no window backend in this build" message and falls back.
 - On Windows: D3D11 remains the default, and all existing behaviour,
@@ -801,8 +801,8 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
 
 ### Phase 6 — DAP socket portability
 
-**Files:** `src/lwbasic-dap/main.cpp`, new `socket.h`,
-`socket_win32.cpp`, `socket_posix.cpp`, `src/lwbasic-dap/CMakeLists.txt`.
+**Files:** `src/newbasic-dap/main.cpp`, new `socket.h`,
+`socket_win32.cpp`, `socket_posix.cpp`, `src/newbasic-dap/CMakeLists.txt`.
 
 **Tasks**
 
@@ -841,7 +841,7 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
 **Exit criteria**
 
 - `dap-smoke` (stdio) passes on Linux and Windows.
-- `lwbasic-dap --port 0` prints a port; a scripted client can connect,
+- `newbasic-dap --port 0` prints a port; a scripted client can connect,
   initialize, set a breakpoint, continue and disconnect.
 - Disconnecting the client does not terminate the server; a second
   connection works.
@@ -851,7 +851,7 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
 
 ### Phase 7 — Core filesystem/path semantics on Linux
 
-**Files:** `src/lwbasic-core/src/repl.cpp`, `program_files.cpp`,
+**Files:** `src/newbasic-core/src/repl.cpp`, `program_files.cpp`,
 `vm.cpp`, new `host_path.h/.cpp`.
 
 **Tasks**
@@ -925,7 +925,7 @@ Use SDL2 window + renderer; keep composition close to the existing D3D path.
   code, not the fixture.
 - Add CTest working-directory hygiene if tests write files: run each test
   in the build tree (as now) and avoid parallel tests sharing fixed names.
-  If any test uses `lwbasic.prn` or `accounting.dat` in the CWD, use unique
+  If any test uses `newbasic.prn` or `accounting.dat` in the CWD, use unique
   temp paths under `CMAKE_CURRENT_BINARY_DIR`.
 - `dap-smoke` already uses `$<TARGET_FILE>` and a `TMP_DIR`; verify on
   Linux.
@@ -966,7 +966,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build -G Ninja -DLWBASIC_WINDOW_SDL=OFF
+      - run: cmake -S . -B build -G Ninja -DNEWBASIC_WINDOW_SDL=OFF
       - run: cmake --build build --parallel
       - run: ctest --test-dir build --timeout 120 --output-on-failure
 ```
@@ -998,7 +998,7 @@ Notes:
   - `NAME`/`RMDIR` semantics are kept DOS-compatible on POSIX.
 - Update `docs/status.md` with a dated dual-platform snapshot.
 - Add `docs/building-linux.md` if the README gets long.
-- Keep the upstream specification plan as `docs/lwbasic-spec-plan.md`; this
+- Keep the upstream specification plan as `docs/newbasic-spec-plan.md`; this
   file is the port plan. Link both from `README.md`.
 
 **Packaging (optional but recommended)**
@@ -1049,7 +1049,7 @@ every step.
 | POSIX terminal left in raw mode after crash | User's shell is unusable | Restore in destructor, `ExitFullScreen`, `atexit`, and `SIGINT`/`SIGTERM` handlers; test by killing during a run |
 | `SHELL` inherits raw mode / alternate screen | Interactive shell unusable on Linux | Add `SuspendForChildProcess`/`ResumeAfterChildProcess` to `Screen`; call around `RunShell` |
 | `wchar_t` is 32-bit on Linux, 16-bit on Windows | Encoding bugs, wrong CP437 mappings | Explicit UTF-8/UTF-16 conversion helpers; avoid `wcs*` and `std::wstring_convert`; keep CP437 tables in BMP |
-| SDL2 not installed on target distro | No windowed mode | `LWBASIC_WINDOW_SDL=OFF` builds console-only; clear configure error with package hint; runtime fallback |
+| SDL2 not installed on target distro | No windowed mode | `NEWBASIC_WINDOW_SDL=OFF` builds console-only; clear configure error with package hint; runtime fallback |
 | Bundled font licensing / size | Legal or repo-size concern | Use DejaVu (permissive) or Liberation (OFL); include licence; embed compressed or install as data; ~300 KB is acceptable |
 | GDI vs stb rendering differs | Windows/Linux screenshots differ; tests brittle | Make tests assert structural properties (ink presence/count), not pixel-exact cross-platform hashes; compare within each platform |
 | ANSI colour/key differences between terminals | Visual/input parity gaps | Map CGA→ANSI carefully; document; keep Win32 backend on Windows; test in xterm + GNOME Terminal + Windows Terminal |
@@ -1078,7 +1078,7 @@ every step.
 ## 8. Acceptance test matrix
 
 Run these before calling the port done. "Linux console" means
-`-DLWBASIC_WINDOW_SDL=OFF` or no display; "Linux window" means SDL2 with a
+`-DNEWBASIC_WINDOW_SDL=OFF` or no display; "Linux window" means SDL2 with a
 display.
 
 | Scenario | Windows | Linux console | Linux window |
@@ -1105,7 +1105,7 @@ display.
 | `FILES` stable order | ✅ | ✅ | ✅ |
 | `OPEN` random files | ✅ | ✅ | ✅ |
 | `dap-smoke` stdio | ✅ | ✅ | ✅ |
-| `lwbasic-dap --port 0` TCP connect | ✅ | ✅ | ✅ |
+| `newbasic-dap --port 0` TCP connect | ✅ | ✅ | ✅ |
 | `clang-format --dry-run --Werror` | ✅ | ✅ | ✅ |
 
 ---
@@ -1122,7 +1122,7 @@ the recommended answer for each.
    Recommended: yes. SDL2 is packaged on all major distros; the font is
    needed for graphics screenshots and `--gpu-shot`. If not, the fallback is
    console-only + a built-in bitmap font.
-3. **Should the new project merge upstream `lwbasic` changes?**
+3. **Should the new project merge upstream `newbasic` changes?**
    Recommended: keep upstream names and the `upstream` remote; confine edits
    to platform files. If this is a one-way fork, the naming constraints can
    be relaxed.
@@ -1136,7 +1136,7 @@ the recommended answer for each.
    Linux-specific assumptions in the seams.
 6. **Audio on Linux: ALSA or silent?**
    Recommended: silent, correctly timed by default; enable ALSA via
-   `LWBASIC_ALSA=AUTO` when headers/libs are present. Avoid making audio a
+   `NEWBASIC_ALSA=AUTO` when headers/libs are present. Avoid making audio a
    hard build dependency.
 
 ---
@@ -1147,7 +1147,7 @@ the recommended answer for each.
   GCC and Clang, using only documented prerequisites.
 - The full default CTest suite is green on all three configurations, and the
   console-only Linux configuration is green.
-- The same `lwbasic` binary can run the REPL, the sample programs, the DAP
+- The same `newbasic` binary can run the REPL, the sample programs, the DAP
   server and the golden fixtures on both platforms.
 - Windows D3D11 behaviour is unchanged; Linux has a working console and (with
   SDL2) a working windowed backend.

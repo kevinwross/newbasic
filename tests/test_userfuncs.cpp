@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
 #include "test_helpers.h"
 
 using lwtest::Row0;
@@ -31,19 +31,19 @@ TEST_CASE("DEF FN: definition and calls", "[fn]") {
 }
 
 TEST_CASE("DEF FN: errors", "[fn][errors]") {
-  CHECK(lwtest::CompileCode("10 PRINT FNZ(1)\n") == lwbasic::kErrUndefinedUserFunction);
-  CHECK(lwtest::CompileCode("10 DEF FNA(X)=X\n20 PRINT FNA(1,2)\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 DEF FNA(X)=X\n20 PRINT FNA()\n") == lwbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 PRINT FNZ(1)\n") == newbasic::kErrUndefinedUserFunction);
+  CHECK(lwtest::CompileCode("10 DEF FNA(X)=X\n20 PRINT FNA(1,2)\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 DEF FNA(X)=X\n20 PRINT FNA()\n") == newbasic::kErrSyntax);
   // The parameter list (and the call's parentheses) are optional.
   CHECK(Row0("10 DEF FNA=5\n20 PRINT FNA\n") == " 5");
   CHECK(lwtest::CompileCode("10 DEF FNA(X)=X*\"a\"\n20 PRINT FNA(1)\n") == 0);
   CHECK(lwtest::RunErrorCode("10 DEF FNA(X)=X*\"a\"\n20 PRINT FNA(1)\n") ==
-        lwbasic::kErrTypeMismatch);
+        newbasic::kErrTypeMismatch);
   // DEF FN is illegal in direct mode.
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
-  CHECK(repl.Process("DEF FNA(X)=X").code == lwbasic::kErrIllegalDirect);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  CHECK(repl.Process("DEF FNA(X)=X").code == newbasic::kErrIllegalDirect);
 }
 
 TEST_CASE("DEF FN: composition, arguments and redefinition", "[fn]") {

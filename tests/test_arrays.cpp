@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 using lwtest::Row0;
@@ -35,22 +35,22 @@ TEST_CASE("Arrays: DIM, store and load", "[arrays]") {
 TEST_CASE("Arrays: OPTION BASE", "[arrays]") {
   CHECK(Row0("10 OPTION BASE 1\n20 DIM A(5)\n30 A(1)=1: A(5)=2\n40 PRINT A(1);A(5)\n") == " 1  2");
   CHECK(RunErrorCode("10 OPTION BASE 1\n20 DIM A(5)\n30 A(0)=1\n") ==
-        lwbasic::kErrSubscriptOutOfRange);
-  CHECK(lwtest::CompileCode("10 OPTION BASE 2\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 OPTION BASE\n") == lwbasic::kErrSyntax);
+        newbasic::kErrSubscriptOutOfRange);
+  CHECK(lwtest::CompileCode("10 OPTION BASE 2\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 OPTION BASE\n") == newbasic::kErrSyntax);
 }
 
 TEST_CASE("Arrays: runtime errors", "[arrays][errors]") {
-  CHECK(RunErrorCode("10 DIM A(5)\n20 A(6)=1\n") == lwbasic::kErrSubscriptOutOfRange);
-  CHECK(RunErrorCode("10 DIM A(5)\n20 A(-1)=1\n") == lwbasic::kErrSubscriptOutOfRange);
-  CHECK(RunErrorCode("10 DIM A(5)\n20 PRINT A(200)\n") == lwbasic::kErrSubscriptOutOfRange);
-  CHECK(RunErrorCode("10 DIM A(2,2)\n20 A(1)=1\n") == lwbasic::kErrSubscriptOutOfRange);
-  CHECK(RunErrorCode("10 DIM A(2)\n20 A(1,1)=1\n") == lwbasic::kErrSubscriptOutOfRange);
-  CHECK(RunErrorCode("10 DIM A(5)\n20 DIM A(5)\n") == lwbasic::kErrDuplicateDefinition);
-  CHECK(RunErrorCode("10 DIM A$(2)\n20 A$(1)=5\n") == lwbasic::kErrTypeMismatch);
-  CHECK(RunErrorCode("10 DIM A(2)\n20 A(1)=\"x\"\n") == lwbasic::kErrTypeMismatch);
+  CHECK(RunErrorCode("10 DIM A(5)\n20 A(6)=1\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(5)\n20 A(-1)=1\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(5)\n20 PRINT A(200)\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(2,2)\n20 A(1)=1\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(2)\n20 A(1,1)=1\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(5)\n20 DIM A(5)\n") == newbasic::kErrDuplicateDefinition);
+  CHECK(RunErrorCode("10 DIM A$(2)\n20 A$(1)=5\n") == newbasic::kErrTypeMismatch);
+  CHECK(RunErrorCode("10 DIM A(2)\n20 A(1)=\"x\"\n") == newbasic::kErrTypeMismatch);
   int line = 0;
-  CHECK(RunErrorCode("10 DIM A(2)\n20 PRINT A(5)\n", &line) == lwbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(2)\n20 PRINT A(5)\n", &line) == newbasic::kErrSubscriptOutOfRange);
   CHECK(line == 20);
 }
 
@@ -65,10 +65,10 @@ TEST_CASE("Types: DEF* default types", "[types]") {
   // The default applies to arrays and FOR variables too.
   CHECK(Row0("10 DEFINT A\n20 DIM A(2)\n30 A(1)=2.6\n40 PRINT A(1)\n") == " 3");
   CHECK(Row0("10 DEFINT I: FOR I=1 TO 2: PRINT I: NEXT I\n") == " 1");
-  CHECK(lwtest::CompileCode("10 DEFINT\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 DEFINT 1\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 DIM\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 DEF X=1\n") == lwbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 DEFINT\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 DEFINT 1\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 DIM\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 DEF X=1\n") == newbasic::kErrSyntax);
 }
 
 TEST_CASE("Arrays: two dimensions and computed subscripts", "[arrays]") {
@@ -78,7 +78,7 @@ TEST_CASE("Arrays: two dimensions and computed subscripts", "[arrays]") {
   // A string array holds strings.
   CHECK(Row0("10 DIM S$(2)\n20 S$(1)=\"hi\"\n30 IF S$(1)=\"hi\" THEN PRINT \"OK\";\n") == "OK");
   // A 2D element outside the first dimension is still caught.
-  CHECK(RunErrorCode("10 DIM A(2,3)\n20 A(3,1)=5\n") == lwbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM A(2,3)\n20 A(3,1)=5\n") == newbasic::kErrSubscriptOutOfRange);
   // NOTE: SWAP of array elements reports Advanced Feature; recorded in plan.md section A.
 }
 

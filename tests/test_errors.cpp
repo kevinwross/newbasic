@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
 #include "test_helpers.h"
 
 using lwtest::Row0;
@@ -51,12 +51,12 @@ TEST_CASE("Error trapping: RESUME <line> and the ERROR statement", "[errors]") {
 TEST_CASE("Error trapping: disabling trapping and handler errors", "[errors]") {
   // ON ERROR GOTO 0 disables trapping, so the next error stops the program.
   CHECK(RunErrorCode("10 ON ERROR GOTO 100\n20 ON ERROR GOTO 0\n30 PRINT 1/0\n"
-                     "100 PRINT \"NO\"\n") == lwbasic::kErrDivisionByZero);
+                     "100 PRINT \"NO\"\n") == newbasic::kErrDivisionByZero);
   // An error raised inside the handler is not trapped again.
-  CHECK(RunErrorCode("10 ON ERROR GOTO 100\n20 ERROR 7\n100 ERROR 6\n") == lwbasic::kErrOverflow);
+  CHECK(RunErrorCode("10 ON ERROR GOTO 100\n20 ERROR 7\n100 ERROR 6\n") == newbasic::kErrOverflow);
   // RESUME with no prior error.
-  CHECK(RunErrorCode("10 RESUME\n") == lwbasic::kErrResumeWithoutError);
-  CHECK(RunErrorCode("10 RESUME NEXT\n") == lwbasic::kErrResumeWithoutError);
+  CHECK(RunErrorCode("10 RESUME\n") == newbasic::kErrResumeWithoutError);
+  CHECK(RunErrorCode("10 RESUME NEXT\n") == newbasic::kErrResumeWithoutError);
   // ERR and ERL start at zero and survive RESUME.
   CHECK(Row0("10 PRINT ERR;ERL\n") == " 0  0");
   CHECK(Row0("10 ON ERROR GOTO 100\n20 ERROR 7\n30 PRINT \"OK\"\n40 END\n"
@@ -95,10 +95,10 @@ TEST_CASE("Conformance: Appendix A error codes", "[errors][conformance]") {
 
 TEST_CASE("Error trapping: direct mode", "[errors]") {
   // ON ERROR GOTO <line> is illegal direct; ERR/ERL still work.
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
-  CHECK(repl.Process("ON ERROR GOTO 100").code == lwbasic::kErrIllegalDirect);
-  CHECK(repl.Process("PRINT ERR").status == lwbasic::RunResult::Status::Done);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  CHECK(repl.Process("ON ERROR GOTO 100").code == newbasic::kErrIllegalDirect);
+  CHECK(repl.Process("PRINT ERR").status == newbasic::RunResult::Status::Done);
   CHECK(screen.RenderRows()[0] == " 0");
 }

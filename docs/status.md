@@ -1,6 +1,6 @@
 # Upstream status snapshot — 2026-10-17
 
-> **Port note.** This is the Windows snapshot inherited from upstream `lwbasic`.
+> **Port note.** This is the Windows snapshot inherited from upstream `newbasic`.
 > For the dual-platform state of `newbasic`, see `README.md` and
 > `docs/portability.md`. On Linux the full default suite passes, the hidden
 > audio timing check passes silently, and the SDL2 window backend passes the
@@ -28,14 +28,14 @@ Visual Studio generator it lists.
 ## Verify
 
     ctest --test-dir out --build-config Release --output-on-failure
-    out\tests\Release\lwbasic-tests.exe            # the Catch2 suite
+    out\tests\Release\newbasic-tests.exe            # the Catch2 suite
     tools\verify.ps1 -NoRetry                      # what CI runs: build, kill strays, ctest
 
 ## Try it
 
-    out\src\lwbasic-cli\Release\lwbasic.exe samples\Beethoven.bas
-    out\src\lwbasic-cli\Release\lwbasic.exe samples\FamousBirthdays.bas
-    out\src\lwbasic-cli\Release\lwbasic.exe samples\playme.bas
+    out\src\newbasic-cli\Release\newbasic.exe samples\Beethoven.bas
+    out\src\newbasic-cli\Release\newbasic.exe samples\FamousBirthdays.bas
+    out\src\newbasic-cli\Release\newbasic.exe samples\playme.bas
 
 `--gpu-shot FILE` writes the screen to a PPM; `--gpu-pixel X,Y` reads one pixel back from the
 window itself, which is the only way to check what the display actually did (the dump is written
@@ -52,7 +52,7 @@ What is unresolved: playback may be slow. Measured here, `samples/playme.bas` to
 seconds for roughly ten seconds of music, where the earlier renderer took 14. The maintainer did
 not report dragging tempo when listening, so this may be an artifact of this environment rather
 than a real fault. **Measure it before changing anything.** If it is real, the cause is the
-completion wait in `SystemHost::PlayTone` (`src/lwbasic-core/src/host.cpp`): replacing
+completion wait in `SystemHost::PlayTone` (`src/newbasic-core/src/host.cpp`): replacing
 
     while ((header.dwFlags & WHDR_DONE) == 0)
       Sleep(1);
@@ -115,7 +115,7 @@ longer current: the D3D11 backend exists, audio no longer uses `Beep`, and M7 is
 > time-travel debugging (both deliberately deferred).
 >
 > Manual audio check (hidden from CI, so build machines stay silent):
-> `out\tests\Release\lwbasic-tests.exe "[.audio]" -s` — it plays the BEEP tone
+> `out\tests\Release\newbasic-tests.exe "[.audio]" -s` — it plays the BEEP tone
 > and a rising arpeggio, and asserts the call actually blocks (measured 251 ms
 > for an 800 Hz/250 ms tone).
 >
@@ -174,20 +174,20 @@ date, not estimated.
 
 | # | Deliverable | Status |
 |---|---|---|
-| M0 | Skeleton, `Screen` + Win32/headless backends, `lwbasic.exe prog.bas`, vendored Catch2 + RapidCheck, CI | ✅ |
+| M0 | Skeleton, `Screen` + Win32/headless backends, `newbasic.exe prog.bas`, vendored Catch2 + RapidCheck, CI | ✅ |
 | M1 | Lexer, expressions, line store, direct-mode REPL, control flow | ✅ |
 | M2 | Types, arrays, `DEF FN`, `DATA`/`READ`/`RESTORE` | ✅ |
 | M3 | Error handling, plain-text program files, `SHELL`, sequential file I/O, DOS commands, timer events | ✅ |
 | M4 | Tokenized `.BAS` read/write, MBF codec, protected format, `SAVE ,B` / `,P` | ✅ |
-| M5 | In-process debugger + `lwbasic-dap` (framing, JSON, dispatcher, session, executable) | ✅ |
+| M5 | In-process debugger + `newbasic-dap` (framing, JSON, dispatcher, session, executable) | ✅ |
 | M6 | Golden corpus + spec-driven conformance | ✅ (54 conformance assertions across 4 areas; corpus is a living set) |
 | M7 | D3D11 backend, sound, time-travel debugging | ⏳ not started |
 
 ## Measured numbers
 
 - **Tests: 5558 assertions in 164 test cases**, all passing.
-- **CTest: 2/2 passed** — `lwbasic-tests` (unit/property) and `dap-smoke` (runs
-  the real `lwbasic-dap.exe` with framed stdin and checks the framed output).
+- **CTest: 2/2 passed** — `newbasic-tests` (unit/property) and `dap-smoke` (runs
+  the real `newbasic-dap.exe` with framed stdin and checks the framed output).
 - **Code: 37 source files / 7866 lines** under `src/`;
   **26 test files / 3195 lines** under `tests/` (25 of them `test_*.cpp`).
 - **Fixtures: 2** (`fixtures/m0/hello.bas`, `fixtures/m6/strings.bas`, each with
@@ -211,8 +211,8 @@ clang-format -i --style=file (all *.cpp/*.h in src, tests)   # pinned 19.1.0
 MSVC `/W4 /WX` is applied to the project's own targets (not vendored code);
 clang-format is pinned to 19.1.0 to match CI.
 
-**Operational hazard:** a timed-out CTest leaves `lwbasic-tests` running, and
-subsequent runs then report spurious failures. Kill stray `lwbasic-tests`
+**Operational hazard:** a timed-out CTest leaves `newbasic-tests` running, and
+subsequent runs then report spurious failures. Kill stray `newbasic-tests`
 processes before re-running.
 
 ## Open items (also in `plan.md` §7a)
@@ -253,10 +253,10 @@ processes before re-running.
 - `plan.md` — spec, milestone table, status detail, open items.
 - `docs/m4-tokenized-format-notes.md`, `docs/m4-protected-files.md` — format
   findings and provenance.
-- `src/lwbasic-core/include/lwbasic/` — `fstok/` (token table, MBF, codec,
+- `src/newbasic-core/include/newbasic/` — `fstok/` (token table, MBF, codec,
   encoder, protect), `dap/` (framing, json, handler, session), `debugger.h`,
   `repl.h`, `vm.h`, `screen/`.
-- `src/lwbasic-dap/` — the DAP server executable.
+- `src/newbasic-dap/` — the DAP server executable.
 - `tests/` — 25 test sources, including `test_vm_print.cpp` which now holds the
   M6 golden-corpus runner and the conformance batch.
 

@@ -52,7 +52,7 @@ jobs:
       - name: Headless SDL smoke
         env:
           SDL_VIDEODRIVER: dummy
-        run: ./build/tests/lwbasic-tests "[.gpu]"
+        run: ./build/tests/newbasic-tests "[.gpu]"
 
   linux-console-only:
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake g++
       - name: Configure without SDL
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLWBASIC_WINDOW_SDL=OFF
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DNEWBASIC_WINDOW_SDL=OFF
       - name: Build
         run: cmake --build build --parallel
       - name: Test

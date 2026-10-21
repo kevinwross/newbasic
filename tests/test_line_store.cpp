@@ -2,9 +2,9 @@
 
 #include <string>
 
-#include "lwbasic/line_store.h"
+#include "newbasic/line_store.h"
 
-using lwbasic::LineStore;
+using newbasic::LineStore;
 
 TEST_CASE("LineStore: ordering, replace, remove", "[line-store]") {
   LineStore store;

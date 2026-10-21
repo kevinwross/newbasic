@@ -11,7 +11,7 @@ differ. This page records the mapping and the known divergences.
 | Clock/date/time | `localtime_s` | `localtime_r` |
 | `SHELL` | `CreateProcessW` + `cmd.exe /c` (or interactive `cmd.exe`) | `fork`/`execl` for an interactive `$SHELL`; `std::system` for commands (exit status decoded with `WIFEXITED`) |
 | Tone output | WinMM `waveOut` with a `Beep` fallback | Blocks for the tone duration; silent by default. An optional ALSA sink can be added without changing the dialect. |
-| Printer | `LWBASIC_PRINTER` or `lwbasic.prn` | Same |
+| Printer | `NEWBASIC_PRINTER` or `newbasic.prn` | Same |
 | Filesystem | `std::filesystem` / `std::fstream` | Same, with DOS path translation (below) |
 
 ### `SHELL` and the terminal
@@ -31,7 +31,7 @@ Paths are normalized at the host boundary, not inside string literals or the
 lexer: POSIX maps `\` to `/`, and Windows maps `/` to `\`. The conversion is
 applied to the program-file argument, `OPEN`, `SAVE`, `LOAD`, `CHAIN`,
 `MERGE`, the DOS commands, the printer path, `--gpu-shot` and
-`LWBASIC_FONT`. It is deliberately **not** applied to `SHELL` command lines,
+`NEWBASIC_FONT`. It is deliberately **not** applied to `SHELL` command lines,
 because the shell has its own quoting and path rules.
 
 Drive letters such as `C:` are not mapped on POSIX; use host paths for files
@@ -82,7 +82,7 @@ CRLF) survive checkout.
   Consolas, Lucida Console, Courier New).
 - Linux uses `stb_truetype` with the bundled
   `third_party/fonts/DejaVuSansMono.ttf` (Bitstream Vera/DejaVu licence in
-  `LICENSE-DejaVu.txt`). Set `LWBASIC_FONT` to override it, or install the font
+  `LICENSE-DejaVu.txt`). Set `NEWBASIC_FONT` to override it, or install the font
   at a standard system path.
 - Both paths share the procedural CP437 block/shade glyphs and the thickening
   pass. Cross-platform screenshots are structurally identical but not

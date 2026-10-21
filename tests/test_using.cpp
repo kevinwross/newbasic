@@ -6,15 +6,15 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/using.h"
+#include "newbasic/errors.h"
+#include "newbasic/using.h"
 #include "test_helpers.h"
 
-using lwbasic::AppendUsing;
-using lwbasic::FormatUsingNumber;
-using lwbasic::FormatUsingString;
-using lwbasic::UsingStatus;
-using lwbasic::Value;
+using newbasic::AppendUsing;
+using newbasic::FormatUsingNumber;
+using newbasic::FormatUsingString;
+using newbasic::UsingStatus;
+using newbasic::Value;
 
 namespace {
 
@@ -175,6 +175,6 @@ TEST_CASE("USING: PRINT USING end to end", "[using]") {
   CHECK(lwtest::Row0("10 PRINT USING \"$$###.##\"; 12.5\n") == "  $12.50");
   // A type mismatch is the reference's Type mismatch (13), not a bare Illegal function call:
   // the latter sends the reader looking in the wrong place.
-  CHECK(lwtest::RunErrorCode("10 PRINT USING \"###\"; \"x\"\n") == lwbasic::kErrTypeMismatch);
-  CHECK(lwtest::RunErrorCode("10 PRINT USING \"$$\"; \"x\"\n") == lwbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 PRINT USING \"###\"; \"x\"\n") == newbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 PRINT USING \"$$\"; \"x\"\n") == newbasic::kErrTypeMismatch);
 }

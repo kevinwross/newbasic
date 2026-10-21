@@ -1,0 +1,214 @@
+10 REM RING WORLD - a ringed gas giant in SCREEN 720 (1280x720, 256 colours).
+11 REM
+12 REM The planet is shaded from a fixed light direction: each row is drawn as a
+13 REM run of short spans whose palette entry combines a latitude band with one of
+14 REM twelve lighting levels. The rings are ellipses drawn behind the planet, then
+15 REM their lower halves are redrawn in front of it. C cycles the palettes.
+16 REM
+17 REM Controls: ESC quits, C (or a click) cycles gold / ice / ember themes.
+18 REM
+20 SCREEN 720
+30 CLS
+40 CX = 560: CY = 360: RA = 210
+45 TH = 0: PS = 0
+50 GOSUB 1000
+60 GOSUB 2000
+70 GOSUB 2100
+80 GOSUB 4000
+90 GOSUB 4200
+100 GOSUB 4300
+110 GOSUB 4500
+120 GOSUB 5000
+140 REM ---- MAIN LOOP ----
+150 TF = TIMER
+160 IF PS = 1 THEN 210
+170 GOSUB 6100
+180 GOSUB 6200
+210 B = MOUSEB
+220 IF B <> 0 THEN GOSUB 8100
+230 K$ = INKEY$
+240 IF K$ <> "" THEN GOSUB 8000
+250 IF TIMER - TF < .04 THEN 250
+260 GOTO 150
+270 END
+
+1000 REM ---- PALETTE ----
+1010 FOR I = 0 TO 15
+1020 T = I / 15
+1030 PR = 3 + 8 * T: PG = 3 + 3 * T: PB = 14 + 14 * T
+1040 GOSUB 9000
+1050 PALETTE 16 + I, PC
+1060 NEXT I
+1062 REM Graphics-mode text uses palette entry 7 (COLOR sets the background there),
+1064 REM so keep 7 bright for the HUD even though the sky ramp used it.
+1066 PR = 225: PG = 240: PB = 255: GOSUB 9000: PALETTE 7, PC
+1070 REM Stars 32-35.
+1080 PR = 255: PG = 255: PB = 255: GOSUB 9000: PALETTE 32, PC
+1090 PR = 170: PG = 205: PB = 255: GOSUB 9000: PALETTE 33, PC
+1100 PR = 255: PG = 215: PB = 180: GOSUB 9000: PALETTE 34, PC
+1110 PR = 120: PG = 135: PB = 190: GOSUB 9000: PALETTE 35, PC
+1120 REM Planet: 8 bands x 12 lighting levels, 64-159.
+1130 FOR I = 0 TO 7
+1140 T = I / 7
+1150 IF TH = 0 THEN PR = 240 + 8 * SIN(I * 1.7): PG = 218 - 48 * T + 10 * SIN(I * 2.1): PB = 172 - 58 * T
+1160 IF TH = 1 THEN PR = 176 - 34 * T + 8 * SIN(I * 1.7): PG = 212 - 18 * T: PB = 246 - 30 * T
+1170 IF TH = 2 THEN PR = 250 - 18 * T: PG = 126 - 72 * T + 8 * SIN(I * 2.3): PB = 76 - 38 * T
+1180 FOR J = 0 TO 11
+1190 U = .12 + .88 * J / 11
+1200 GOSUB 9000
+1210 PALETTE 64 + I * 12 + J, PC
+1220 NEXT J
+1230 NEXT I
+1240 REM Rings: 32 radii, 160-191.
+1250 FOR I = 0 TO 31
+1260 U = .45 + .55 * (.5 + .5 * SIN(I * 1.31))
+1270 IF TH = 0 THEN PR = 236: PG = 206: PB = 164
+1280 IF TH = 1 THEN PR = 180: PG = 226: PB = 255
+1290 IF TH = 2 THEN PR = 255: PG = 150: PB = 104
+1300 PR = PR * U: PG = PG * U: PB = PB * U
+1310 GOSUB 9000
+1320 PALETTE 160 + I, PC
+1330 NEXT I
+1340 REM Moons and HUD.
+1350 PR = 210: PG = 205: PB = 195: GOSUB 9000: PALETTE 192, PC
+1360 PR = 88: PG = 84: PB = 88: GOSUB 9000: PALETTE 193, PC
+1370 PR = 60: PG = 56: PB = 62: GOSUB 9000: PALETTE 194, PC
+1380 PR = 90: PG = 245: PB = 235: GOSUB 9000: PALETTE 208, PC
+1390 PR = 235: PG = 235: PB = 245: GOSUB 9000: PALETTE 209, PC
+1400 RETURN
+
+2000 REM ---- SPACE BACKGROUND: dark gradient bands ----
+2010 FOR Y = 0 TO 719 STEP 6
+2020 C = 16 + INT(Y * 15 / 719)
+2030 LINE (0, Y)-(1279, Y + 5), C, BF
+2040 NEXT Y
+2050 RETURN
+
+2100 REM ---- STARS: deterministic scatter ----
+2110 FOR I = 1 TO 240
+2120 FX = SIN(I * 12.9898) * 43758.5453: FX = FX - INT(FX)
+2130 SX = INT(FX * 1279)
+2140 FY = SIN(I * 78.233 + 1.7) * 24634.6345: FY = FY - INT(FY)
+2150 SY = INT(FY * 640)
+2160 PSET (SX, SY), 32 + (I MOD 4)
+2170 NEXT I
+2180 REM A clean strip for the HUD.
+2190 LINE (0, 704)-(1279, 719), 0, BF
+2200 RETURN
+
+4000 REM ---- PLANET: 20 lighting spans per row, 8 latitude bands ----
+4010 FOR Y = CY - RA TO CY + RA
+4020 DY = (Y - CY) / RA
+4030 IF ABS(DY) >= 1 THEN 4180
+4040 HW = RA * SQR(1 - DY * DY)
+4050 BD = INT((DY + 1) * 4)
+4060 IF BD > 7 THEN BD = 7
+4070 FOR S = 0 TO 19
+4080 XA = CX - HW + 2 * HW * S / 20
+4090 XB = CX - HW + 2 * HW * (S + 1) / 20
+4100 XM = (XA + XB) / 2
+4110 DX = (XM - CX) / RA
+4120 Z = SQR(1 - DX * DX - DY * DY)
+4130 LT = -.55 * DX - .35 * DY + .76 * Z
+4140 IF LT < .08 THEN LT = .08
+4145 IF LT > 1 THEN LT = 1
+4150 SH = INT(LT * 11.99)
+4155 IF SH > 11 THEN SH = 11
+4160 LINE (XA, Y)-(XB, Y), 64 + BD * 12 + SH
+4170 NEXT S
+4180 NEXT Y
+4190 RETURN
+
+4200 REM ---- RINGS BEHIND: full ellipses, hidden later by the planet ----
+4210 FOR I = 0 TO 157
+4220 RG = 252 + I
+4230 IF RG > 300 AND RG < 312 THEN 4240
+4235 IF RG > 380 AND RG < 384 THEN 4240
+4240 CIRCLE (CX, CY), RG, 160 + (I MOD 32), 0, 6.283185, .34
+4250 NEXT I
+4260 RETURN
+
+4300 REM ---- RINGS IN FRONT: the lower half again, over the planet ----
+4310 FOR I = 0 TO 157
+4320 RG = 252 + I
+4330 IF RG > 300 AND RG < 312 THEN 4340
+4335 IF RG > 380 AND RG < 384 THEN 4340
+4340 CIRCLE (CX, CY), RG, 160 + (I MOD 32), 3.141593, 6.283185, .34
+4350 NEXT I
+4360 RETURN
+
+4500 REM ---- MOONS: simple two-tone spheres plus a crater or two ----
+4510 MX = 980: MY = 190: MR = 34: GOSUB 4600
+4520 MX = 250: MY = 155: MR = 20: GOSUB 4600
+4530 MX = 1015: MY = 560: MR = 13: GOSUB 4600
+4540 RETURN
+
+4600 REM Draw one moon at MX,MY with radius MR.
+4610 FOR Y = MY - MR TO MY + MR
+4620 DY = (Y - MY) / MR
+4630 IF ABS(DY) >= 1 THEN 4670
+4640 HW = MR * SQR(1 - DY * DY)
+4650 LINE (MX - HW, Y)-(MX + HW, Y), 192
+4660 LINE (MX + HW * .15, Y)-(MX + HW, Y), 193
+4670 NEXT Y
+4680 PSET (MX - MR * .35, MY - MR * .25), 194
+4690 PSET (MX - MR * .1, MY + MR * .3), 194
+4700 IF MR > 25 THEN PSET (MX - MR * .55, MY + MR * .1), 194
+4710 RETURN
+
+5000 REM ---- HUD ----
+5010 LOCATE 2, 66
+5020 COLOR 208
+5030 PRINT "R I N G   W O R L D";
+5040 LOCATE 45, 2
+5050 COLOR 209
+5060 PRINT "ESC QUIT   C THEME   CLICK THEME";
+5065 LOCATE 45, 1, 0
+5070 RETURN
+
+6100 REM ---- SLOW PLANET BAND PULSE: recolour, never redraw ----
+6110 TM = TIMER
+6120 FOR I = 0 TO 7
+6130 U = .5 + .5 * SIN(TM * .7 + I * .9)
+6140 T = I / 7
+6150 IF TH = 0 THEN PR = 240 + 8 * SIN(I * 1.7): PG = 218 - 48 * T + 10 * SIN(I * 2.1): PB = 172 - 58 * T
+6160 IF TH = 1 THEN PR = 176 - 34 * T + 8 * SIN(I * 1.7): PG = 212 - 18 * T: PB = 246 - 30 * T
+6170 IF TH = 2 THEN PR = 250 - 18 * T: PG = 126 - 72 * T + 8 * SIN(I * 2.3): PB = 76 - 38 * T
+6180 PR = PR * (.9 + .1 * U): PG = PG * (.9 + .1 * U): PB = PB * (.9 + .1 * U)
+6190 FOR J = 0 TO 11
+6192 V = .12 + .88 * J / 11
+6194 GOSUB 9000
+6196 PALETTE 64 + I * 12 + J, PC
+6198 NEXT J
+6199 NEXT I
+6205 RETURN
+
+6200 REM ---- RING SHIMMER ----
+6210 T = TIMER
+6220 FOR I = 0 TO 31
+6230 U = .45 + .55 * (.5 + .5 * SIN(T * 1.2 + I * 1.31))
+6240 IF TH = 0 THEN PR = 236: PG = 206: PB = 164
+6250 IF TH = 1 THEN PR = 180: PG = 226: PB = 255
+6260 IF TH = 2 THEN PR = 255: PG = 150: PB = 104
+6270 PR = PR * U: PG = PG * U: PB = PB * U
+6280 GOSUB 9000
+6290 PALETTE 160 + I, PC
+6300 NEXT I
+6310 RETURN
+
+8000 REM ---- INPUT ----
+8010 C = ASC(K$)
+8020 IF C = 27 THEN END
+8030 IF K$ = " " THEN PS = 1 - PS: RETURN
+8035 IF K$ = "c" OR K$ = "C" THEN GOSUB 8100
+8040 RETURN
+
+8100 REM ---- NEXT THEME ----
+8110 TH = TH + 1
+8120 IF TH > 2 THEN TH = 0
+8130 GOSUB 1000
+8140 RETURN
+
+9000 REM ---- 8-bit RGB in PR,PG,PB -> 18-bit PALETTE colour in PC ----
+9010 PC = INT(PR * 63 / 255 + .5) + INT(PG * 63 / 255 + .5) * 256 + INT(PB * 63 / 255 + .5) * 65536
+9020 RETURN

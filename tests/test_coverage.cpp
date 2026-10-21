@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 // PRINT TAB(n): moves to column n (1-based); if n is at or behind the current
@@ -90,9 +90,9 @@ TEST_CASE("Coverage: RND range and SWAP", "[coverage]") {
 
 // LIST reproduces the program with its line numbers, one line per row.
 TEST_CASE("Coverage: LIST output", "[coverage]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"HI\"");
   repl.Process("20 END");
   repl.Process("LIST");
@@ -126,9 +126,9 @@ TEST_CASE("Coverage: PRINT zones, SPC and trailing separators", "[coverage]") {
 // Screen control: CLS, LOCATE and COLOR act on the grid and the current
 // attribute, which the headless screen records for inspection.
 TEST_CASE("Coverage: CLS, LOCATE and COLOR", "[coverage]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 CLS");
   repl.Process("20 LOCATE 3,5");
   repl.Process("30 PRINT \"X\"");
@@ -143,15 +143,15 @@ TEST_CASE("Coverage: CLS, LOCATE and COLOR", "[coverage]") {
   repl.Process("20 PRINT \"Y\"");
   repl.Process("RUN");
   CHECK(screen.CellAt(0, 0) == L'Y');
-  CHECK(screen.CellAttrAt(0, 0) == lwbasic::screen::Screen::MakeAttr(2, 4));
+  CHECK(screen.CellAttrAt(0, 0) == newbasic::screen::Screen::MakeAttr(2, 4));
 }
 
 // INKEY$ returns scripted keys, one press per read, and an empty string when
 // none is pending.
 TEST_CASE("Coverage: INKEY$ consumes scripted keys", "[coverage]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   screen.ScriptKey(L'A');
   screen.ScriptKey(L'b');
   repl.Process("10 K$=INKEY$");
@@ -173,9 +173,9 @@ TEST_CASE("Coverage: INKEY$ consumes scripted keys", "[coverage]") {
 // through the REPL input loop (a direct VM run stops at the prompt). The prompt
 // occupies the first row, so the program's output follows it.
 TEST_CASE("Coverage: INPUT and LINE INPUT through the REPL", "[coverage]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   // INPUT splits on commas and converts by target type.
   screen.ScriptLine(L"12,WORLD");
   repl.Process("10 INPUT A,B$");
@@ -196,9 +196,9 @@ TEST_CASE("Coverage: INPUT and LINE INPUT through the REPL", "[coverage]") {
 // RANDOMIZE seeds the generator, so the same seed reproduces the same sequence.
 TEST_CASE("Coverage: RANDOMIZE is reproducible", "[coverage]") {
   const auto first_value = [](int seed) {
-    lwbasic::screen::HeadlessScreen screen;
-    lwbasic::ScriptedHost host;
-    lwbasic::Repl repl(screen, &host);
+    newbasic::screen::HeadlessScreen screen;
+    newbasic::ScriptedHost host;
+    newbasic::Repl repl(screen, &host);
     repl.Process("10 RANDOMIZE " + std::to_string(seed));
     repl.Process("20 PRINT RND");
     repl.Process("RUN");

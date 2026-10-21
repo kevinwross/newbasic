@@ -7,16 +7,16 @@
 
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 TEST_CASE("Timer events: syntax", "[events]") {
   CHECK(lwtest::CompileCode("10 ON TIMER(1) GOSUB 100\n100 RETURN\n") == 0);
-  CHECK(lwtest::CompileCode("10 ON TIMER(1) PRINT \"x\"\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 ON TIMER(1) GOSUB\n") == lwbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 ON TIMER(1) PRINT \"x\"\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 ON TIMER(1) GOSUB\n") == newbasic::kErrSyntax);
   CHECK(lwtest::CompileCode("10 TIMER ON\n20 TIMER OFF\n30 TIMER STOP\n") == 0);
-  CHECK(lwtest::CompileCode("10 TIMER\n") == lwbasic::kErrSyntax);
-  CHECK(lwtest::CompileCode("10 TIMER MAYBE\n") == lwbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 TIMER\n") == newbasic::kErrSyntax);
+  CHECK(lwtest::CompileCode("10 TIMER MAYBE\n") == newbasic::kErrSyntax);
 }
 
 TEST_CASE("Timer events: programmes run to completion", "[events]") {
@@ -36,8 +36,8 @@ TEST_CASE("Timer events: the poll's inputs are armed in the right order", "[even
   // regression in registration, enablement or the stepping seam. The print
   // version is what made the original bug findable - Vm::TimerDebug() stays
   // available for the next one.
-  lwbasic::Program program;
-  lwbasic::CompileError error;
+  newbasic::Program program;
+  newbasic::CompileError error;
   const std::string source = "10 ON TIMER(1) GOSUB 100\n"
                              "20 TIMER ON\n"
                              "30 FOR I=1 TO 3: NEXT I\n"
@@ -45,10 +45,10 @@ TEST_CASE("Timer events: the poll's inputs are armed in the right order", "[even
                              "100 PRINT \"TICK\"\n"
                              "110 RETURN\n";
   REQUIRE(lwtest::CompileSource(source, &program, &error));
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
   host.timer_step = 10.0;
-  lwbasic::Vm vm(screen, &host);
+  newbasic::Vm vm(screen, &host);
   vm.Load(program);
 
   // Nothing armed before the statements run.
@@ -90,7 +90,7 @@ TEST_CASE("Timer events: a ready clock fires the handler (Run path)", "[events][
   // The decisive test: the program is driven through Vm::Run (via the helper),
   // the clock advances 10 seconds per read against a 1 second interval, so the
   // poll must fire. This is the assertion that has been failing.
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   host.timer_step = 10.0;
   const std::vector<std::string> rows = lwtest::RunRowsWithInput("10 ON TIMER(1) GOSUB 100\n"
                                                                  "20 TIMER ON\n"

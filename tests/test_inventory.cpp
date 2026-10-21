@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 namespace {
@@ -74,7 +74,7 @@ TEST_CASE("Inventory: implemented statements do not report Advanced Feature", "[
     INFO("keyword: " << keyword << " code: " << code);
     // A missing operand is fine (a syntax error proves the branch exists); the
     // fault would be reporting that the statement is unimplemented.
-    CHECK(code != lwbasic::kErrAdvancedFeature);
+    CHECK(code != newbasic::kErrAdvancedFeature);
   }
 }
 
@@ -82,19 +82,19 @@ TEST_CASE("Inventory: unimplemented statements report Advanced Feature", "[inven
   for (const char* keyword : kStubs) {
     const int code = lwtest::RunErrorCode(std::string("10 ") + keyword + "\n");
     INFO("keyword: " << keyword << " code: " << code);
-    CHECK(code == lwbasic::kErrAdvancedFeature);
+    CHECK(code == newbasic::kErrAdvancedFeature);
   }
 }
 
 TEST_CASE("Inventory: refusals carry their documented error, not Advanced Feature", "[inventory]") {
   // Statements that exist but cannot be done in a program still say why.
-  CHECK(lwtest::RunErrorCode("10 AUTO\n") == lwbasic::kErrIllegalDirect);
-  CHECK(lwtest::RunErrorCode("10 EDIT 10\n") == lwbasic::kErrIllegalDirect);
-  CHECK(lwtest::RunErrorCode("10 MERGE \"x\"\n") == lwbasic::kErrIllegalDirect);
-  CHECK(lwtest::RunErrorCode("10 CONT\n") == lwbasic::kErrCantContinue);
-  CHECK(lwtest::RunErrorCode("10 LLIST\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 AUTO\n") == newbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 EDIT 10\n") == newbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 MERGE \"x\"\n") == newbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 CONT\n") == newbasic::kErrCantContinue);
+  CHECK(lwtest::RunErrorCode("10 LLIST\n") == newbasic::kErrAdvancedFeature);
   // RENUM is a direct-mode command now, so inside a program it is Illegal direct.
-  CHECK(lwtest::RunErrorCode("10 RENUM\n") == lwbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 RENUM\n") == newbasic::kErrIllegalDirect);
 }
 
 TEST_CASE("Inventory: statements converted to functions are reachable", "[inventory]") {
@@ -114,14 +114,14 @@ TEST_CASE("Inventory: machine-level access refuses clearly (M13)", "[inventory]"
   for (const char* call : kMachineFunctions) {
     const int code = lwtest::RunErrorCode(std::string("10 PRINT ") + call + "\n");
     INFO("call: " << call << " code: " << code);
-    CHECK(code == lwbasic::kErrAdvancedFeature);
+    CHECK(code == newbasic::kErrAdvancedFeature);
   }
   // The statements keep reporting Advanced Feature too.
-  CHECK(lwtest::RunErrorCode("10 POKE 100,1\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 OUT 60,1\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 WAIT 60,1\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 CALL X\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 MOTOR\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 POKE 100,1\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 OUT 60,1\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 WAIT 60,1\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 MOTOR\n") == newbasic::kErrAdvancedFeature);
 }
 
 TEST_CASE("Inventory: partially implemented statements still do their part", "[inventory]") {
@@ -131,5 +131,5 @@ TEST_CASE("Inventory: partially implemented statements still do their part", "[i
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 VIEW\n") == 0);
   // CLEAR works bare but not with arguments.
   CHECK(lwtest::Row0("10 A=1\n20 CLEAR\n30 PRINT A\n") == " 0");
-  CHECK(lwtest::RunErrorCode("10 CLEAR ,,4096\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CLEAR ,,4096\n") == newbasic::kErrAdvancedFeature);
 }

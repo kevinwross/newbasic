@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 TEST_CASE("Window: VIEW PRINT confines scrolling", "[window]") {
@@ -75,9 +75,9 @@ TEST_CASE("Window: WIDTH narrows the grid and printing wraps there", "[window]")
 }
 
 TEST_CASE("Window: invalid ranges and widths are Illegal function call", "[window]") {
-  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 8 TO 5\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 1 TO 30\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 0 TO 4\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 WIDTH 200\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 WIDTH 0\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 8 TO 5\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 1 TO 30\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 VIEW PRINT 0 TO 4\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 WIDTH 200\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 WIDTH 0\n") == newbasic::kErrIllegalFunctionCall);
 }

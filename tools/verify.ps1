@@ -1,6 +1,6 @@
 # Builds the project and runs the test suite with the hygiene that the flaky
 # failures needed:
-#   * stray test processes are killed first (a leftover lwbasic-tests used to
+#   * stray test processes are killed first (a leftover newbasic-tests used to
 #     hold the binary and confuse later runs),
 #   * ctest output is always captured to a log, not just shown on failure,
 #   * a failing run is retried once, so an environment glitch is reported as
@@ -33,7 +33,7 @@ function Find-Cmake {
 }
 
 function Stop-StrayTests {
-  foreach ($name in @("lwbasic-tests", "lwbasic-dap")) {
+  foreach ($name in @("newbasic-tests", "newbasic-dap")) {
     Get-Process $name -ErrorAction SilentlyContinue | ForEach-Object {
       Write-Host "killing stray $name (pid $($_.Id))"
       Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue

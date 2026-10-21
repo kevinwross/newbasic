@@ -10,7 +10,7 @@ editor can drive it.
 This repository was seeded from
 [kevinwross/lwbasic](https://github.com/kevinwross/lwbasic) at commit
 `925fde3`; see `UPSTREAM.md`. The dialect specification and upstream
-implementation plan are retained as `docs/lwbasic-spec-plan.md`. The
+implementation plan are retained as `docs/newbasic-spec-plan.md`. The
 porting plan is `plan.md`.
 
 ## Status
@@ -22,7 +22,7 @@ porting plan is `plan.md`.
 | M2 — types, arrays, `DEF FN`, `DATA`/`READ`/`RESTORE` | ✅ |
 | M3 — error handling, program files, `SHELL`, sequential file I/O, DOS commands, timer events | ✅ |
 | M4 — tokenized `.BAS` read/write incl. protected files | ✅ (byte-fidelity to Microsoft files unproven) |
-| M5 — debugger library + `lwbasic-dap` | ✅ |
+| M5 — debugger library + `newbasic-dap` | ✅ |
 | M6 — golden corpus, spec-driven conformance | ✅ |
 | M7 — D3D11 window backend, sound, time-travel debugging | ✅ on Windows |
 | Linux port — console, POSIX host, stb glyph atlas, SDL2 window, DAP TCP | ✅ |
@@ -59,12 +59,12 @@ cmake --build build --parallel
 For a dependency-free console-only build:
 
 ```
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLWBASIC_WINDOW_SDL=OFF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DNEWBASIC_WINDOW_SDL=OFF
 cmake --build build --parallel
 ```
 
 The Linux glyph atlas uses the bundled DejaVu Sans Mono font in
-`third_party/fonts/`. Set `LWBASIC_FONT` to override it.
+`third_party/fonts/`. Set `NEWBASIC_FONT` to override it.
 
 ## Test
 
@@ -83,33 +83,37 @@ Some checks are deliberately **not** part of the default run because they make
 sound or need a GPU/display. Run them by hand:
 
 ```
-build/tests/lwbasic-tests "[.audio]" -s      # real host audio timing
-build/tests/lwbasic-tests "[.gpu]" -s        # window backend
-SDL_VIDEODRIVER=dummy build/tests/lwbasic-tests "[.gpu]"  # headless SDL smoke
+build/tests/newbasic-tests "[.audio]" -s      # real host audio timing
+build/tests/newbasic-tests "[.gpu]" -s        # window backend
+SDL_VIDEODRIVER=dummy build/tests/newbasic-tests "[.gpu]"  # headless SDL smoke
 ```
 
 ## Run
 
 ```
-lwbasic prog.bas          # run a program in a window when a backend is built
-lwbasic                   # direct-mode REPL in a window
-lwbasic --cli prog.bas    # run in the terminal instead
-lwbasic --gpu-scale 2     # bigger window (16x32 cells instead of 8x16)
+newbasic prog.bas          # run a program in a window when a backend is built
+newbasic                   # direct-mode REPL in a window
+newbasic --cli prog.bas    # run in the terminal instead
+newbasic --gpu-scale 2     # bigger window (16x32 cells instead of 8x16)
+newbasic samples/NeonHorizon.bas   # SCREEN 720 demos: synthwave sunset
+newbasic samples/RingWorld.bas     #   ringed gas giant with three palettes
+newbasic samples/Fireworks.bas     #   particle fireworks, click to burst
+newbasic samples/Spirograph.bas    #   layered rosettes with a rotating hue wheel
 ```
 
-On Linux, if SDL2 is not available or no display is present, `lwbasic` falls
+On Linux, if SDL2 is not available or no display is present, `newbasic` falls
 back to the terminal. In a console-only build, use `SCREEN` graphics with
 `--gpu-shot FILE` to capture a PPM without a window.
 
 ## Layout
 
 ```
-src/lwbasic-core     VM, front end, values, screen grid, debugger, DAP protocol,
+src/newbasic-core     VM, front end, values, screen grid, debugger, DAP protocol,
                      portable host services (clock, shell, printer, sound)
-src/lwbasic-screen   console / headless backends, glyph atlas
-src/lwbasic-window   D3D11 (Windows) and SDL2 (Linux) window backends + factory
-src/lwbasic-cli      lwbasic.exe / lwbasic
-src/lwbasic-dap      lwbasic-dap.exe / lwbasic-dap (DAP server over stdio or TCP)
+src/newbasic-screen   console / headless backends, glyph atlas
+src/newbasic-window   D3D11 (Windows) and SDL2 (Linux) window backends + factory
+src/newbasic-cli      newbasic.exe / newbasic
+src/newbasic-dap      newbasic-dap.exe / newbasic-dap (DAP server over stdio or TCP)
 tests                unit, property, conformance and integration tests
 fixtures             *.bas + *.expected pairs run by the golden-corpus test
 docs                 format notes, design notes, status snapshot, portability notes

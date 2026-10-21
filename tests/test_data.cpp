@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 using lwtest::Row0;
@@ -32,9 +32,9 @@ TEST_CASE("DATA/READ: RESTORE", "[data]") {
   CHECK(Row0("10 DATA 1,2\n20 READ A,B\n30 RESTORE\n40 READ C\n50 PRINT C\n") == " 1");
   CHECK(Row0("10 DATA 1\n20 DATA 2\n30 READ A\n40 RESTORE 20\n50 READ B\n60 PRINT B\n") == " 2");
   CHECK(Row0("10 DATA 1\n20 DATA 2\n30 READ A: RESTORE 10: READ B\n40 PRINT A;B\n") == " 1  1");
-  CHECK(RunErrorCode("10 DATA 1\n20 READ A,B\n") == lwbasic::kErrOutOfData);
-  CHECK(RunErrorCode("10 DATA x\n20 READ A\n") == lwbasic::kErrSyntax);
-  CHECK(RunErrorCode("10 DATA 1\n20 RESTORE 99\n") == lwbasic::kErrUndefinedLineNumber);
+  CHECK(RunErrorCode("10 DATA 1\n20 READ A,B\n") == newbasic::kErrOutOfData);
+  CHECK(RunErrorCode("10 DATA x\n20 READ A\n") == newbasic::kErrSyntax);
+  CHECK(RunErrorCode("10 DATA 1\n20 RESTORE 99\n") == newbasic::kErrUndefinedLineNumber);
   CHECK(lwtest::CompileCode("10 DATA 1,,2\n") == 0);
 }
 
@@ -55,5 +55,5 @@ TEST_CASE("DATA/READ: item kinds and conversion", "[data]") {
   // A numeric item read into a string variable keeps its text.
   CHECK(Row0("10 DATA 42\n20 READ S$\n30 IF S$ = \"42\" THEN PRINT \"OK\";\n") == "OK");
   // Text in a numeric slot is a syntax error, as in the reference.
-  CHECK(RunErrorCode("10 DATA \"abc\"\n20 READ A\n") == lwbasic::kErrSyntax);
+  CHECK(RunErrorCode("10 DATA \"abc\"\n20 READ A\n") == newbasic::kErrSyntax);
 }

@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/dap/handler.h"
-#include "lwbasic/debugger.h"
+#include "newbasic/dap/handler.h"
+#include "newbasic/debugger.h"
 #include "test_helpers.h"
 
-using lwbasic::dap::Handler;
-using lwbasic::dap::Json;
+using newbasic::dap::Handler;
+using newbasic::dap::Json;
 
 namespace {
 
@@ -28,10 +28,10 @@ struct Adapter {
     return outgoing;
   }
 
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Vm vm{screen, &host};
-  lwbasic::debug::Debugger debugger;
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Vm vm{screen, &host};
+  newbasic::debug::Debugger debugger;
   Handler handler{vm, debugger};
 };
 

@@ -1,15 +1,15 @@
-# Integration smoke test for lwbasic-dap (plan section 5): runs the real
+# Integration smoke test for newbasic-dap (plan section 5): runs the real
 # executable with a framed DAP request on stdin and checks the framed response.
 # Driven by CMake rather than the Catch2 binary so the process boundary is
 # covered in CI, not just the in-process protocol layer.
 #
-# Usage: cmake -DDAP_EXE=<path to lwbasic-dap> -P dap_smoke.cmake
+# Usage: cmake -DDAP_EXE=<path to newbasic-dap> -P dap_smoke.cmake
 
 if(NOT DEFINED DAP_EXE)
   message(FATAL_ERROR "DAP_EXE was not set")
 endif()
 if(NOT EXISTS "${DAP_EXE}")
-  message(FATAL_ERROR "lwbasic-dap executable not found: ${DAP_EXE}")
+  message(FATAL_ERROR "newbasic-dap executable not found: ${DAP_EXE}")
 endif()
 
 # Scratch space: prefer the caller's build directory. Writing into the source
@@ -40,7 +40,7 @@ execute_process(
 file(REMOVE "${request_file}")
 
 if(NOT status EQUAL 0)
-  message(FATAL_ERROR "lwbasic-dap exited with ${status}; stderr: ${errors}")
+  message(FATAL_ERROR "newbasic-dap exited with ${status}; stderr: ${errors}")
 endif()
 
 # The response must be framed and well formed. CMake's execute_process may
@@ -80,7 +80,7 @@ execute_process(
 file(REMOVE "${request_file}")
 
 if(NOT status EQUAL 0)
-  message(FATAL_ERROR "lwbasic-dap exited with ${status} on the second run; stderr: ${errors}")
+  message(FATAL_ERROR "newbasic-dap exited with ${status} on the second run; stderr: ${errors}")
 endif()
 if(NOT both MATCHES "\"command\":\"initialize\"")
   message(FATAL_ERROR "first response missing: [${both}]")
@@ -92,4 +92,4 @@ if(NOT both MATCHES "\"name\":\"main\"")
   message(FATAL_ERROR "threads response has no thread: [${both}]")
 endif()
 
-message(STATUS "lwbasic-dap smoke test passed")
+message(STATUS "newbasic-dap smoke test passed")

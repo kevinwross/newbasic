@@ -5,26 +5,26 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/dap/framing.h"
-#include "lwbasic/dap/session.h"
-#include "lwbasic/debugger.h"
+#include "newbasic/dap/framing.h"
+#include "newbasic/dap/session.h"
+#include "newbasic/debugger.h"
 #include "test_helpers.h"
 
-using lwbasic::dap::Frame;
-using lwbasic::dap::Json;
-using lwbasic::dap::ReadFrame;
-using lwbasic::dap::Session;
-using lwbasic::dap::WriteFrame;
+using newbasic::dap::Frame;
+using newbasic::dap::Json;
+using newbasic::dap::ReadFrame;
+using newbasic::dap::Session;
+using newbasic::dap::WriteFrame;
 
 namespace {
 
 struct Adapter {
   Adapter() : debugger(vm), session(vm, debugger) {}
 
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Vm vm{screen, &host};
-  lwbasic::debug::Debugger debugger;
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Vm vm{screen, &host};
+  newbasic::debug::Debugger debugger;
   Session session;
 };
 

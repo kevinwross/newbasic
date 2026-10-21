@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/fstok/codec.h"
-#include "lwbasic/fstok/encoder.h"
+#include "newbasic/fstok/codec.h"
+#include "newbasic/fstok/encoder.h"
 
-using lwbasic::fstok::DecodedLine;
-using lwbasic::fstok::DecodeTokenized;
-using lwbasic::fstok::EncodeTokenized;
+using newbasic::fstok::DecodedLine;
+using newbasic::fstok::DecodeTokenized;
+using newbasic::fstok::EncodeTokenized;
 
 namespace {
 

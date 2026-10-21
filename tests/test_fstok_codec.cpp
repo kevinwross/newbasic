@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/fstok/codec.h"
-#include "lwbasic/fstok/encoder.h"
-#include "lwbasic/fstok/protect.h"
+#include "newbasic/fstok/codec.h"
+#include "newbasic/fstok/encoder.h"
+#include "newbasic/fstok/protect.h"
 
-using lwbasic::fstok::DecodedLine;
-using lwbasic::fstok::DecodeTokenized;
+using newbasic::fstok::DecodedLine;
+using newbasic::fstok::DecodeTokenized;
 
 namespace {
 
@@ -150,8 +150,8 @@ TEST_CASE("Protected files: the byte transform is its own inverse", "[fstok][pro
   for (int index = 0; index < 143; ++index) {
     for (int value = 0; value < 256; value += 37) {
       const std::uint8_t original = static_cast<std::uint8_t>(value);
-      const std::uint8_t protected_byte = lwbasic::fstok::ProtectByte(original, index);
-      const std::uint8_t restored = lwbasic::fstok::UnprotectByte(protected_byte, index);
+      const std::uint8_t protected_byte = newbasic::fstok::ProtectByte(original, index);
+      const std::uint8_t restored = newbasic::fstok::UnprotectByte(protected_byte, index);
       INFO("index " << index << " value " << value);
       CHECK(restored == original);
     }
@@ -161,10 +161,10 @@ TEST_CASE("Protected files: the byte transform is its own inverse", "[fstok][pro
 TEST_CASE("Protected files: envelope and round trip through the codec", "[fstok][protect]") {
   const std::vector<DecodedLine> lines = {
       {10, "PRINT \"SECRET\""}, {20, "LET A=1"}, {30, "A=1.5"}, {40, "END"}};
-  const std::string tokenized = lwbasic::fstok::EncodeTokenized(lines);
+  const std::string tokenized = newbasic::fstok::EncodeTokenized(lines);
   REQUIRE(static_cast<unsigned char>(tokenized[0]) == 0xFF);
 
-  const std::string protected_bytes = lwbasic::fstok::ProtectTokenized(tokenized);
+  const std::string protected_bytes = newbasic::fstok::ProtectTokenized(tokenized);
   REQUIRE(protected_bytes.size() == tokenized.size());
   CHECK(static_cast<unsigned char>(protected_bytes[0]) == 0xFE);
   // Everything after the envelope must actually change...
@@ -176,14 +176,14 @@ TEST_CASE("Protected files: envelope and round trip through the codec", "[fstok]
   // program has to be unprotected first.
   std::vector<DecodedLine> rejected;
   std::string rejection;
-  CHECK_FALSE(lwbasic::fstok::DecodeTokenized(protected_bytes, &rejected, &rejection));
+  CHECK_FALSE(newbasic::fstok::DecodeTokenized(protected_bytes, &rejected, &rejection));
   CHECK(rejection == "protected program");
 
-  const std::string restored = lwbasic::fstok::UnprotectTokenized(protected_bytes);
+  const std::string restored = newbasic::fstok::UnprotectTokenized(protected_bytes);
   CHECK(restored == tokenized);
   std::vector<DecodedLine> decoded;
   std::string error;
-  REQUIRE(lwbasic::fstok::DecodeTokenized(restored, &decoded, &error));
+  REQUIRE(newbasic::fstok::DecodeTokenized(restored, &decoded, &error));
   REQUIRE(decoded.size() == lines.size());
   for (std::size_t i = 0; i < lines.size(); ++i) {
     CHECK(decoded[i].number == lines[i].number);
@@ -193,7 +193,7 @@ TEST_CASE("Protected files: envelope and round trip through the codec", "[fstok]
 
 TEST_CASE("Tokenized encode: envelope, offsets and trailer", "[fstok][codec]") {
   const std::vector<DecodedLine> lines = {{10, "PRINT \"HI\""}, {20, "END"}};
-  const std::string bytes = lwbasic::fstok::EncodeTokenized(lines);
+  const std::string bytes = newbasic::fstok::EncodeTokenized(lines);
   REQUIRE(bytes.size() > 4);
   CHECK(static_cast<unsigned char>(bytes[0]) == 0xFF);
   CHECK(static_cast<unsigned char>(bytes[bytes.size() - 1]) == 0x1A);
@@ -221,10 +221,10 @@ TEST_CASE("Tokenized: encode then decode round-trips", "[fstok][codec]") {
       {90, "REM hello there"},
       {100, "END"},
   };
-  const std::string bytes = lwbasic::fstok::EncodeTokenized(lines);
+  const std::string bytes = newbasic::fstok::EncodeTokenized(lines);
   std::vector<DecodedLine> decoded;
   std::string error;
-  REQUIRE(lwbasic::fstok::DecodeTokenized(bytes, &decoded, &error));
+  REQUIRE(newbasic::fstok::DecodeTokenized(bytes, &decoded, &error));
   INFO("decode error: " << error);
   REQUIRE(decoded.size() == lines.size());
   for (std::size_t i = 0; i < lines.size(); ++i) {
@@ -236,11 +236,11 @@ TEST_CASE("Tokenized: encode then decode round-trips", "[fstok][codec]") {
 
 TEST_CASE("Tokenized: a second encoding of the decoded text is byte-identical", "[fstok][codec]") {
   const std::vector<DecodedLine> lines = {{10, "PRINT 42"}, {20, "END"}};
-  const std::string first = lwbasic::fstok::EncodeTokenized(lines);
+  const std::string first = newbasic::fstok::EncodeTokenized(lines);
   std::vector<DecodedLine> decoded;
   std::string error;
-  REQUIRE(lwbasic::fstok::DecodeTokenized(first, &decoded, &error));
-  CHECK(lwbasic::fstok::EncodeTokenized(decoded) == first);
+  REQUIRE(newbasic::fstok::DecodeTokenized(first, &decoded, &error));
+  CHECK(newbasic::fstok::EncodeTokenized(decoded) == first);
 }
 
 TEST_CASE("Tokenized: operators and comparison tokens survive the round trip", "[fstok][codec]") {
@@ -248,10 +248,10 @@ TEST_CASE("Tokenized: operators and comparison tokens survive the round trip", "
       {10, "A=1+2*3-4/5"},        {20, "B=A^2"},  {30, "C=A>=1"}, {40, "D=A<=1"}, {50, "E=A<>1"},
       {60, "F=A AND B OR NOT C"}, {70, "G=A\\2"},
   };
-  const std::string bytes = lwbasic::fstok::EncodeTokenized(lines);
+  const std::string bytes = newbasic::fstok::EncodeTokenized(lines);
   std::vector<DecodedLine> decoded;
   std::string error;
-  REQUIRE(lwbasic::fstok::DecodeTokenized(bytes, &decoded, &error));
+  REQUIRE(newbasic::fstok::DecodeTokenized(bytes, &decoded, &error));
   REQUIRE(decoded.size() == lines.size());
   for (std::size_t i = 0; i < lines.size(); ++i) {
     INFO("line [" << lines[i].source << "] vs [" << decoded[i].source << "]");

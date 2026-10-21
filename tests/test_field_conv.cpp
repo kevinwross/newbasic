@@ -6,16 +6,16 @@
 #include <cstdint>
 #include <string>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/field.h"
+#include "newbasic/errors.h"
+#include "newbasic/field.h"
 #include "test_helpers.h"
 
-using lwbasic::CvdFromString;
-using lwbasic::CviFromString;
-using lwbasic::CvsFromString;
-using lwbasic::MkdFromDouble;
-using lwbasic::MkiFromInt;
-using lwbasic::MksFromSingle;
+using newbasic::CvdFromString;
+using newbasic::CviFromString;
+using newbasic::CvsFromString;
+using newbasic::MkdFromDouble;
+using newbasic::MkiFromInt;
+using newbasic::MksFromSingle;
 
 TEST_CASE("Field: MKI$ is two bytes, low byte first", "[field]") {
   const std::string one = MkiFromInt(1);
@@ -84,7 +84,7 @@ TEST_CASE("Field: the conversions are reachable from BASIC", "[field]") {
   // Low byte first, visible from BASIC.
   CHECK(lwtest::Row0("10 S$=MKI$(1)\n20 PRINT ASC(S$);ASC(MID$(S$,2,1))\n") == " 1  0");
   // Wrong length is an Illegal function call.
-  CHECK(lwtest::RunErrorCode("10 PRINT CVI(\"x\")\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT CVS(\"ab\")\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT CVD(\"abcd\")\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT CVI(\"x\")\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT CVS(\"ab\")\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT CVD(\"abcd\")\n") == newbasic::kErrIllegalFunctionCall);
 }

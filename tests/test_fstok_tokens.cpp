@@ -6,14 +6,14 @@
 #include <set>
 #include <string>
 
-#include "lwbasic/fstok/mbf.h"
-#include "lwbasic/fstok/token_table.h"
+#include "newbasic/fstok/mbf.h"
+#include "newbasic/fstok/token_table.h"
 
 using Catch::Approx;
 
-using lwbasic::fstok::CodeForKeyword;
-using lwbasic::fstok::KeywordForCode;
-using lwbasic::fstok::Tokens;
+using newbasic::fstok::CodeForKeyword;
+using newbasic::fstok::KeywordForCode;
+using newbasic::fstok::Tokens;
 
 TEST_CASE("Token table: the anchors GW-BASIC 3.23 is known by", "[fstok]") {
   REQUIRE(CodeForKeyword("END").has_value());
@@ -52,7 +52,7 @@ TEST_CASE("Token table: codes are unique and keywords are non-empty", "[fstok]")
 TEST_CASE("Token table: single-byte codes are ascending and inside their range", "[fstok]") {
   std::uint16_t previous = 0;
   for (const auto& token : Tokens()) {
-    if (lwbasic::fstok::IsTwoByteToken(token.code))
+    if (newbasic::fstok::IsTwoByteToken(token.code))
       continue;
     INFO("code " << token.code);
     CHECK(token.code >= 0x81);
@@ -83,54 +83,54 @@ TEST_CASE("Token table: every keyword maps back to its own code", "[fstok]") {
 
 TEST_CASE("Token table: the two-byte prefixes are the documented ones", "[fstok]") {
   for (const auto& token : Tokens()) {
-    if (!lwbasic::fstok::IsTwoByteToken(token.code))
+    if (!newbasic::fstok::IsTwoByteToken(token.code))
       continue;
-    const std::uint8_t prefix = lwbasic::fstok::TokenPrefix(token.code);
+    const std::uint8_t prefix = newbasic::fstok::TokenPrefix(token.code);
     INFO("keyword [" << token.keyword << "]");
     CHECK((prefix == 0xFD || prefix == 0xFE || prefix == 0xFF));
-    CHECK(lwbasic::fstok::TokenSuffix(token.code) >= 0x81);
+    CHECK(newbasic::fstok::TokenSuffix(token.code) >= 0x81);
   }
 }
 
 TEST_CASE("Token table: numeric and operator token constants", "[fstok]") {
-  CHECK(lwbasic::fstok::kTokenNumberUInt == 0x0E);
-  CHECK(lwbasic::fstok::kTokenNumberOct == 0x0B);
-  CHECK(lwbasic::fstok::kTokenNumberHex == 0x0C);
-  CHECK(lwbasic::fstok::kTokenNumberInt == 0x1C);
-  CHECK(lwbasic::fstok::kTokenNumberSingle == 0x1D);
-  CHECK(lwbasic::fstok::kTokenNumberDouble == 0x1F);
-  CHECK(lwbasic::fstok::kTokenConstantZero == 0x11);
+  CHECK(newbasic::fstok::kTokenNumberUInt == 0x0E);
+  CHECK(newbasic::fstok::kTokenNumberOct == 0x0B);
+  CHECK(newbasic::fstok::kTokenNumberHex == 0x0C);
+  CHECK(newbasic::fstok::kTokenNumberInt == 0x1C);
+  CHECK(newbasic::fstok::kTokenNumberSingle == 0x1D);
+  CHECK(newbasic::fstok::kTokenNumberDouble == 0x1F);
+  CHECK(newbasic::fstok::kTokenConstantZero == 0x11);
 }
 
 TEST_CASE("MBF single: the classic byte patterns", "[fstok][mbf]") {
   std::uint8_t bytes[4] = {0, 0, 0, 0};
   // 1.0 = 1.0 x 2^0 -> exponent 0x80, zero fraction.
-  lwbasic::fstok::EncodeMbfSingle(1.0, bytes);
+  newbasic::fstok::EncodeMbfSingle(1.0, bytes);
   CHECK(bytes[0] == 0x80);
   CHECK(bytes[1] == 0x00);
   CHECK(bytes[2] == 0x00);
   CHECK(bytes[3] == 0x00);
   // 2.0 -> exponent 0x81; 0.5 -> exponent 0x7F.
-  lwbasic::fstok::EncodeMbfSingle(2.0, bytes);
+  newbasic::fstok::EncodeMbfSingle(2.0, bytes);
   CHECK(bytes[0] == 0x81);
-  lwbasic::fstok::EncodeMbfSingle(0.5, bytes);
+  newbasic::fstok::EncodeMbfSingle(0.5, bytes);
   CHECK(bytes[0] == 0x7F);
   // -1.0 sets the sign bit at the top of the first mantissa byte.
-  lwbasic::fstok::EncodeMbfSingle(-1.0, bytes);
+  newbasic::fstok::EncodeMbfSingle(-1.0, bytes);
   CHECK(bytes[0] == 0x80);
   CHECK(bytes[1] == 0x80);
   // 1.5 -> fraction 0.5 -> 0x400000, so 0x40 in the mantissa's top byte.
-  lwbasic::fstok::EncodeMbfSingle(1.5, bytes);
+  newbasic::fstok::EncodeMbfSingle(1.5, bytes);
   CHECK(bytes[0] == 0x80);
   CHECK(bytes[1] == 0x40);
   CHECK(bytes[2] == 0x00);
   CHECK(bytes[3] == 0x00);
   // Zero is all zero bytes (MBF's only special case).
-  lwbasic::fstok::EncodeMbfSingle(0.0, bytes);
+  newbasic::fstok::EncodeMbfSingle(0.0, bytes);
   CHECK(bytes[0] == 0x00);
   CHECK(bytes[1] == 0x00);
   const std::uint8_t zero[4] = {0, 0, 0, 0};
-  CHECK(lwbasic::fstok::DecodeMbfSingle(zero) == 0.0);
+  CHECK(newbasic::fstok::DecodeMbfSingle(zero) == 0.0);
 }
 
 TEST_CASE("MBF single: round trips within its 23-bit precision", "[fstok][mbf]") {
@@ -138,8 +138,8 @@ TEST_CASE("MBF single: round trips within its 23-bit precision", "[fstok][mbf]")
                            1e10, -1e-10, 12345.678, 0.0001, 6.02e23};
   for (double value : values) {
     std::uint8_t bytes[4] = {0, 0, 0, 0};
-    lwbasic::fstok::EncodeMbfSingle(value, bytes);
-    const double back = lwbasic::fstok::DecodeMbfSingle(bytes);
+    newbasic::fstok::EncodeMbfSingle(value, bytes);
+    const double back = newbasic::fstok::DecodeMbfSingle(bytes);
     INFO("value " << value << " back " << back);
     CHECK(back == Approx(value).epsilon(2e-7));
   }
@@ -147,21 +147,21 @@ TEST_CASE("MBF single: round trips within its 23-bit precision", "[fstok][mbf]")
 
 TEST_CASE("MBF double: known patterns and round trips", "[fstok][mbf]") {
   std::uint8_t bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  lwbasic::fstok::EncodeMbfDouble(1.0, bytes);
+  newbasic::fstok::EncodeMbfDouble(1.0, bytes);
   CHECK(bytes[0] == 0x80);
   for (int i = 1; i < 8; ++i) {
     CHECK(bytes[i] == 0x00);
   }
-  lwbasic::fstok::EncodeMbfDouble(-2.0, bytes);
+  newbasic::fstok::EncodeMbfDouble(-2.0, bytes);
   CHECK(bytes[0] == 0x81);
   CHECK(bytes[1] == 0x80);
   const std::uint8_t zero[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  CHECK(lwbasic::fstok::DecodeMbfDouble(zero) == 0.0);
+  CHECK(newbasic::fstok::DecodeMbfDouble(zero) == 0.0);
 
   const double values[] = {1.0, -1.0, 0.5, 3.14159265358979, 1e30, -2.5e-30};
   for (double value : values) {
-    lwbasic::fstok::EncodeMbfDouble(value, bytes);
-    const double back = lwbasic::fstok::DecodeMbfDouble(bytes);
+    newbasic::fstok::EncodeMbfDouble(value, bytes);
+    const double back = newbasic::fstok::DecodeMbfDouble(bytes);
     INFO("value " << value << " back " << back);
     CHECK(back == Approx(value).epsilon(1e-14));
   }
@@ -172,10 +172,10 @@ TEST_CASE("MBF: the two encodings agree on shared values", "[fstok][mbf]") {
   // must decode to the same number to the single's precision.
   for (double value : {0.0, 1.0, -3.5, 100.25, 1e5}) {
     std::uint8_t single[4] = {0, 0, 0, 0};
-    lwbasic::fstok::EncodeMbfSingle(value, single);
-    const double from_single = lwbasic::fstok::DecodeMbfSingle(single);
+    newbasic::fstok::EncodeMbfSingle(value, single);
+    const double from_single = newbasic::fstok::DecodeMbfSingle(single);
     std::uint8_t as_double[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    lwbasic::fstok::EncodeMbfDouble(from_single, as_double);
-    CHECK(lwbasic::fstok::DecodeMbfDouble(as_double) == Approx(from_single).epsilon(1e-14));
+    newbasic::fstok::EncodeMbfDouble(from_single, as_double);
+    CHECK(newbasic::fstok::DecodeMbfDouble(as_double) == Approx(from_single).epsilon(1e-14));
   }
 }

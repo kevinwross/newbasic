@@ -1,0 +1,205 @@
+10 REM FIREWORKS FINALE - particle fireworks over a city, SCREEN 720.
+11 REM
+12 REM Bursts are deterministic particle rings: each shell seeds 88 particles with
+13 REM outward velocities, gravity and drag. The sky is cleared and redrawn each
+14 REM frame, so the streaking lines are real particle paths rather than trails.
+15 REM Three bursts are pre-seeded at startup so the first frame is already alive.
+16 REM
+17 REM Controls: ESC quits, SPACE pauses, click launches a burst where you click.
+18 REM
+20 SCREEN 720
+30 CLS
+40 DIM PX(1200), PY(1200), VX(1200), VY(1200), LF(1200), L0(1200), FM(1200), QX(1200), QY(1200)
+45 DIM RX(8), RY(8), RV(8), RL(8), RF(8), RA(8)
+50 NP = 1200: PP = 0: CNT = 0: PS = 0: LT = 0: CY = 0
+60 GOSUB 1000
+70 GOSUB 2000
+80 BX = 300: BY = 250: BF = 0: BA = .10: GOSUB 5000
+85 BX = 640: BY = 205: BF = 1: BA = .16: GOSUB 5000
+90 BX = 980: BY = 285: BF = 2: BA = .22: GOSUB 5000
+95 BX = 470: BY = 360: BF = 3: BA = .06: GOSUB 5000
+110 RX(1) = 180: RY(1) = 420: RV(1) = -260: RL(1) = 1.2: RF(1) = 3: RA(1) = 1
+120 RX(2) = 1050: RY(2) = 380: RV(2) = -220: RL(2) = 1.5: RF(2) = 4: RA(2) = 1
+125 REM Let the seeds develop for a few frames before the first presented frame.
+130 DT = .03
+132 FOR K = 1 TO 8
+134 GOSUB 6000
+136 GOSUB 6100
+138 GOSUB 6300
+140 NEXT K
+142 DT = .04
+145 GOSUB 7000
+175 TF = TIMER
+180 REM ---- MAIN LOOP ----
+190 B = MOUSEB
+200 IF B = 0 THEN 230
+205 CX = MOUSEX
+210 IF CX < 40 THEN CX = 40
+215 IF CX > 1240 THEN CX = 1240
+218 CY = MOUSEY
+220 IF CY < 80 THEN CY = 80
+222 IF CY > 500 THEN CY = 500
+224 BX = CX: BY = CY: BF = CY MOD 5: BA = 0: GOSUB 5000
+230 K$ = INKEY$
+240 IF K$ <> "" THEN GOSUB 8000
+250 IF PS = 1 THEN 320
+260 REM Fixed step: the loop is paced by the TIMER wait below, and a tiny
+265 REM first-frame delta would draw dots instead of streaks.
+268 DT = .033
+280 GOSUB 6000
+290 GOSUB 6100
+300 GOSUB 6300
+320 IF TIMER - TF < .04 THEN 320
+330 TF = TIMER
+340 GOTO 190
+350 END
+
+1000 REM ---- PALETTE ----
+1010 PR = 0: PG = 0: PB = 0: GOSUB 9000: PALETTE 0, PC
+1020 PR = 255: PG = 245: PB = 225: GOSUB 9000: PALETTE 7, PC
+1030 FOR I = 0 TO 15
+1040 T = I / 15
+1050 PR = 2 + 16 * T: PG = 3 + 8 * T: PB = 14 + 34 * T
+1060 GOSUB 9000
+1070 PALETTE 16 + I, PC
+1080 NEXT I
+1090 PR = 255: PG = 255: PB = 255: GOSUB 9000: PALETTE 32, PC
+1100 PR = 190: PG = 215: PB = 255: GOSUB 9000: PALETTE 33, PC
+1110 PR = 255: PG = 220: PB = 190: GOSUB 9000: PALETTE 34, PC
+1120 PR = 130: PG = 145: PB = 200: GOSUB 9000: PALETTE 35, PC
+1130 REM Five firework families x eight fading shades, 64-103.
+1140 FOR I = 0 TO 4
+1150 IF I = 0 THEN PR = 255: PG = 225: PB = 130
+1160 IF I = 1 THEN PR = 255: PG = 90: PB = 180
+1170 IF I = 2 THEN PR = 90: PG = 230: PB = 255
+1180 IF I = 3 THEN PR = 120: PG = 255: PB = 170
+1190 IF I = 4 THEN PR = 190: PG = 130: PB = 255
+1200 FOR J = 0 TO 7
+1210 U = .22 + .78 * J / 7
+1220 GOSUB 9000
+1230 PALETTE 64 + I * 8 + J, PC
+1240 NEXT J
+1250 NEXT I
+1260 REM Skyline and windows.
+1270 PR = 16: PG = 16: PB = 28: GOSUB 9000: PALETTE 192, PC
+1280 PR = 24: PG = 24: PB = 40: GOSUB 9000: PALETTE 193, PC
+1290 PR = 8: PG = 8: PB = 14: GOSUB 9000: PALETTE 194, PC
+1300 PR = 255: PG = 210: PB = 120: GOSUB 9000: PALETTE 196, PC
+1310 PR = 150: PG = 190: PB = 255: GOSUB 9000: PALETTE 197, PC
+1320 RETURN
+
+2000 REM ---- CITY SKYLINE: static, below the cleared sky region ----
+2010 FOR BX = 0 TO 1240 STEP 40
+2020 H = 58 + 78 * (.5 + .5 * SIN(BX * .013 + 1.1)) + 26 * (.5 + .5 * SIN(BX * .041))
+2030 TP = 720 - H
+2040 LINE (BX, TP)-(BX + 38, 719), 192, BF
+2050 LINE (BX, TP)-(BX + 38, TP + 3), 193, BF
+2060 FOR WY = TP + 10 TO 690 STEP 18
+2070 FOR WX = BX + 6 TO BX + 30 STEP 12
+2075 IF SIN(WX * .7 + WY * 1.3) > .2 THEN PSET (WX, WY), 196
+2080 NEXT WX
+2090 NEXT WY
+2100 NEXT BX
+2110 LINE (0, 704)-(1279, 719), 0, BF
+2120 RETURN
+
+5000 REM ---- SPAWN A BURST at BX,BY, family BF, age BA ----
+5010 FOR K = 1 TO 120
+5020 CNT = CNT + 1
+5030 H = SIN(CNT * 12.9898) * 43758.5453: H = H - INT(H)
+5040 A = 6.283185 * K / 120 + H * .35
+5050 H2 = SIN(CNT * 78.233 + 2.3) * 24634.6345: H2 = H2 - INT(H2)
+5060 SP = 60 + 215 * H2
+5070 PP = PP + 1
+5080 IF PP > NP THEN PP = 1
+5090 PX(PP) = BX + COS(A) * SP * BA
+5100 PY(PP) = BY + SIN(A) * SP * BA + 45 * BA * BA
+5110 VX(PP) = COS(A) * SP
+5120 VY(PP) = SIN(A) * SP + 90 * BA
+5130 L0(PP) = 1.2 + 1.2 * H2
+5140 LF(PP) = L0(PP) - BA
+5150 FM(PP) = BF
+5160 NEXT K
+5170 RETURN
+
+6000 REM ---- CLEAR THE SKY AND REDRAW ITS STARS ----
+6010 FOR Y = 0 TO 510 STEP 30
+6020 C = 16 + INT(Y * 15 / 539)
+6030 LINE (0, Y)-(1279, Y + 29), C, BF
+6040 NEXT Y
+6050 FOR I = 1 TO 150
+6060 FX = SIN(I * 12.9898) * 43758.5453: FX = FX - INT(FX)
+6070 SX = INT(FX * 1279)
+6080 FY = SIN(I * 78.233 + 1.7) * 24634.6345: FY = FY - INT(FY)
+6090 SY = INT(FY * 500)
+6095 PSET (SX, SY), 32 + (I MOD 4)
+6097 NEXT I
+6098 RETURN
+
+6100 REM ---- PARTICLES: integrate, fade along their family ramp, draw streaks ----
+6110 FOR I = 1 TO NP
+6120 IF LF(I) <= 0 THEN 6215
+6130 QX(I) = PX(I): QY(I) = PY(I)
+6140 PX(I) = PX(I) + VX(I) * DT
+6150 PY(I) = PY(I) + VY(I) * DT
+6160 VY(I) = VY(I) + 90 * DT
+6170 VX(I) = VX(I) * .995
+6180 VY(I) = VY(I) * .995
+6190 LF(I) = LF(I) - DT
+6192 IF PY(I) > 535 THEN LF(I) = 0
+6194 IF LF(I) <= 0 THEN 6215
+6196 SH = INT(LF(I) / L0(I) * 7.99)
+6198 IF SH > 7 THEN SH = 7
+6199 IF SH < 0 THEN SH = 0
+6202 LINE (QX(I), QY(I))-(PX(I), PY(I)), 64 + FM(I) * 8 + SH
+6215 NEXT I
+6218 RETURN
+
+6300 REM ---- ROCKETS: rise, then burst at the top ----
+6310 FOR I = 1 TO 8
+6320 IF RA(I) = 0 THEN 6390
+6330 RY(I) = RY(I) + RV(I) * DT
+6340 RV(I) = RV(I) + 60 * DT
+6350 RL(I) = RL(I) - DT
+6360 LINE (RX(I), RY(I))-(RX(I), RY(I) + 9), 64 + RF(I) * 8 + 7
+6370 IF RY(I) < 300 THEN GOSUB 6450
+6380 IF RL(I) <= 0 THEN GOSUB 6450
+6390 NEXT I
+6400 LT = LT + DT
+6410 IF LT > .75 THEN LT = 0: GOSUB 6500
+6420 RETURN
+
+6450 REM Explode rocket I and free its slot.
+6460 IF RA(I) = 0 THEN RETURN
+6470 BX = RX(I): BY = RY(I): BF = RF(I): BA = 0: GOSUB 5000
+6480 RA(I) = 0
+6490 RETURN
+
+6500 REM Launch a new rocket from the skyline.
+6510 FOR I = 1 TO 8
+6520 IF RA(I) <> 0 THEN 6570
+6530 CNT = CNT + 1
+6540 H = SIN(CNT * 31.7 + .4) * 43758.5453: H = H - INT(H)
+6550 RX(I) = 80 + H * 1120
+6560 RY(I) = 545: RV(I) = -330 - 110 * H: RL(I) = 1.4: RF(I) = INT(H * 5): RA(I) = 1
+6565 RETURN
+6570 NEXT I
+6580 RETURN
+
+7000 REM ---- HUD ----
+7010 LOCATE 2, 62
+7020 PRINT "F I R E W O R K S";
+7030 LOCATE 45, 2
+7040 PRINT "ESC QUIT   SPACE PAUSE   CLICK TO BURST";
+7045 LOCATE 45, 1, 0
+7050 RETURN
+
+8000 REM ---- INPUT ----
+8010 C = ASC(K$)
+8020 IF C = 27 THEN END
+8030 IF K$ = " " THEN PS = 1 - PS
+8040 RETURN
+
+9000 REM ---- 8-bit RGB in PR,PG,PB -> 18-bit PALETTE colour in PC ----
+9010 PC = INT(PR * 63 / 255 + .5) + INT(PG * 63 / 255 + .5) * 256 + INT(PB * 63 / 255 + .5) * 65536
+9020 RETURN

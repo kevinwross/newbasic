@@ -2,14 +2,14 @@
 
 Two pieces, deliberately separate:
 
-- **`lwbasic-debug`** is the debugger itself: a `Debugger` over a live `Vm`, with no protocol
+- **`newbasic-debug`** is the debugger itself: a `Debugger` over a live `Vm`, with no protocol
   concerns, so it can be unit-tested against a headless screen.
-- **`lwbasic-dap`** is a Debug Adapter Protocol server that drives it. Its protocol layers
+- **`newbasic-dap`** is a Debug Adapter Protocol server that drives it. Its protocol layers
   (framing, JSON, dispatch, session) are unit-tested without stdio; the executable is only the
   process boundary, reading DAP requests on stdin and writing responses and events on stdout.
 
-There is **no interactive debugger inside `lwbasic.exe`** and no graphical UI. A debug session is a
-DAP conversation with `lwbasic-dap`.
+There is **no interactive debugger inside `newbasic.exe`** and no graphical UI. A debug session is a
+DAP conversation with `newbasic-dap`.
 
 ## What it can do
 
@@ -41,7 +41,7 @@ foreach ($r in $reqs) {
   [void]$sb.Append("Content-Length: $len`r`n`r`n$r")
 }
 [System.IO.File]::WriteAllText("dap_in.txt", $sb.ToString(), (New-Object System.Text.UTF8Encoding($false)))
-Start-Process -FilePath "out\src\lwbasic-dap\Release\lwbasic-dap.exe" `
+Start-Process -FilePath "out\src\newbasic-dap\Release\newbasic-dap.exe" `
   -RedirectStandardInput dap_in.txt -RedirectStandardOutput dap_out.txt -PassThru -Wait
 Get-Content dap_out.txt
 ```
@@ -56,14 +56,14 @@ is emitted.
 
 ```lua
 local dap = require("dap")
-dap.adapters.lwbasic = {
+dap.adapters.newbasic = {
   type = "executable",
-  command = "C:/Users/kevin/repos/lwbasic/out/src/lwbasic-dap/Release/lwbasic-dap.exe",
+  command = "C:/Users/kevin/repos/newbasic/out/src/newbasic-dap/Release/newbasic-dap.exe",
   args = {},
 }
 dap.configurations.basic = {
   {
-    type = "lwbasic",
+    type = "newbasic",
     request = "launch",
     name = "Run program",
     program = "${file}",
@@ -73,11 +73,11 @@ dap.configurations.basic = {
 
 ### The TCP transport
 
-`lwbasic-dap --port N` listens on `127.0.0.1:N` instead of using stdio; `--port 0` picks a free port
+`newbasic-dap --port N` listens on `127.0.0.1:N` instead of using stdio; `--port 0` picks a free port
 and reports it on stderr, which makes the transport scriptable:
 
-    lwbasic-dap --port 0
-    lwbasic-dap: listening on 127.0.0.1:60554
+    newbasic-dap --port 0
+    newbasic-dap: listening on 127.0.0.1:60554
 
 The listener binds the loopback interface only, because a debug port lets whoever connects run and
 inspect programs. Each connection gets a fresh session over the same machine, so a client can
@@ -87,7 +87,7 @@ reconnect after a reload. Verified over a real socket: connect, then `initialize
 `nvim-dap` can attach to it as a server rather than spawning a process:
 
 ```lua
-dap.adapters.lwbasic = { type = "server", host = "127.0.0.1", port = 4711 }
+dap.adapters.newbasic = { type = "server", host = "127.0.0.1", port = 4711 }
 ```
 
 **VS Code still needs an extension.** `--port` removes the *transport* obstacle - a client that

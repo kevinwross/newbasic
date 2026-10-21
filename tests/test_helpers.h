@@ -9,12 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/frontend.h"
-#include "lwbasic/host.h"
-#include "lwbasic/lexer.h"
-#include "lwbasic/line_store.h"
-#include "lwbasic/screen/headless_screen.h"
-#include "lwbasic/vm.h"
+#include "newbasic/frontend.h"
+#include "newbasic/host.h"
+#include "newbasic/lexer.h"
+#include "newbasic/line_store.h"
+#include "newbasic/screen/headless_screen.h"
+#include "newbasic/vm.h"
 
 namespace lwtest {
 
@@ -32,46 +32,46 @@ inline const char* TempName(const char* base) {
 }
 
 // Tokenizes one line (helper for lexer-facing tests).
-inline std::vector<lwbasic::Token> TokenizeLine(const std::string& line) {
-  std::vector<lwbasic::Token> tokens;
+inline std::vector<newbasic::Token> TokenizeLine(const std::string& line) {
+  std::vector<newbasic::Token> tokens;
   std::string error;
   int position = 0;
-  if (!lwbasic::Lexer::Tokenize(line, &tokens, &error, &position)) {
+  if (!newbasic::Lexer::Tokenize(line, &tokens, &error, &position)) {
     FAIL("Tokenize failed at " << position << ": " << error);
   }
   return tokens;
 }
 
-inline bool CompileSource(const std::string& source, lwbasic::Program* program,
-                          lwbasic::CompileError* error) {
-  lwbasic::LineStore store;
+inline bool CompileSource(const std::string& source, newbasic::Program* program,
+                          newbasic::CompileError* error) {
+  newbasic::LineStore store;
   std::string parse_error;
-  if (!lwbasic::LineStore::ParseTextBas(source, &store, &parse_error)) {
+  if (!newbasic::LineStore::ParseTextBas(source, &store, &parse_error)) {
     error->line = 0;
-    error->code = lwbasic::kErrSyntax;
+    error->code = newbasic::kErrSyntax;
     error->message = parse_error;
     return false;
   }
-  return lwbasic::Compile(store, program, error);
+  return newbasic::Compile(store, program, error);
 }
 
 // Runs a program; returns the rendered grid rows (trailing blanks trimmed).
 inline std::vector<std::string> RunRowsWithInput(const std::string& source,
                                                  const std::vector<std::wstring>& input,
-                                                 lwbasic::Host* host = nullptr) {
-  lwbasic::Program program;
-  lwbasic::CompileError error;
+                                                 newbasic::Host* host = nullptr) {
+  newbasic::Program program;
+  newbasic::CompileError error;
   if (!CompileSource(source, &program, &error)) {
     FAIL("Compile failed (line " << error.line << ", code " << error.code
                                  << "): " << error.message);
   }
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   for (const std::wstring& line : input)
     screen.ScriptLine(line);
-  lwbasic::Vm vm(screen, host);
+  newbasic::Vm vm(screen, host);
   vm.Load(std::move(program));
-  const lwbasic::RunResult result = vm.Run();
-  if (result.status == lwbasic::RunResult::Status::Error) {
+  const newbasic::RunResult result = vm.Run();
+  if (result.status == newbasic::RunResult::Status::Error) {
     FAIL("Run error " << result.code << " in line " << result.line << ": " << result.message);
   }
   return screen.RenderRows();
@@ -90,28 +90,28 @@ inline std::string Row0(const std::string& source) {
 // Runtime error code, or 0 when the program runs cleanly.
 inline int RunErrorCode(const std::string& source, int* out_line = nullptr,
                         const std::vector<std::wstring>& input = {}) {
-  lwbasic::Program program;
-  lwbasic::CompileError error;
+  newbasic::Program program;
+  newbasic::CompileError error;
   if (!CompileSource(source, &program, &error)) {
     if (out_line != nullptr)
       *out_line = error.line;
     return error.code;
   }
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   for (const std::wstring& line : input)
     screen.ScriptLine(line);
-  lwbasic::Vm vm(screen);
+  newbasic::Vm vm(screen);
   vm.Load(std::move(program));
-  const lwbasic::RunResult result = vm.Run();
+  const newbasic::RunResult result = vm.Run();
   if (out_line != nullptr)
     *out_line = result.line;
-  return result.status == lwbasic::RunResult::Status::Error ? result.code : 0;
+  return result.status == newbasic::RunResult::Status::Error ? result.code : 0;
 }
 
 // Compile error code, or 0 when compilation succeeds.
 inline int CompileCode(const std::string& source, int* out_line = nullptr) {
-  lwbasic::Program program;
-  lwbasic::CompileError error;
+  newbasic::Program program;
+  newbasic::CompileError error;
   if (CompileSource(source, &program, &error))
     return 0;
   if (out_line != nullptr)

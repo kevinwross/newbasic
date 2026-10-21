@@ -28,7 +28,7 @@ done
 echo "== configure ($config, SDL=$sdl) =="
 cmake -S "$root" -B "$build_dir" \
   -DCMAKE_BUILD_TYPE="$config" \
-  -DLWBASIC_WINDOW_SDL="$sdl" \
+  -DNEWBASIC_WINDOW_SDL="$sdl" \
   "${extra[@]}"
 
 echo "== build =="

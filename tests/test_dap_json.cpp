@@ -1,11 +1,11 @@
-// M5: DAP JSON value (parse/dump) used by lwbasic-dap.
+// M5: DAP JSON value (parse/dump) used by newbasic-dap.
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
 
-#include "lwbasic/dap/json.h"
+#include "newbasic/dap/json.h"
 
-using lwbasic::dap::Json;
+using newbasic::dap::Json;
 
 namespace {
 
@@ -29,14 +29,14 @@ std::string ParseError(const std::string& text) {
 
 TEST_CASE("JSON: parses the DAP initialize request shape", "[dap][json]") {
   const Json json = ParseOk("{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\","
-                            "\"arguments\":{\"adapterID\":\"lwbasic\",\"linesStartAt1\":true,"
+                            "\"arguments\":{\"adapterID\":\"newbasic\",\"linesStartAt1\":true,"
                             "\"pathFormat\":\"path\"}}");
   REQUIRE(json.IsObject());
   CHECK(json.Find("seq")->AsNumber() == 1.0);
   CHECK(json.Find("command")->AsString() == "initialize");
   const Json* arguments = json.Find("arguments");
   REQUIRE(arguments != nullptr);
-  CHECK(arguments->Find("adapterID")->AsString() == "lwbasic");
+  CHECK(arguments->Find("adapterID")->AsString() == "newbasic");
   CHECK(arguments->Find("linesStartAt1")->AsBool());
   CHECK(json.Find("missing") == nullptr);
 }

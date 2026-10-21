@@ -7,20 +7,20 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 namespace {
 
-std::vector<std::string> ListProgram(lwbasic::Repl* repl, lwbasic::screen::HeadlessScreen* screen) {
+std::vector<std::string> ListProgram(newbasic::Repl* repl, newbasic::screen::HeadlessScreen* screen) {
   screen->Clear();
   repl->Process("LIST");
   return screen->RenderRows();
 }
 
-std::string AllRows(const lwbasic::screen::HeadlessScreen& screen) {
+std::string AllRows(const newbasic::screen::HeadlessScreen& screen) {
   std::string all;
   for (const std::string& row : screen.RenderRows())
     all += row + "\n";
@@ -43,9 +43,9 @@ private:
 } // namespace
 
 TEST_CASE("RENUM: renumbers lines and rewrites GOTO", "[renum]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 GOTO 30");
   repl.Process("20 PRINT \"X\"");
   repl.Process("30 PRINT \"Y\"");
@@ -58,9 +58,9 @@ TEST_CASE("RENUM: renumbers lines and rewrites GOTO", "[renum]") {
 }
 
 TEST_CASE("RENUM: only lines from the old number onward move", "[renum]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"A\"");
   repl.Process("20 GOTO 30");
   repl.Process("30 PRINT \"B\"");
@@ -73,9 +73,9 @@ TEST_CASE("RENUM: only lines from the old number onward move", "[renum]") {
 }
 
 TEST_CASE("RENUM: references in strings and comments are left alone", "[renum]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"GOTO 30\": GOTO 30");
   repl.Process("20 END");
   repl.Process("30 END");
@@ -88,27 +88,27 @@ TEST_CASE("RENUM: references in strings and comments are left alone", "[renum]")
 }
 
 TEST_CASE("RENUM: reordering the program is Illegal function call", "[renum]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"A\"");
   repl.Process("20 PRINT \"B\"");
   repl.Process("30 PRINT \"C\"");
   // Renumbering from line 30 to 15 would put it before line 20.
-  const lwbasic::RunResult result = repl.Process("RENUM 15,30");
-  CHECK(result.status == lwbasic::RunResult::Status::Error);
-  CHECK(result.code == lwbasic::kErrIllegalFunctionCall);
+  const newbasic::RunResult result = repl.Process("RENUM 15,30");
+  CHECK(result.status == newbasic::RunResult::Status::Error);
+  CHECK(result.code == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("RENUM: an undefined reference is reported and left unchanged", "[renum]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 GOTO 999");
   repl.Process("20 END");
-  const lwbasic::RunResult result = repl.Process("RENUM 100,,100");
-  CHECK(result.status == lwbasic::RunResult::Status::Error);
-  CHECK(result.code == lwbasic::kErrUndefinedLineNumber);
+  const newbasic::RunResult result = repl.Process("RENUM 100,,100");
+  CHECK(result.status == newbasic::RunResult::Status::Error);
+  CHECK(result.code == newbasic::kErrUndefinedLineNumber);
   CHECK(result.message.find("999") != std::string::npos);
   // The bad reference is not silently changed.
   const std::vector<std::string> rows = ListProgram(&repl, &screen);
@@ -117,16 +117,16 @@ TEST_CASE("RENUM: an undefined reference is reported and left unchanged", "[renu
 }
 
 TEST_CASE("MERGE: lines from a file replace matching line numbers", "[renum]") {
-  TempFile file("lwbasic_merge.bas");
+  TempFile file("newbasic_merge.bas");
   file.Write("20 PRINT \"MERGED\"\n40 PRINT \"NEW\"\n");
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"KEPT\"");
   repl.Process("20 PRINT \"ORIGINAL\"");
   repl.Process("30 END");
-  const lwbasic::RunResult result = repl.Process("MERGE \"" + file.Path() + "\"");
-  CHECK(result.status != lwbasic::RunResult::Status::Error);
+  const newbasic::RunResult result = repl.Process("MERGE \"" + file.Path() + "\"");
+  CHECK(result.status != newbasic::RunResult::Status::Error);
   const std::string rows = AllRows(screen);
   ListProgram(&repl, &screen);
   const std::string listed = AllRows(screen);
@@ -138,9 +138,9 @@ TEST_CASE("MERGE: lines from a file replace matching line numbers", "[renum]") {
 }
 
 TEST_CASE("AUTO: numbered entry until an empty line", "[auto]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   screen.ScriptLine(L"PRINT \"A\"");
   screen.ScriptLine(L"PRINT \"B\"");
   screen.ScriptLine(L""); // ends the sequence
@@ -153,9 +153,9 @@ TEST_CASE("AUTO: numbered entry until an empty line", "[auto]") {
 }
 
 TEST_CASE("AUTO: start and increment arguments", "[auto]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   screen.ScriptLine(L"PRINT \"A\"");
   screen.ScriptLine(L"PRINT \"B\"");
   screen.ScriptLine(L"");
@@ -167,9 +167,9 @@ TEST_CASE("AUTO: start and increment arguments", "[auto]") {
 }
 
 TEST_CASE("AUTO: a line carrying its own number ends the sequence", "[auto]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   screen.ScriptLine(L"PRINT \"A\"");
   screen.ScriptLine(L"99 PRINT \"Z\""); // its own number: enters and ends AUTO
   repl.Process("AUTO 50,50");
@@ -184,9 +184,9 @@ TEST_CASE("RENUM: rewrites every kind of line reference", "[renum]") {
   // The rewriter keys off the word before a number, so each reference word is exercised
   // separately: ON ... GOTO and ON ... GOSUB get their numbers from GOTO/GOSUB, and THEN,
   // ELSE, RESTORE, RESUME and RUN each introduce a number of their own.
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 ON X GOTO 100, 200");
   repl.Process("20 ON X GOSUB 100, 200");
   repl.Process("30 IF X THEN 100 ELSE 200");

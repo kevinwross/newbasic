@@ -7,16 +7,16 @@
 #include <sstream>
 #include <string>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 namespace {
 
 std::string TempPath() {
   static int counter = 0;
-  return "lwbasic_chain_" + std::to_string(++counter) + ".bas";
+  return "newbasic_chain_" + std::to_string(++counter) + ".bas";
 }
 
 struct TempFile {
@@ -40,7 +40,7 @@ private:
   std::string path_;
 };
 
-std::string AllRows(const lwbasic::screen::HeadlessScreen& screen) {
+std::string AllRows(const newbasic::screen::HeadlessScreen& screen) {
   std::string all;
   for (const std::string& row : screen.RenderRows())
     all += row + "\n";
@@ -51,9 +51,9 @@ std::string AllRows(const lwbasic::screen::HeadlessScreen& screen) {
 
 TEST_CASE("M10: in-program SAVE writes the program text", "[m10]") {
   TempFile file(TempPath());
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SAVE \"" + file.Path() + "\"");
   repl.Process("20 END");
   repl.Process("RUN");
@@ -68,9 +68,9 @@ TEST_CASE("M10: in-program SAVE writes the program text", "[m10]") {
 TEST_CASE("M10: in-program LOAD replaces the program and clears variables", "[m10]") {
   TempFile other(TempPath());
   other.Write("10 PRINT A\n");
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   // A is set, then LOAD replaces the program; the loaded program prints A, which
   // must be 0 because LOAD starts clean.
   repl.Process("10 A=5");
@@ -83,9 +83,9 @@ TEST_CASE("M10: in-program LOAD replaces the program and clears variables", "[m1
 TEST_CASE("M10: CHAIN keeps only the COMMON variables", "[m10]") {
   TempFile other(TempPath());
   other.Write("10 PRINT A;B\n");
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 A=5: B=6");
   repl.Process("20 COMMON A");
   repl.Process("30 CHAIN \"" + other.Path() + "\"");
@@ -98,9 +98,9 @@ TEST_CASE("M10: CHAIN keeps only the COMMON variables", "[m10]") {
 TEST_CASE("M10: CHAIN with a line number starts there", "[m10]") {
   TempFile other(TempPath());
   other.Write("10 PRINT \"FIRST\"\n20 PRINT \"SECOND\"\n");
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 CHAIN \"" + other.Path() + "\", 20");
   screen.Clear();
   repl.Process("RUN");
@@ -110,27 +110,27 @@ TEST_CASE("M10: CHAIN with a line number starts there", "[m10]") {
 }
 
 TEST_CASE("M10: CHAIN to a missing file is File not found", "[m10]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 CHAIN \"no_such_program.bas\"");
   // Process returns the run result; a direct call bypasses the REPL print path, so
   // the error is read here rather than from the screen.
-  const lwbasic::RunResult result = repl.Process("RUN");
-  CHECK(result.status == lwbasic::RunResult::Status::Error);
-  CHECK(result.code == lwbasic::kErrFileNotFound);
+  const newbasic::RunResult result = repl.Process("RUN");
+  CHECK(result.status == newbasic::RunResult::Status::Error);
+  CHECK(result.code == newbasic::kErrFileNotFound);
 }
 
 TEST_CASE("M10: MERGE inside a program is Illegal direct", "[m10]") {
-  CHECK(lwtest::RunErrorCode("10 MERGE \"x\"\n") == lwbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 MERGE \"x\"\n") == newbasic::kErrIllegalDirect);
 }
 
 TEST_CASE("COMMON of an array reports Advanced Feature rather than dropping it", "[m10]") {
   // COMMON D() names the whole array, which a CHAIN does not carry yet. It must say so: a silent
   // drop would leave the chained program short of data with no clue why.
-  CHECK(lwtest::RunErrorCode("10 COMMON D()\n20 END\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 COMMON A, D()\n20 END\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 COMMON D(5)\n20 END\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 COMMON D()\n20 END\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 COMMON A, D()\n20 END\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 COMMON D(5)\n20 END\n") == newbasic::kErrAdvancedFeature);
   // A scalar COMMON is still fine: only the array form is refused.
   CHECK(lwtest::RunErrorCode("10 COMMON A, B$\n20 END\n") == 0);
 }

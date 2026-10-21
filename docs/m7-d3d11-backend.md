@@ -99,7 +99,7 @@ code must fail softly when that is not available.
 
 ## CLI surface
 
-`lwbasic --gpu prog.bas` (and the same flag for the REPL) requests the windowed
+`newbasic --gpu prog.bas` (and the same flag for the REPL) requests the windowed
 backend; without the flag the console backend is used, so existing behaviour is
 unchanged. The flag is best-effort: failure to initialise falls back with a
 one-line notice rather than an error.
@@ -115,7 +115,7 @@ attribute's background colour) and the glyph itself; alpha blending; `Present(1)
 with vsync; keyboard through `WM_CHAR`/`WM_KEYDOWN` (arrows to the dialect's
 extended codes); `--gpu` with the three-tier fallback.
 
-**Verified here:** it compiles clean under `/W4 /WX`; `lwbasic --gpu prog.bas` ran
+**Verified here:** it compiles clean under `/W4 /WX`; `newbasic --gpu prog.bas` ran
 a program to completion (exit 0, no fallback message); and the hidden
 `[.gpu]` test constructs the backend, writes text and presents one frame with
 its state checks passing. So construction, the device, shaders, atlas upload,
@@ -144,8 +144,8 @@ generated procedurally rather than fonted.
 correct model while the window shows something else. `--gpu-pixel X,Y` reads one pixel back from
 the window's own back buffer after the run, at canvas coordinates, and prints it:
 
-    lwbasic --gpu-pixel 204,120 prog.bas
-    lwbasic: window pixel 204,120 = 170,170,170
+    newbasic --gpu-pixel 204,120 prog.bas
+    newbasic: window pixel 204,120 = 170,170,170
 
 That is how the invisible cursor was found: the block read 170,170,170 in the window and black
 everywhere else, and the dump had shown a cursor all along. Use it when a claim is about what the

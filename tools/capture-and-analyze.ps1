@@ -1,4 +1,4 @@
-# Captures the lwbasic window and checks the drawing pixel by pixel against what
+# Captures the newbasic window and checks the drawing pixel by pixel against what
 # docs/verify-graphics.bas asks for. Run from the repo root, in-process:
 #   . .\tools\capture-and-analyze.ps1
 # Dot-source rather than launching a nested pwsh: the nested process inherits the
@@ -17,17 +17,17 @@ public class LwWin {
 }
 '@
 
-$exe = "out\src\lwbasic-cli\Release\lwbasic.exe"
+$exe = "out\src\newbasic-cli\Release\newbasic.exe"
 $program = "docs\verify-graphics.bas"
-$png = (Join-Path (Get-Location) "docs\lwbasic-verify.png")
+$png = (Join-Path (Get-Location) "docs\newbasic-verify.png")
 
-Get-Process lwbasic -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id -Force }
+Get-Process newbasic -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id -Force }
 $proc = Start-Process -FilePath $exe -ArgumentList "--gpu", $program `
   -RedirectStandardOutput (Join-Path $env:TEMP "gpu_out.txt") `
   -RedirectStandardError (Join-Path $env:TEMP "gpu_err.txt") -PassThru
 Start-Sleep -Seconds 3
 if ($null -eq (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
-  throw "lwbasic exited early: $(Get-Content (Join-Path $env:TEMP 'gpu_err.txt') -Raw)"
+  throw "newbasic exited early: $(Get-Content (Join-Path $env:TEMP 'gpu_err.txt') -Raw)"
 }
 
 $handle = (Get-Process -Id $proc.Id).MainWindowHandle

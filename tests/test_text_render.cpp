@@ -8,15 +8,15 @@
 #include <memory>
 #include <string>
 
-#include "lwbasic/screen/glyph_atlas.h"
-#include "lwbasic/screen/text_render.h"
-#include "lwbasic/window/screen_factory.h"
-#include "lwbasic/window/window_screen.h"
+#include "newbasic/screen/glyph_atlas.h"
+#include "newbasic/screen/text_render.h"
+#include "newbasic/window/screen_factory.h"
+#include "newbasic/window/window_screen.h"
 
-using lwbasic::screen::BackgroundColor;
-using lwbasic::screen::CellQuad;
-using lwbasic::screen::CgaPaletteColor;
-using lwbasic::screen::ForegroundColor;
+using newbasic::screen::BackgroundColor;
+using newbasic::screen::CellQuad;
+using newbasic::screen::CgaPaletteColor;
+using newbasic::screen::ForegroundColor;
 
 TEST_CASE("Renderer: the 16 CGA colours", "[render]") {
   // Anchors of the IRGB palette the dialect uses.
@@ -108,7 +108,7 @@ TEST_CASE("Renderer: texture coordinates pick the atlas cell", "[render]") {
 }
 
 TEST_CASE("Renderer: the glyph atlas rasterises the CP437 set", "[render]") {
-  const lwbasic::screen::GlyphAtlas atlas = lwbasic::screen::RenderGlyphAtlas();
+  const newbasic::screen::GlyphAtlas atlas = newbasic::screen::RenderGlyphAtlas();
   if (!atlas.ok) {
     // A session without fonts or a DC cannot rasterise. That is a legitimate
     // environment, not a failure: the GPU backend falls back in exactly this
@@ -147,15 +147,15 @@ TEST_CASE("Renderer: the glyph atlas rasterises the CP437 set", "[render]") {
 // Manual GPU check. Hidden from CI by the [.tag] convention, because a build
 // machine may have no device (and this opens a real window). Run by hand:
 //
-//   out\tests\Release\lwbasic-tests.exe "[.gpu]" -s
+//   out\tests\Release\newbasic-tests.exe "[.gpu]" -s
 //
 // It proves the whole pipeline constructs and presents one frame. Whether the
 // picture is *correct* still needs a human eye - see docs/m7-d3d11-backend.md.
 // ---------------------------------------------------------------------------
 TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu]") {
   std::string error;
-  const std::unique_ptr<lwbasic::screen::WindowScreen> screen =
-      lwbasic::screen::CreateWindowScreen(&error);
+  const std::unique_ptr<newbasic::screen::WindowScreen> screen =
+      newbasic::screen::CreateWindowScreen(&error);
   if (screen == nullptr) {
     WARN("no window backend available here (" << error << "); skipping the GPU check");
     SUCCEED();

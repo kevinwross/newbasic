@@ -3,12 +3,12 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/lexer.h"
-#include "lwbasic/value.h"
+#include "newbasic/lexer.h"
+#include "newbasic/value.h"
 
-using lwbasic::Lexer;
-using lwbasic::Tok;
-using lwbasic::Token;
+using newbasic::Lexer;
+using newbasic::Tok;
+using newbasic::Token;
 
 namespace {
 
@@ -57,17 +57,17 @@ TEST_CASE("Lexer: identifiers keep type suffixes and split at keywords", "[lexer
 }
 
 TEST_CASE("Lexer: numeric literal kinds", "[lexer]") {
-  CHECK(Lex("1")[0].number.kind() == lwbasic::Value::Kind::Int);
-  CHECK(Lex("32767")[0].number.kind() == lwbasic::Value::Kind::Int);
-  CHECK(Lex("40000")[0].number.kind() == lwbasic::Value::Kind::Long);
-  CHECK(Lex("1.5")[0].number.kind() == lwbasic::Value::Kind::Sgl);
-  CHECK(Lex("12345678")[0].number.kind() == lwbasic::Value::Kind::Dbl);
-  CHECK(Lex("1E3")[0].number.kind() == lwbasic::Value::Kind::Sgl);
-  CHECK(Lex("1D3")[0].number.kind() == lwbasic::Value::Kind::Dbl);
-  CHECK(Lex("5%")[0].number.kind() == lwbasic::Value::Kind::Int);
-  CHECK(Lex("5!")[0].number.kind() == lwbasic::Value::Kind::Sgl);
-  CHECK(Lex("5#")[0].number.kind() == lwbasic::Value::Kind::Dbl);
-  CHECK(Lex("&HFF")[0].number.kind() == lwbasic::Value::Kind::Int);
+  CHECK(Lex("1")[0].number.kind() == newbasic::Value::Kind::Int);
+  CHECK(Lex("32767")[0].number.kind() == newbasic::Value::Kind::Int);
+  CHECK(Lex("40000")[0].number.kind() == newbasic::Value::Kind::Long);
+  CHECK(Lex("1.5")[0].number.kind() == newbasic::Value::Kind::Sgl);
+  CHECK(Lex("12345678")[0].number.kind() == newbasic::Value::Kind::Dbl);
+  CHECK(Lex("1E3")[0].number.kind() == newbasic::Value::Kind::Sgl);
+  CHECK(Lex("1D3")[0].number.kind() == newbasic::Value::Kind::Dbl);
+  CHECK(Lex("5%")[0].number.kind() == newbasic::Value::Kind::Int);
+  CHECK(Lex("5!")[0].number.kind() == newbasic::Value::Kind::Sgl);
+  CHECK(Lex("5#")[0].number.kind() == newbasic::Value::Kind::Dbl);
+  CHECK(Lex("&HFF")[0].number.kind() == newbasic::Value::Kind::Int);
   CHECK(Lex("&HFF")[0].number.AsNumber() == 255.0);
   CHECK(Lex("&O10")[0].number.AsNumber() == 8.0);
   CHECK(Lex("2.5E-3")[0].number.AsNumber() == 0.0025);

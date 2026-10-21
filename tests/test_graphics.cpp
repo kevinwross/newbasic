@@ -6,14 +6,14 @@
 #include <cstdint>
 #include <string>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/canvas.h"
-#include "lwbasic/screen/headless_screen.h"
-#include "lwbasic/screen/text_render.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/canvas.h"
+#include "newbasic/screen/headless_screen.h"
+#include "newbasic/screen/text_render.h"
 #include "test_helpers.h"
 
-using lwbasic::screen::Canvas;
+using newbasic::screen::Canvas;
 
 TEST_CASE("Canvas: plotting, clipping and reads", "[graphics]") {
   Canvas canvas(10, 5);
@@ -49,9 +49,9 @@ TEST_CASE("Canvas: Bresenham lines are symmetric and inclusive", "[graphics]") {
 }
 
 TEST_CASE("Graphics: SCREEN sets the mode and canvas size", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("SCREEN 1");
   CHECK(screen.GraphicsMode() == 1);
   CHECK(screen.Graphics().Width() == 320);
@@ -64,13 +64,13 @@ TEST_CASE("Graphics: SCREEN sets the mode and canvas size", "[graphics]") {
   CHECK(screen.Graphics().Height() == 350);
   // Every reference mode is provided now, so the rejection case has to be a mode that does not
   // exist at all.
-  CHECK(lwtest::RunErrorCode("10 SCREEN 14\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 14\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: PSET, PRESET and POINT", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (10,20)");
   repl.Process("30 PSET (11,20),4");
@@ -83,9 +83,9 @@ TEST_CASE("Graphics: PSET, PRESET and POINT", "[graphics]") {
 }
 
 TEST_CASE("Graphics: LINE draws between the endpoints", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 LINE (0,0)-(5,0),2");
   repl.Process("RUN");
@@ -95,9 +95,9 @@ TEST_CASE("Graphics: LINE draws between the endpoints", "[graphics]") {
 }
 
 TEST_CASE("Graphics: CLS 1 clears only the canvas", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (5,5),7");
   repl.Process("30 CLS 1");
@@ -107,7 +107,7 @@ TEST_CASE("Graphics: CLS 1 clears only the canvas", "[graphics]") {
 
 TEST_CASE("Graphics: PSET rejects an out-of-range colour", "[graphics]") {
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PSET (1,1),99\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Canvas: an ellipse reaches its four extremes", "[graphics]") {
@@ -125,9 +125,9 @@ TEST_CASE("Canvas: an ellipse reaches its four extremes", "[graphics]") {
 }
 
 TEST_CASE("Graphics: CIRCLE uses the mode aspect for a visual circle", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 CIRCLE (160,100),50,2");
   repl.Process("RUN");
@@ -144,9 +144,9 @@ TEST_CASE("Graphics: CIRCLE uses the mode aspect for a visual circle", "[graphic
 }
 
 TEST_CASE("Graphics: CIRCLE honours start and end angles", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 CIRCLE (160,100),50,2,0,1.5707963267948966");
   repl.Process("RUN");
@@ -156,9 +156,9 @@ TEST_CASE("Graphics: CIRCLE honours start and end angles", "[graphics]") {
 }
 
 TEST_CASE("Graphics: PAINT fills up to a border", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 LINE (10,10)-(30,10),2");
   repl.Process("30 LINE (10,30)-(30,30),2");
@@ -174,15 +174,15 @@ TEST_CASE("Graphics: PAINT fills up to a border", "[graphics]") {
 
 TEST_CASE("Graphics: PAINT and CIRCLE reject out-of-range colours", "[graphics]") {
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PAINT (5,5),99\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 CIRCLE (5,5),3,99\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: DRAW movement starts at the centre and plots", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   // The current position persists between DRAW statements, so each one pins it with
   // an absolute M first.
@@ -197,9 +197,9 @@ TEST_CASE("Graphics: DRAW movement starts at the centre and plots", "[graphics]"
 }
 
 TEST_CASE("Graphics: DRAW scale, angle and relative M", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   // S8 doubles each unit; A1 turns the movement 90 degrees and it persists.
   repl.Process("20 DRAW \"M160,100S8U10\"");
@@ -212,9 +212,9 @@ TEST_CASE("Graphics: DRAW scale, angle and relative M", "[graphics]") {
 }
 
 TEST_CASE("Graphics: DRAW B moves without plotting, N returns home", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 DRAW \"BM10,10\"");
   repl.Process("30 DRAW \"U5\"");
@@ -224,9 +224,9 @@ TEST_CASE("Graphics: DRAW B moves without plotting, N returns home", "[graphics]
   CHECK(screen.Graphics().Pixel(10, 5) == 1);
 
   // N plots, then puts the position back: the next DRAW starts at the centre again.
-  lwbasic::screen::HeadlessScreen second;
-  lwbasic::ScriptedHost second_host;
-  lwbasic::Repl second_repl(second, &second_host);
+  newbasic::screen::HeadlessScreen second;
+  newbasic::ScriptedHost second_host;
+  newbasic::Repl second_repl(second, &second_host);
   second_repl.Process("10 SCREEN 1");
   second_repl.Process("20 DRAW \"NU10\"");
   second_repl.Process("30 DRAW \"R5\"");
@@ -236,9 +236,9 @@ TEST_CASE("Graphics: DRAW B moves without plotting, N returns home", "[graphics]
 }
 
 TEST_CASE("Graphics: DRAW X executes a string variable", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   // The macro names the variable as written, suffix and all.
   repl.Process("20 A$=\"D10\"");
@@ -248,15 +248,15 @@ TEST_CASE("Graphics: DRAW X executes a string variable", "[graphics]") {
 }
 
 TEST_CASE("Graphics: DRAW rejects unknown commands", "[graphics]") {
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"Z10\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"A9\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"S0\"\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"Z10\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"A9\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"S0\"\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: PALETTE remaps attributes and resets", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PALETTE 2,4"); // the reference's example: attribute 2 becomes red
   repl.Process("30 PALETTE 3,6"); // attribute 3 becomes brown
@@ -266,7 +266,7 @@ TEST_CASE("Graphics: PALETTE remaps attributes and resets", "[graphics]") {
   // The RGB conversion follows the remapped palette.
   screen.Graphics().SetPixel(0, 0, 2);
   const std::vector<std::uint8_t> rgba =
-      lwbasic::screen::CanvasToRgba(screen.Graphics(), screen.PaletteRgb());
+      newbasic::screen::CanvasToRgba(screen.Graphics(), screen.PaletteRgb());
   CHECK(rgba[0] == 170); // red: 170,0,0
   CHECK(rgba[1] == 0);
   CHECK(rgba[2] == 0);
@@ -279,14 +279,14 @@ TEST_CASE("Graphics: PALETTE remaps attributes and resets", "[graphics]") {
 }
 
 TEST_CASE("Graphics: PALETTE rejects out-of-range values", "[graphics]") {
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 16,1\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 1,64\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 16,1\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 1,64\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: PSET STEP is relative to the last point", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (100,50),2");
   repl.Process("30 PSET STEP(10,10),3");
@@ -298,9 +298,9 @@ TEST_CASE("Graphics: PSET STEP is relative to the last point", "[graphics]") {
 }
 
 TEST_CASE("Graphics: LINE with an omitted first point continues from the last", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 LINE (10,10)-(20,10),2");
   // No first coordinate: from (20,10), the point the previous LINE ended at.
@@ -312,9 +312,9 @@ TEST_CASE("Graphics: LINE with an omitted first point continues from the last", 
 }
 
 TEST_CASE("Graphics: LINE STEP offsets both endpoints", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (50,50)");
   // The first STEP is relative to the last point, the second to the first coordinate.
@@ -326,9 +326,9 @@ TEST_CASE("Graphics: LINE STEP offsets both endpoints", "[graphics]") {
 }
 
 TEST_CASE("Graphics: LINE with B draws a box and BF fills it", "[graphics]") {
-  lwbasic::screen::HeadlessScreen box_screen;
-  lwbasic::ScriptedHost box_host;
-  lwbasic::Repl box_repl(box_screen, &box_host);
+  newbasic::screen::HeadlessScreen box_screen;
+  newbasic::ScriptedHost box_host;
+  newbasic::Repl box_repl(box_screen, &box_host);
   box_repl.Process("10 SCREEN 1");
   box_repl.Process("20 LINE (10,10)-(30,30),2,B");
   box_repl.Process("RUN");
@@ -338,9 +338,9 @@ TEST_CASE("Graphics: LINE with B draws a box and BF fills it", "[graphics]") {
   CHECK(box_screen.Graphics().Pixel(30, 30) == 2);
   CHECK(box_screen.Graphics().Pixel(20, 20) == 0); // interior is left alone
 
-  lwbasic::screen::HeadlessScreen fill_screen;
-  lwbasic::ScriptedHost fill_host;
-  lwbasic::Repl fill_repl(fill_screen, &fill_host);
+  newbasic::screen::HeadlessScreen fill_screen;
+  newbasic::ScriptedHost fill_host;
+  newbasic::Repl fill_repl(fill_screen, &fill_host);
   fill_repl.Process("10 SCREEN 1");
   fill_repl.Process("20 LINE (10,10)-(30,30),3,BF");
   fill_repl.Process("RUN");
@@ -349,9 +349,9 @@ TEST_CASE("Graphics: LINE with B draws a box and BF fills it", "[graphics]") {
 }
 
 TEST_CASE("Graphics: LINE accepts the empty colour slot before B", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   // ",,B" per the reference: the colour is omitted, so two commas are needed.
   repl.Process("20 LINE (5,5)-(25,25),,B");
@@ -362,9 +362,9 @@ TEST_CASE("Graphics: LINE accepts the empty colour slot before B", "[graphics]")
 
 TEST_CASE("Graphics: each mode has its own default palette", "[graphics]") {
   // SCREEN 1, palette 0: 1 is green, 2 red, 3 brown (the reference's "yellow").
-  lwbasic::screen::HeadlessScreen mode1;
-  lwbasic::ScriptedHost host1;
-  lwbasic::Repl repl1(mode1, &host1);
+  newbasic::screen::HeadlessScreen mode1;
+  newbasic::ScriptedHost host1;
+  newbasic::Repl repl1(mode1, &host1);
   repl1.Process("10 SCREEN 1");
   repl1.Process("RUN");
   CHECK(mode1.Palette()[1] == 2);
@@ -373,24 +373,24 @@ TEST_CASE("Graphics: each mode has its own default palette", "[graphics]") {
   // The RGBA conversion follows it: attribute 1 renders green.
   mode1.Graphics().SetPixel(0, 0, 1);
   const std::vector<std::uint8_t> rgba =
-      lwbasic::screen::CanvasToRgba(mode1.Graphics(), mode1.PaletteRgb());
+      newbasic::screen::CanvasToRgba(mode1.Graphics(), mode1.PaletteRgb());
   CHECK(rgba[0] == 0);
   CHECK(rgba[1] == 170);
   CHECK(rgba[2] == 0);
 
   // SCREEN 2 is monochrome, so 1 is white.
-  lwbasic::screen::HeadlessScreen mode2;
-  lwbasic::ScriptedHost host2;
-  lwbasic::Repl repl2(mode2, &host2);
+  newbasic::screen::HeadlessScreen mode2;
+  newbasic::ScriptedHost host2;
+  newbasic::Repl repl2(mode2, &host2);
   repl2.Process("10 SCREEN 2");
   repl2.Process("RUN");
   CHECK(mode2.Palette()[1] == 15);
 }
 
 TEST_CASE("Graphics: PALETTE overrides the mode default and SCREEN restores it", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PALETTE 1,5");
   repl.Process("RUN");
@@ -403,9 +403,9 @@ TEST_CASE("Graphics: PALETTE overrides the mode default and SCREEN restores it",
 }
 
 TEST_CASE("Graphics: COLOR ,n selects the SCREEN 1 colour set", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 COLOR ,1"); // second set: 1 cyan, 2 magenta, 3 white
   repl.Process("RUN");
@@ -425,9 +425,9 @@ TEST_CASE("Graphics: COLOR ,n selects the SCREEN 1 colour set", "[graphics]") {
 }
 
 TEST_CASE("Graphics: WINDOW maps world coordinates onto the canvas", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 WINDOW (0,0)-(1,1)");
   repl.Process("30 PSET (0.5,0.5),2"); // the centre
@@ -440,9 +440,9 @@ TEST_CASE("Graphics: WINDOW maps world coordinates onto the canvas", "[graphics]
 }
 
 TEST_CASE("Graphics: WINDOW SCREEN puts y downward", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 WINDOW SCREEN (0,0)-(1,1)");
   repl.Process("30 PSET (0,0),2"); // now the top left
@@ -451,9 +451,9 @@ TEST_CASE("Graphics: WINDOW SCREEN puts y downward", "[graphics]") {
 }
 
 TEST_CASE("Graphics: PMAP maps logical and physical coordinates both ways", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 WINDOW (0,0)-(100,100)");
   repl.Process("30 PRINT PMAP(0,0);PMAP(100,0);PMAP(0,1)");
@@ -466,9 +466,9 @@ TEST_CASE("Graphics: PMAP maps logical and physical coordinates both ways", "[gr
 }
 
 TEST_CASE("Graphics: POINT reads a pixel and the current position", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (100,50),3");
   repl.Process("30 PRINT POINT(100,50);POINT(0);POINT(1)");
@@ -482,13 +482,13 @@ TEST_CASE("Graphics: POINT reads a pixel and the current position", "[graphics]"
 
 TEST_CASE("Graphics: WINDOW with equal bounds is rejected", "[graphics]") {
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 WINDOW (0,0)-(0,1)\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: VIEW offsets coordinates to the viewport origin", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (50,50)-(150,120)");
   repl.Process("30 PSET (0,0),2");   // the viewport's top-left corner
@@ -501,9 +501,9 @@ TEST_CASE("Graphics: VIEW offsets coordinates to the viewport origin", "[graphic
 }
 
 TEST_CASE("Graphics: VIEW clips drawing to the viewport", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (50,50)-(150,120)");
   // A line that runs well past the viewport: only the inside part survives.
@@ -516,9 +516,9 @@ TEST_CASE("Graphics: VIEW clips drawing to the viewport", "[graphics]") {
 }
 
 TEST_CASE("Graphics: VIEW fills and borders the viewport", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (10,10)-(100,100),3,4");
   repl.Process("RUN");
@@ -528,9 +528,9 @@ TEST_CASE("Graphics: VIEW fills and borders the viewport", "[graphics]") {
 }
 
 TEST_CASE("Graphics: VIEW with no arguments restores the whole canvas", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (50,50)-(150,120)");
   repl.Process("30 VIEW");
@@ -542,9 +542,9 @@ TEST_CASE("Graphics: VIEW with no arguments restores the whole canvas", "[graphi
 }
 
 TEST_CASE("Graphics: VIEW and WINDOW compose", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (100,50)-(200,150)");
   repl.Process("30 WINDOW (0,0)-(10,10)");
@@ -556,9 +556,9 @@ TEST_CASE("Graphics: VIEW and WINDOW compose", "[graphics]") {
 }
 
 TEST_CASE("Graphics: GET captures a rectangle and PUT copies it", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 LINE (10,10)-(19,19),2,B"); // a 10x10 outline
   repl.Process("30 GET (10,10)-(19,19), A%");
@@ -571,9 +571,9 @@ TEST_CASE("Graphics: GET captures a rectangle and PUT copies it", "[graphics]") 
 }
 
 TEST_CASE("Graphics: PUT actions combine with what is already there", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (0,0),3");   // one pixel of an otherwise empty 2x2 block
   repl.Process("25 PSET (10,10),3"); // the same colour at the destination
@@ -591,13 +591,13 @@ TEST_CASE("Graphics: PUT actions combine with what is already there", "[graphics
 
 TEST_CASE("Graphics: PUT without a GET is Illegal function call", "[graphics]") {
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PUT (0,0), B%\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: GET and PUT respect the viewport", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 VIEW (40,30)-(140,130)");
   repl.Process("30 PSET (0,0),2"); // the viewport origin, canvas (40,30)
@@ -608,18 +608,18 @@ TEST_CASE("Graphics: GET and PUT respect the viewport", "[graphics]") {
 }
 
 TEST_CASE("Graphics: LINE style masks pattern the line", "[graphics]") {
-  lwbasic::screen::HeadlessScreen solid_screen;
-  lwbasic::ScriptedHost solid_host;
-  lwbasic::Repl solid(solid_screen, &solid_host);
+  newbasic::screen::HeadlessScreen solid_screen;
+  newbasic::ScriptedHost solid_host;
+  newbasic::Repl solid(solid_screen, &solid_host);
   solid.Process("10 SCREEN 1");
   solid.Process("20 LINE (0,0)-(7,0),2,,&HFFFF"); // every point
   solid.Process("RUN");
   for (int x = 0; x < 8; ++x)
     CHECK(solid_screen.Graphics().Pixel(x, 0) == 2);
 
-  lwbasic::screen::HeadlessScreen dashed_screen;
-  lwbasic::ScriptedHost dashed_host;
-  lwbasic::Repl dashed(dashed_screen, &dashed_host);
+  newbasic::screen::HeadlessScreen dashed_screen;
+  newbasic::ScriptedHost dashed_host;
+  newbasic::Repl dashed(dashed_screen, &dashed_host);
   dashed.Process("10 SCREEN 1");
   dashed.Process("20 LINE (0,0)-(7,0),2,,&HAAAA"); // every other point, from bit 15
   dashed.Process("RUN");
@@ -629,9 +629,9 @@ TEST_CASE("Graphics: LINE style masks pattern the line", "[graphics]") {
   CHECK(dashed_screen.Graphics().Pixel(3, 0) == 0);
 
   // A zero mask draws nothing at all.
-  lwbasic::screen::HeadlessScreen blank_screen;
-  lwbasic::ScriptedHost blank_host;
-  lwbasic::Repl blank(blank_screen, &blank_host);
+  newbasic::screen::HeadlessScreen blank_screen;
+  newbasic::ScriptedHost blank_host;
+  newbasic::Repl blank(blank_screen, &blank_host);
   blank.Process("10 SCREEN 1");
   blank.Process("20 LINE (0,0)-(20,0),2,,0");
   blank.Process("RUN");
@@ -644,9 +644,9 @@ TEST_CASE("Graphics: LINE style must be a constant", "[graphics]") {
 }
 
 TEST_CASE("Graphics: PCOPY snapshots and restores the canvas", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 1");
   repl.Process("20 PSET (10,10),2");
   repl.Process("30 PCOPY 0,1"); // snapshot the canvas into page 1
@@ -660,16 +660,16 @@ TEST_CASE("Graphics: PCOPY snapshots and restores the canvas", "[graphics]") {
 
 TEST_CASE("Graphics: PCOPY rejects bad pages", "[graphics]") {
   // Page 9 does not exist, and page 5 has never been filled.
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PCOPY 9,1\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PCOPY 5,0\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PCOPY 9,1\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PCOPY 5,0\n") == newbasic::kErrIllegalFunctionCall);
   // Copying a page onto itself is harmless.
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PCOPY 0,0\n") == 0);
 }
 
 TEST_CASE("Graphics: SCREEN 9 is 640x350 with all sixteen colours", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 9");
   repl.Process("20 PSET (639,349),7");
   repl.Process("30 PSET (0,0),15");
@@ -688,9 +688,9 @@ TEST_CASE("Graphics: SCREEN 9 is 640x350 with all sixteen colours", "[graphics]"
 }
 
 TEST_CASE("Graphics: SCREEN 9 CIRCLE uses its own aspect", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 9");
   repl.Process("20 CIRCLE (320,175),100,4");
   repl.Process("RUN");
@@ -703,9 +703,9 @@ TEST_CASE("Graphics: SCREEN 9 CIRCLE uses its own aspect", "[graphics]") {
 }
 
 TEST_CASE("Graphics: SCREEN 9 fills the screen and clips at the edges", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 9");
   repl.Process("20 LINE (0,0)-(639,349),3,B");
   repl.Process("30 LINE (-50,-50)-(700,400),2"); // runs off every edge
@@ -727,9 +727,9 @@ TEST_CASE("Graphics: SCREEN 9 fills the screen and clips at the edges", "[graphi
 }
 
 TEST_CASE("Graphics: SCREEN 720 is a wide 256-colour mode", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 720");
   repl.Process("RUN");
   // 1280x720 with a 160x45 text grid, which is 8x16 cells exactly.
@@ -745,13 +745,13 @@ TEST_CASE("Graphics: SCREEN 720 is a wide 256-colour mode", "[graphics]") {
   CHECK(lwtest::RunErrorCode("10 SCREEN 720\n20 PSET (10,10),200\n") == 0);
   // ... and still only 0-15 in a compatible mode.
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PSET (1,1),200\n") ==
-        lwbasic::kErrIllegalFunctionCall);
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: leaving SCREEN 720 restores the standard grid", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 720");
   repl.Process("20 SCREEN 1");
   repl.Process("RUN");
@@ -761,9 +761,9 @@ TEST_CASE("Graphics: leaving SCREEN 720 restores the standard grid", "[graphics]
 }
 
 TEST_CASE("Graphics: the 256-colour palette is programmable", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 720");
   // PALETTE attribute, 18-bit colour: six bits per channel, red in the low bits.
   repl.Process("20 PALETTE 200, 63");         // pure red
@@ -787,9 +787,9 @@ TEST_CASE("Graphics: the sixteen-colour and VGA modes have the right canvas", "[
   const Mode modes[] = {
       {7, 320, 200, false}, {8, 640, 200, false}, {12, 640, 480, false}, {13, 320, 200, true}};
   for (const Mode& mode : modes) {
-    lwbasic::screen::HeadlessScreen screen;
-    lwbasic::ScriptedHost host;
-    lwbasic::Repl repl(screen, &host);
+    newbasic::screen::HeadlessScreen screen;
+    newbasic::ScriptedHost host;
+    newbasic::Repl repl(screen, &host);
     repl.Process("10 SCREEN " + std::to_string(mode.number));
     repl.Process("RUN");
     CHECK(screen.Graphics().Width() == mode.width);
@@ -800,14 +800,14 @@ TEST_CASE("Graphics: the sixteen-colour and VGA modes have the right canvas", "[
     // SCREEN 13 has 256 colours; the others have the sixteen CGA ones.
     CHECK(lwtest::RunErrorCode("10 SCREEN " + std::to_string(mode.number) +
                                "\n20 PSET (1,1),200\n") ==
-          (mode.many_colours ? 0 : lwbasic::kErrIllegalFunctionCall));
+          (mode.many_colours ? 0 : newbasic::kErrIllegalFunctionCall));
   }
 }
 
 TEST_CASE("Graphics: text uses the whole wide grid in SCREEN 720", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 720");
   repl.Process("20 CLS");
   repl.Process("30 LOCATE 45, 158");
@@ -828,9 +828,9 @@ TEST_CASE("Graphics: text uses the whole wide grid in SCREEN 720", "[graphics]")
 }
 
 TEST_CASE("Graphics: the text window follows the wide grid", "[graphics]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 SCREEN 720");
   repl.Process("20 LOCATE 45, 1");
   repl.Process("30 PRINT \"BOTTOM\";");
@@ -846,7 +846,7 @@ TEST_CASE("Screen: text mode has a usable RGB palette", "[screen]") {
   // Text mode never calls SetGraphicsMode, so the constructor has to fill the RGB palette.
   // Without it every attribute resolved to black, which made a text-mode view dump blank
   // while the window still looked right, because the renderer reads the CGA table directly.
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   const auto& palette = screen.PaletteRgb();
   CHECK(palette[7][0] == 170); // the default attribute is light grey
   CHECK(palette[7][1] == 170);
@@ -859,7 +859,7 @@ TEST_CASE("Screen: text mode has a usable RGB palette", "[screen]") {
 namespace {
 // A screen that only counts presents, used to pin the difference between the throttled
 // PresentIfDirty and the forced PresentNow.
-class CountingScreen : public lwbasic::screen::Screen {
+class CountingScreen : public newbasic::screen::Screen {
 public:
   void Present() override { ++presents; }
   void EnterFullScreen() override {}
@@ -896,7 +896,7 @@ TEST_CASE("Screen: PresentIfDirty is throttled, PresentNow always presents", "[s
 TEST_CASE("Screen: EchoInputLine records typed input in the grid", "[screen]") {
   // A repainting backend draws the grid, so input that only exists in the console echo is
   // wiped by the next paint. EchoInputLine puts it in the model.
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   screen.EchoInputLine(L"10 PRINT 2+3");
   CHECK(screen.CellAt(0, 0) == L'1');
   CHECK(screen.CellAt(0, 3) == L'P');
@@ -909,7 +909,7 @@ TEST_CASE("Screen: EchoInputLine records typed input in the grid", "[screen]") {
 
 namespace {
 // A key source that replays a fixed string, for testing the line editor without a window.
-class ScriptedKeys : public lwbasic::screen::KeySource {
+class ScriptedKeys : public newbasic::screen::KeySource {
 public:
   explicit ScriptedKeys(std::wstring keys) : keys_(std::move(keys)) {}
   bool WaitKey(wchar_t* key) override {
@@ -926,7 +926,7 @@ private:
 } // namespace
 
 TEST_CASE("Input: the line editor echoes what is typed", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   ScriptedKeys keys(L"10 PRINT 2+3\r");
   std::wstring line;
   REQUIRE(screen.EditLine(keys, &line));
@@ -941,7 +941,7 @@ TEST_CASE("Input: the line editor echoes what is typed", "[input]") {
 }
 
 TEST_CASE("Input: backspace removes the character and its cell", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   // Split the literal: \x08C would parse as the single hex escape 0x08C.
   ScriptedKeys keys(L"AB"
                     L"\x08"
@@ -960,7 +960,7 @@ TEST_CASE("Input: backspace removes the character and its cell", "[input]") {
 }
 
 TEST_CASE("Input: DEL also acts as backspace", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   // xterm and many other terminals send 0x7F for the Backspace key rather than
   // the 0x08 that the Win32 console reports.
   ScriptedKeys keys(L"AB"
@@ -975,7 +975,7 @@ TEST_CASE("Input: DEL also acts as backspace", "[input]") {
 }
 
 TEST_CASE("Input: Escape abandons the line, end of input reports itself", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   ScriptedKeys keys(L"AB\x1b");
   std::wstring line;
   REQUIRE(screen.EditLine(keys, &line));
@@ -988,7 +988,7 @@ TEST_CASE("Input: Escape abandons the line, end of input reports itself", "[inpu
 }
 
 TEST_CASE("Input: a long line wraps instead of running off the grid", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   ScriptedKeys keys(std::wstring(100, L'x') + L"\r");
   std::wstring line;
   REQUIRE(screen.EditLine(keys, &line));
@@ -1000,7 +1000,7 @@ TEST_CASE("Input: a long line wraps instead of running off the grid", "[input]")
 
 namespace {
 // A screen that reports one break request, to exercise the interrupt path without a window.
-class BreakOnceScreen : public lwbasic::screen::HeadlessScreen {
+class BreakOnceScreen : public newbasic::screen::HeadlessScreen {
 public:
   bool TakeBreak() override {
     if (!armed)
@@ -1014,21 +1014,21 @@ public:
 
 TEST_CASE("Input: a break request stops a running program", "[input]") {
   BreakOnceScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   // An endless loop: it can only end by being interrupted.
   repl.Process("10 GOTO 10");
-  const lwbasic::RunResult result = repl.Process("RUN");
-  CHECK(result.status == lwbasic::RunResult::Status::Break);
+  const newbasic::RunResult result = repl.Process("RUN");
+  CHECK(result.status == newbasic::RunResult::Status::Break);
   // The request was consumed, so a second run is not broken immediately.
   CHECK_FALSE(screen.TakeBreak());
 }
 
 namespace {
 // A screen with a pointing device, so the mouse functions can be tested without a window.
-class ClickScreen : public lwbasic::screen::HeadlessScreen {
+class ClickScreen : public newbasic::screen::HeadlessScreen {
 public:
-  bool TakeMouseClick(lwbasic::screen::Screen::MouseClick* click) override {
+  bool TakeMouseClick(newbasic::screen::Screen::MouseClick* click) override {
     if (clicks.empty())
       return false;
     *click = clicks.front();
@@ -1041,8 +1041,8 @@ public:
 
 TEST_CASE("Input: MOUSEB reports a click and MOUSEX and MOUSEY follow it", "[input]") {
   ClickScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   // CLS before each print so the assertion always sees the latest output on row 0.
   repl.Process("5 CLS");
 
@@ -1052,7 +1052,7 @@ TEST_CASE("Input: MOUSEB reports a click and MOUSEX and MOUSEY follow it", "[inp
   CHECK(screen.RenderRows()[0] == " 0  0  0");
 
   // A left click, then the coordinates of that click.
-  lwbasic::screen::Screen::MouseClick left;
+  newbasic::screen::Screen::MouseClick left;
   left.x = 100;
   left.y = 50;
   left.button = 1;
@@ -1065,7 +1065,7 @@ TEST_CASE("Input: MOUSEB reports a click and MOUSEX and MOUSEY follow it", "[inp
   CHECK(screen.RenderRows()[0] == " 0  100  50");
 
   // A right click reports 2, and MOUSE(n) reaches the same fields.
-  lwbasic::screen::Screen::MouseClick right;
+  newbasic::screen::Screen::MouseClick right;
   right.x = 7;
   right.y = 9;
   right.button = 2;
@@ -1076,32 +1076,32 @@ TEST_CASE("Input: MOUSEB reports a click and MOUSEX and MOUSEY follow it", "[inp
 }
 
 TEST_CASE("Input: the mouse functions are safe without a pointing device", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT MOUSEB; MOUSEX; MOUSEY");
-  const lwbasic::RunResult result = repl.Process("RUN");
-  CHECK(result.status == lwbasic::RunResult::Status::Done);
+  const newbasic::RunResult result = repl.Process("RUN");
+  CHECK(result.status == newbasic::RunResult::Status::Done);
   CHECK(screen.RenderRows()[0] == " 0  0  0");
   // MOUSE(n) rejects a field it does not have.
-  CHECK(lwtest::RunErrorCode("10 X = MOUSE(3)\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 X = MOUSE(3)\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Lexer: the mouse names are reserved words", "[input]") {
   // The front end only treats a name as a function when the lexer reports it as a keyword,
   // so this is the gate that makes MOUSE(n) parse as a call rather than an array.
-  CHECK(lwbasic::Lexer::IsKeyword("MOUSE"));
-  CHECK(lwbasic::Lexer::IsKeyword("MOUSEB"));
-  CHECK(lwbasic::Lexer::IsKeyword("MOUSEX"));
-  CHECK(lwbasic::Lexer::IsKeyword("MOUSEY"));
-  CHECK(lwbasic::Lexer::IsKeyword("POINT"));
-  CHECK_FALSE(lwbasic::Lexer::IsKeyword("MOUS"));
+  CHECK(newbasic::Lexer::IsKeyword("MOUSE"));
+  CHECK(newbasic::Lexer::IsKeyword("MOUSEB"));
+  CHECK(newbasic::Lexer::IsKeyword("MOUSEX"));
+  CHECK(newbasic::Lexer::IsKeyword("MOUSEY"));
+  CHECK(newbasic::Lexer::IsKeyword("POINT"));
+  CHECK_FALSE(newbasic::Lexer::IsKeyword("MOUS"));
 }
 
 TEST_CASE("Input: the full LOCATE syntax", "[input]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
 
   // Both arguments.
   repl.Process("10 LOCATE 3, 5");
@@ -1148,7 +1148,7 @@ TEST_CASE("Input: the full LOCATE syntax", "[input]") {
 TEST_CASE("Input: reading a line turns the cursor back on", "[input]") {
   // A program may hide the cursor while drawing; waiting for input with no caret leaves the
   // user nowhere to look, so the editor turns it back on.
-  lwbasic::screen::HeadlessScreen screen;
+  newbasic::screen::HeadlessScreen screen;
   screen.SetCursorVisible(false);
   CHECK_FALSE(screen.CursorVisible());
   ScriptedKeys keys(L"hi\r");
@@ -1175,6 +1175,6 @@ TEST_CASE("SCREEN modes 3 to 11 are accepted", "[graphics]") {
                      "30 IF POINT(639, 479) = 1 THEN PRINT \"OK\";\n") == "OK");
 
   // A mode outside the reference is still refused.
-  CHECK(lwtest::RunErrorCode("10 SCREEN 14\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN -1\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 14\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN -1\n") == newbasic::kErrIllegalFunctionCall);
 }

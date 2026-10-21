@@ -1,7 +1,7 @@
-# lwbasic debugger for VS Code
+# newbasic debugger for VS Code
 
-A thin extension that lets VS Code debug GW-BASIC programs with the `lwbasic` interpreter. It adds
-the `lwbasic` debug type; when a session starts it runs `lwbasic-dap.exe`, which speaks the Debug
+A thin extension that lets VS Code debug GW-BASIC programs with the `newbasic` interpreter. It adds
+the `newbasic` debug type; when a session starts it runs `newbasic-dap.exe`, which speaks the Debug
 Adapter Protocol over stdin/stdout. Breakpoints, stepping, variable inspection and reverse debugging
 (`stepBack`, `reverseContinue`) all come from the adapter - see `docs/m5-dap-debugger.md`.
 
@@ -11,8 +11,8 @@ Build the interpreter so the adapter exists:
 
     cmake --build out --config Release
 
-The extension looks for `out/src/lwbasic-dap/Release/lwbasic-dap.exe` in the first workspace folder.
-If your build lives elsewhere, set `lwbasic.adapterPath` to the full path of the executable.
+The extension looks for `out/src/newbasic-dap/Release/newbasic-dap.exe` in the first workspace folder.
+If your build lives elsewhere, set `newbasic.adapterPath` to the full path of the executable.
 
 ## Running it from source
 
@@ -20,7 +20,7 @@ No build step: the extension is plain JavaScript.
 
 1. Open this folder (`editors/vscode`) in VS Code.
 2. Press **F5**. A second VS Code window opens with the extension loaded.
-3. In that window, open an `lwbasic` project — the lwbasic repo itself works — and add a
+3. In that window, open an `newbasic` project — the newbasic repo itself works — and add a
    `.vscode/launch.json`:
 
 ```json
@@ -28,7 +28,7 @@ No build step: the extension is plain JavaScript.
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "lwbasic",
+      "type": "newbasic",
       "request": "launch",
       "name": "Run this program",
       "program": "${file}"
@@ -47,13 +47,13 @@ and use the **Step Back** button to rewind through the recorded history.
     npm install -g @vscode/vsce
     cd editors/vscode
     vsce package
-    code --install-extension lwbasic-debug-0.1.0.vsix
+    code --install-extension newbasic-debug-0.1.0.vsix
 
 ## Settings
 
 | Setting | Meaning |
 |---|---|
-| `lwbasic.adapterPath` | Full path to `lwbasic-dap.exe`. Empty means "use the workspace's build output". |
+| `newbasic.adapterPath` | Full path to `newbasic-dap.exe`. Empty means "use the workspace's build output". |
 
 ## What it does not do
 

@@ -4,14 +4,14 @@
 
 #include <string>
 
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 TEST_CASE("Printer: LPRINT sends its line to the printer", "[printer]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 LPRINT \"HELLO\"");
   repl.Process("20 END");
   repl.Process("RUN");
@@ -24,9 +24,9 @@ TEST_CASE("Printer: LPRINT sends its line to the printer", "[printer]") {
 }
 
 TEST_CASE("Printer: LPRINT keeps PRINT's item formatting", "[printer]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 LPRINT 42;\"!\";");
   repl.Process("20 LPRINT USING \"###.##\"; 1.5");
   repl.Process("30 END");
@@ -38,9 +38,9 @@ TEST_CASE("Printer: LPRINT keeps PRINT's item formatting", "[printer]") {
 }
 
 TEST_CASE("Printer: LLIST sends the stored program", "[printer]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"A\"");
   repl.Process("20 END");
   repl.Process("LLIST");
@@ -54,9 +54,9 @@ TEST_CASE("Printer: LLIST sends the stored program", "[printer]") {
 }
 
 TEST_CASE("Printer: several LPRINTs, then a listing", "[printer]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT 1");
   repl.Process("20 PRINT 2");
   repl.Process("LPRINT \"ONE\"");

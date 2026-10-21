@@ -10,20 +10,20 @@
 #include <random>
 #include <string>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/lexer.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/lexer.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 TEST_CASE("Lexer: the reserved-word table is sorted and duplicate-free", "[lexer][robust]") {
   // IsKeyword binary-searches this table, so a mis-sorted or duplicated entry
   // makes lookups silently fail. The packed table has lost entries three
   // times; this checks the whole table rather than known words only.
-  const std::size_t count = lwbasic::Lexer::KeywordCount();
+  const std::size_t count = newbasic::Lexer::KeywordCount();
   REQUIRE(count > 100);
   for (std::size_t i = 0; i < count; ++i) {
-    const char* raw = lwbasic::Lexer::KeywordAt(i);
+    const char* raw = newbasic::Lexer::KeywordAt(i);
     REQUIRE(raw != nullptr);
     const std::string word = raw;
     INFO("index " << i << ": [" << word << "]");
@@ -32,7 +32,7 @@ TEST_CASE("Lexer: the reserved-word table is sorted and duplicate-free", "[lexer
       CHECK(c == std::toupper(static_cast<unsigned char>(c)));
     }
     if (i > 0) {
-      const std::string previous = lwbasic::Lexer::KeywordAt(i - 1);
+      const std::string previous = newbasic::Lexer::KeywordAt(i - 1);
       CHECK(previous < word); // strictly ascending: sorted, no duplicates
     }
   }
@@ -149,26 +149,26 @@ TEST_CASE("Lexer: statement keywords the compiler relies on are reserved", "[lex
   };
   for (const char* word : kDispatchWords) {
     INFO("keyword: " << word);
-    CHECK(lwbasic::Lexer::IsKeyword(word));
+    CHECK(newbasic::Lexer::IsKeyword(word));
   }
 }
 
 TEST_CASE("Lexer: keyword runs split the way GW-BASIC tokenizes them", "[lexer][robust]") {
   // No-space forms must still lex as keyword + operand.
-  const std::vector<lwbasic::Token> fori = lwtest::TokenizeLine("FORI=1TO10");
+  const std::vector<newbasic::Token> fori = lwtest::TokenizeLine("FORI=1TO10");
   REQUIRE(fori.size() >= 6);
   CHECK(fori[0].text == "FOR");
   CHECK(fori[1].text == "I");
   CHECK(fori[4].text == "TO");
 
   // OUTPUT lexes as OUT + PUT (the OPEN parser accepts the split).
-  const std::vector<lwbasic::Token> output = lwtest::TokenizeLine("OUTPUT AS #1");
+  const std::vector<newbasic::Token> output = lwtest::TokenizeLine("OUTPUT AS #1");
   REQUIRE(output.size() >= 2);
   CHECK(output[0].text == "OUT");
   CHECK(output[1].text == "PUT");
 
   // A name that starts with FN is the DEF FN form.
-  const std::vector<lwbasic::Token> fn = lwtest::TokenizeLine("FNA(1)");
+  const std::vector<newbasic::Token> fn = lwtest::TokenizeLine("FNA(1)");
   REQUIRE(fn.size() >= 2);
   CHECK(fn[0].text == "FN");
   CHECK(fn[1].text == "A");
@@ -184,9 +184,9 @@ TEST_CASE("Front end: arbitrary input never crashes or hangs", "[robust]") {
       line += alphabet[static_cast<std::size_t>(rng() % alphabet.size())];
     }
     INFO("input: [" << line << "]");
-    lwbasic::screen::HeadlessScreen screen;
-    lwbasic::ScriptedHost host;
-    lwbasic::Repl repl(screen, &host);
+    newbasic::screen::HeadlessScreen screen;
+    newbasic::ScriptedHost host;
+    newbasic::Repl repl(screen, &host);
     // Reaching the end of the iteration without a crash, hang or assertion
     // failure is the property under test.
     repl.Process(line);

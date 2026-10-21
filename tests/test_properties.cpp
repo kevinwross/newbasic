@@ -14,15 +14,15 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/line_store.h"
-#include "lwbasic/number_format.h"
-#include "lwbasic/value.h"
+#include "newbasic/line_store.h"
+#include "newbasic/number_format.h"
+#include "newbasic/value.h"
 
-using lwbasic::Value;
+using newbasic::Value;
 
 TEST_CASE("Property: FormatNumber(Int) is exact", "[property]") {
   rc::prop("sign prefix + exact digits", [](std::int16_t v) {
-    const std::string s = lwbasic::FormatNumber(Value::Int(v));
+    const std::string s = newbasic::FormatNumber(Value::Int(v));
     RC_ASSERT(!s.empty());
     if (v >= 0) {
       RC_ASSERT(s[0] == ' ');
@@ -35,7 +35,7 @@ TEST_CASE("Property: FormatNumber(Int) is exact", "[property]") {
 
 TEST_CASE("Property: FormatNumber(Long) is exact", "[property]") {
   rc::prop("sign prefix + exact digits", [](std::int32_t v) {
-    const std::string s = lwbasic::FormatNumber(Value::Long(v));
+    const std::string s = newbasic::FormatNumber(Value::Long(v));
     RC_ASSERT(!s.empty());
     RC_ASSERT(s[0] == ' ' || s[0] == '-');
     RC_ASSERT(s.substr(1) == std::to_string(std::abs(v)));
@@ -46,7 +46,7 @@ TEST_CASE("Property: FormatNumber(Sgl) parses back within 7-digit tolerance", "[
   rc::prop("single-precision text round-trips within 1e-6 relative error", [](double v) {
     if (!std::isfinite(v))
       return;
-    const std::string s = lwbasic::FormatNumber(Value::Sgl(v));
+    const std::string s = newbasic::FormatNumber(Value::Sgl(v));
     RC_ASSERT(!s.empty());
     RC_ASSERT(s[0] == ' ' || s[0] == '-');
     const std::string digits = s.substr(1);
@@ -69,7 +69,7 @@ TEST_CASE("Property: FormatNumber(Sgl) parses back within 7-digit tolerance", "[
 TEST_CASE("Property: LineStore stays sorted and unique under arbitrary ops", "[property]") {
   rc::prop("line numbers remain sorted and unique",
            [](const std::vector<int>& numbers, const std::vector<bool>& add) {
-             lwbasic::LineStore store;
+             newbasic::LineStore store;
              const std::size_t n = std::min(numbers.size(), add.size());
              for (std::size_t i = 0; i < n; ++i) {
                const int line = numbers[i];

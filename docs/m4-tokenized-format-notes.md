@@ -13,7 +13,7 @@ failure mode for a codec).
 - **Format auto-detection** — `Repl::LoadProgramFile` inspects the first byte; a
   tokenized file is reported as *Bad file mode* with an explicit message rather
   than being parsed as text (`tests/test_files.cpp`).
-- **Token table** — `lwbasic/fstok/token_table.h`: single-byte tokens `0x81`–`0xF4`,
+- **Token table** — `newbasic/fstok/token_table.h`: single-byte tokens `0x81`–`0xF4`,
   the `0xFD`/`0xFE`/`0xFF` two-byte groups, and the numeric/constant token bytes;
   `CodeForKeyword` / `KeywordForCode` plus six structural tests
   (`tests/test_fstok_tokens.cpp`).

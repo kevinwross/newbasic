@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
+#include "newbasic/errors.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
 #include "test_helpers.h"
 
 TEST_CASE("M10: RUN clears variables", "[m10]") {
@@ -36,7 +36,7 @@ TEST_CASE("M10: RUN with a line number starts there", "[m10]") {
 }
 
 TEST_CASE("M10: RUN with an undefined line is Undefined line number", "[m10]") {
-  CHECK(lwtest::RunErrorCode("10 RUN 999\n") == lwbasic::kErrUndefinedLineNumber);
+  CHECK(lwtest::RunErrorCode("10 RUN 999\n") == newbasic::kErrUndefinedLineNumber);
 }
 
 TEST_CASE("M10: TRON traces line numbers, TROFF stops", "[m10]") {
@@ -55,27 +55,27 @@ TEST_CASE("M10: TRON traces line numbers, TROFF stops", "[m10]") {
 }
 
 TEST_CASE("M10: direct-mode-only statements report Illegal direct", "[m10]") {
-  CHECK(lwtest::RunErrorCode("10 AUTO\n") == lwbasic::kErrIllegalDirect);
-  CHECK(lwtest::RunErrorCode("10 EDIT 10\n") == lwbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 AUTO\n") == newbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 EDIT 10\n") == newbasic::kErrIllegalDirect);
 }
 
 TEST_CASE("M10: unimplemented program statements report a clear error", "[m10]") {
   // CONT only makes sense after a stop; without one the reference says Cannot
-  // continue. LLIST needs a printer, which lwbasic does not have. RENUM is a
+  // continue. LLIST needs a printer, which newbasic does not have. RENUM is a
   // direct-mode command now, so inside a program it is Illegal direct.
-  CHECK(lwtest::RunErrorCode("10 CONT\n") == lwbasic::kErrCantContinue);
-  CHECK(lwtest::RunErrorCode("10 LLIST\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 RENUM\n") == lwbasic::kErrIllegalDirect);
-  CHECK(lwtest::RunErrorCode("10 SAVE \"x\"\n") == lwbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 CHAIN \"x\"\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CONT\n") == newbasic::kErrCantContinue);
+  CHECK(lwtest::RunErrorCode("10 LLIST\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 RENUM\n") == newbasic::kErrIllegalDirect);
+  CHECK(lwtest::RunErrorCode("10 SAVE \"x\"\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CHAIN \"x\"\n") == newbasic::kErrAdvancedFeature);
 }
 
 // The program-editing statements act on the stored source lines, so they are
 // exercised through the REPL, which owns the store.
 TEST_CASE("M10: LIST inside a program prints the stored lines", "[m10]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"A\"");
   repl.Process("20 LIST");
   repl.Process("30 END");
@@ -91,9 +91,9 @@ TEST_CASE("M10: LIST inside a program prints the stored lines", "[m10]") {
 }
 
 TEST_CASE("M10: LIST with a line number lists just that line", "[m10]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PRINT \"A\"");
   repl.Process("20 LIST 30");
   repl.Process("30 END");
@@ -106,9 +106,9 @@ TEST_CASE("M10: LIST with a line number lists just that line", "[m10]") {
 }
 
 TEST_CASE("M10: DELETE removes lines from the store but not the running code", "[m10]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 DELETE 40");
   repl.Process("20 LIST");
   repl.Process("30 PRINT \"GONE\"");
@@ -126,9 +126,9 @@ TEST_CASE("M10: DELETE removes lines from the store but not the running code", "
 }
 
 TEST_CASE("M10: NEW clears the stored program and stops execution", "[m10]") {
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 NEW");
   repl.Process("20 PRINT \"AFTER\"");
   screen.Clear();

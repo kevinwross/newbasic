@@ -9,7 +9,7 @@ scratch (or audit an existing implementation) without this conversation.
 
 ## 1. What the program is
 
-A single-file GW-BASIC-style accounting sample for the `lwbasic` interpreter. It keeps a
+A single-file GW-BASIC-style accounting sample for the `newbasic` interpreter. It keeps a
 double-entry journal in memory and in a small pipe-delimited text file, and provides:
 
 - a **journal entry** screen (any two accounts, one debit and one credit);
@@ -27,7 +27,7 @@ entry, no editing/deleting, no closing entries, no sales-tax automation, no mult
 
 ## 2. Environment, build and run
 
-The program runs under `lwbasic` from this repository.
+The program runs under `newbasic` from this repository.
 
 Build (from the repository root):
 
@@ -46,7 +46,7 @@ so it does not affect the compiled test suite.
 Run, **from the repository root** (the data path is relative):
 
 ```powershell
-out\src\lwbasic-cli\Release\lwbasic.exe samples\accounting.bas
+out\src\newbasic-cli\Release\newbasic.exe samples\accounting.bas
 ```
 
 Useful switches (see `--help`):
@@ -70,7 +70,7 @@ fails. Document "run from the repo root" to users.
 
 ## 3. Dialect rules and constraints
 
-Target the GW-BASIC subset implemented by `lwbasic`:
+Target the GW-BASIC subset implemented by `newbasic`:
 
 - Every line is numbered; line numbers ascend; blank lines are allowed.
 - Arrays: `DIM`, numeric and string; `A(1)`, `NM$(3)`.
@@ -187,7 +187,7 @@ The chart is loaded from `DATA` at 9000–9140 by `GOSUB 5000`: `READ AN, Q$, TT
 | `TA`, `TL`, `TE`, `V` | balance-sheet totals and one value |
 | `TS`, `ROW`, `T$` | journal total, payment list row, type letter |
 
-`INPUT #` splits on commas and, in `lwbasic`, cannot read into array elements. That is why
+`INPUT #` splits on commas and, in `newbasic`, cannot read into array elements. That is why
 the journal file is not CSV: it uses `LINE INPUT #` plus a pipe splitter, and the split
 fields are converted with `VAL` straight into the arrays (lines 5180–5210). Keep the
 format and the splitter together; do not switch one without the other.
@@ -292,7 +292,7 @@ All forms share these conventions:
 ### 8.1 Main menu (lines 200–410)
 
 ```
-row 2, col 31  LWBASIC ACCOUNTING
+row 2, col 31  NEWBASIC ACCOUNTING
 row 4, col 29  1  JOURNAL ENTRY
 row 5, col 29  2  BILL A CUSTOMER
 row 6, col 29  3  ACCEPT A PAYMENT
@@ -417,7 +417,7 @@ The 0.005 tolerance absorbs cents rounding; keep it.
 
 ### 9.1 Today's date
 
-`DATE$` in `lwbasic` is **MM-DD-YYYY** (see `SystemHost::DateString`). Convert once at
+`DATE$` in `newbasic` is **MM-DD-YYYY** (see `SystemHost::DateString`). Convert once at
 startup:
 
 ```
@@ -680,7 +680,7 @@ These are real behaviours of the interpreter; another AI will hit them.
 
 ## 14. Suggested implementation sequence
 
-1. Build the repo and run the existing sample once. Confirm `out\src\lwbasic-cli\Release\lwbasic.exe`
+1. Build the repo and run the existing sample once. Confirm `out\src\newbasic-cli\Release\newbasic.exe`
    and a 0-byte `samples\accounting.dat`.
 2. Write the header, `DIM`s, `TD$`, the four format strings, and the chart `DATA`; implement
    `GOSUB 5000` and print the chart to check it.
@@ -707,7 +707,7 @@ string of characters (`\r` is Enter). Run from the repo root. Example harness in
 ```powershell
 $keys = "1`rJE-1`r10/20/2026`rOWNER INVESTMENT`r1000`r3000`r5000`r`r8`r"
 $quoted = '"' + $keys + '"'
-$p = Start-Process -FilePath "out\src\lwbasic-cli\Release\lwbasic.exe" `
+$p = Start-Process -FilePath "out\src\newbasic-cli\Release\newbasic.exe" `
   -ArgumentList '--keys', $quoted, 'samples\accounting.bas' `
   -RedirectStandardOutput out\stdout.txt -RedirectStandardError out\stderr.txt `
   -PassThru -WindowStyle Hidden

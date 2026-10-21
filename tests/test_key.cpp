@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 TEST_CASE("KEY: assignment and KEY LIST", "[key]") {
@@ -61,9 +61,9 @@ TEST_CASE("KEY: a null value disables the key", "[key]") {
 
 TEST_CASE("KEY: out-of-range key numbers are Illegal function call", "[key]") {
   // 11-14 are outside the documented ranges.
-  CHECK(lwtest::RunErrorCode("10 KEY 11,\"x\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 KEY 0,\"x\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 KEY 21,\"x\"\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 KEY 11,\"x\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 KEY 0,\"x\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 KEY 21,\"x\"\n") == newbasic::kErrIllegalFunctionCall);
   // 15-20 are allowed.
   CHECK(lwtest::RunErrorCode("10 KEY 15,\"x\"\n") == 0);
   CHECK(lwtest::RunErrorCode("10 KEY 20,\"x\"\n") == 0);

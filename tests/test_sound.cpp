@@ -9,11 +9,11 @@
 #include <utility>
 #include <vector>
 
-#include "lwbasic/errors.h"
-#include "lwbasic/host.h"
-#include "lwbasic/repl.h"
-#include "lwbasic/screen/headless_screen.h"
-#include "lwbasic/sound.h"
+#include "newbasic/errors.h"
+#include "newbasic/host.h"
+#include "newbasic/repl.h"
+#include "newbasic/screen/headless_screen.h"
+#include "newbasic/sound.h"
 #include "test_helpers.h"
 
 // ---------------------------------------------------------------------------
@@ -21,13 +21,13 @@
 // [.tag] tests unless they are named explicitly) because they make real sound
 // and would beep on a build machine. Run them by hand:
 //
-//   out\tests\Release\lwbasic-tests.exe "[.audio]" -s
+//   out\tests\Release\newbasic-tests.exe "[.audio]" -s
 //
 // The other sound tests use ScriptedHost and are silent by design, which is
 // exactly why the audio path itself needs this separate, explicit check.
 // ---------------------------------------------------------------------------
 TEST_CASE("Sound: the real host blocks for the tone duration", "[.audio]") {
-  lwbasic::SystemHost host;
+  newbasic::SystemHost host;
   const auto start = std::chrono::steady_clock::now();
   host.PlayTone(800, 250); // the BEEP tone
   const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -41,7 +41,7 @@ TEST_CASE("Sound: the real host blocks for the tone duration", "[.audio]") {
 }
 
 TEST_CASE("Sound: manual listen check (rising arpeggio)", "[.audio]") {
-  lwbasic::SystemHost host;
+  newbasic::SystemHost host;
   host.PlayTone(440, 300); // A4
   host.PlayTone(554, 300); // C#5
   host.PlayTone(659, 400); // E5
@@ -50,7 +50,7 @@ TEST_CASE("Sound: manual listen check (rising arpeggio)", "[.audio]") {
 
 TEST_CASE("Sound: BEEP is 800 Hz for a quarter second", "[sound]") {
   // Reference: "sound the speaker at 800 Hz for one-quarter of a second".
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   lwtest::RunRowsWithInput("10 BEEP\n", {}, &host);
   REQUIRE(host.tones.size() == 1);
   CHECK(host.tones[0].first == 800);
@@ -58,7 +58,7 @@ TEST_CASE("Sound: BEEP is 800 Hz for a quarter second", "[sound]") {
 }
 
 TEST_CASE("Sound: SOUND plays the requested tone", "[sound]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   lwtest::RunRowsWithInput("10 SOUND 440, 18\n", {}, &host);
   REQUIRE(host.tones.size() == 1);
   CHECK(host.tones[0].first == 440);
@@ -67,7 +67,7 @@ TEST_CASE("Sound: SOUND plays the requested tone", "[sound]") {
 }
 
 TEST_CASE("Sound: SOUND clamps the frequency and treats zero duration as silence", "[sound]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   lwtest::RunRowsWithInput("10 SOUND 100000, 18\n"
                            "20 SOUND 10, 18\n"
                            "30 SOUND 440, 0\n",
@@ -78,7 +78,7 @@ TEST_CASE("Sound: SOUND clamps the frequency and treats zero duration as silence
 }
 
 TEST_CASE("Sound: PLAY honours tempo, length, articulation and octave", "[sound]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   lwtest::RunRowsWithInput("10 PLAY \"T120 L4 C\"\n", {}, &host);
   REQUIRE(host.tones.size() == 1);
   // O4 C is 523 Hz: octave 4 begins at C5 in scientific pitch, as the reference numbers it.
@@ -86,19 +86,19 @@ TEST_CASE("Sound: PLAY honours tempo, length, articulation and octave", "[sound]
   // A quarter note at T120 is 500 ms; MN plays seven eighths of it = 438 ms.
   CHECK(host.tones[0].second == 438);
 
-  lwbasic::ScriptedHost octave;
+  newbasic::ScriptedHost octave;
   lwtest::RunRowsWithInput("10 PLAY \"O5 C\"\n", {}, &octave);
   REQUIRE(octave.tones.size() == 1);
   CHECK(octave.tones[0].first == 1047); // O5 C is one octave above O4 C
 
-  lwbasic::ScriptedHost legato;
+  newbasic::ScriptedHost legato;
   lwtest::RunRowsWithInput("10 PLAY \"ML T120 L4 C\"\n", {}, &legato);
   REQUIRE(legato.tones.size() == 1);
   CHECK(legato.tones[0].second == 500); // ML plays the full period
 }
 
 TEST_CASE("Sound: PLAY rests, dots and sharps", "[sound]") {
-  lwbasic::ScriptedHost host;
+  newbasic::ScriptedHost host;
   lwtest::RunRowsWithInput("10 PLAY \"T120 L4 C P8 C8. C#4\"\n", {}, &host);
   REQUIRE(host.tones.size() == 4);
   CHECK(host.tones[0].first == 523);  // O4 C
@@ -109,27 +109,27 @@ TEST_CASE("Sound: PLAY rests, dots and sharps", "[sound]") {
 }
 
 TEST_CASE("Sound: a malformed PLAY string is an error", "[sound]") {
-  CHECK(lwtest::RunErrorCode("10 PLAY \"Q\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PLAY \"O9 C\"\n") == lwbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PLAY \"T10 C\"\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PLAY \"Q\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PLAY \"O9 C\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PLAY \"T10 C\"\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Sound: note frequencies follow the octave numbering", "[sound]") {
-  using lwbasic::NoteFrequency;
+  using newbasic::NoteFrequency;
   CHECK(NoteFrequency(0) == 0);    // rest
   CHECK(NoteFrequency(37) == 262); // middle C is the start of octave 3
   CHECK(NoteFrequency(46) == 440); // A4, the tuning reference
   CHECK(NoteFrequency(49) == 523); // C5, the start of octave 4
-  CHECK(lwbasic::TicksToMilliseconds(18) == 989);
-  CHECK(lwbasic::TicksToMilliseconds(0) == 0);
+  CHECK(newbasic::TicksToMilliseconds(18) == 989);
+  CHECK(newbasic::TicksToMilliseconds(0) == 0);
 }
 
 TEST_CASE("Sound: the Ode to Joy opening plays the right notes", "[sound]") {
   // The sample is samples/Beethoven.bas; the melody is repeated here so the test is
   // self-contained. T100 makes a quarter note 600 ms, and L4 makes every note a quarter.
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   repl.Process("10 PLAY \"T100 O3 L4 F# F# G A\"");
   repl.Process("20 PLAY \"T100 O3 L4 A G F# E\"");
   repl.Process("30 PLAY \"T100 O3 L4 D D E F#\"");
@@ -152,9 +152,9 @@ TEST_CASE("Sound: the sixteen-bar Ode to Joy at speed", "[sound]") {
   // Sixteen bars of four beats, with four of them ending on a half note: 60 notes in all.
   // T150 makes a quarter note 400 ms, and MN articulation sounds 7/8 of that: 350 ms, and 700 for
   // the halves.
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::ScriptedHost host;
-  lwbasic::Repl repl(screen, &host);
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
   const char* bars[] = {
       "10 PLAY \"T150 O3 L4 F# F# G A\"",
       "20 PLAY \"T150 O3 L4 A G F# E\"",
@@ -201,24 +201,24 @@ TEST_CASE("Sound: PLAY octaves follow the reference", "[sound]") {
   // The reference numbers octaves so that O3 contains middle C: O3 C is 261.6 Hz and O3 A is 440.
   // An off-by-one here transposes everything an octave without making any interval wrong, which
   // is hard to hear as a mistake but obviously wrong next to the score.
-  std::vector<lwbasic::Tone> tones;
+  std::vector<newbasic::Tone> tones;
   std::string error;
-  REQUIRE(lwbasic::ParsePlayString("O3 C", &tones, &error));
+  REQUIRE(newbasic::ParsePlayString("O3 C", &tones, &error));
   REQUIRE(tones.size() == 1);
   CHECK(std::abs(tones[0].frequency_hz - 262) <= 1);
   tones.clear();
-  REQUIRE(lwbasic::ParsePlayString("O3 A", &tones, &error));
+  REQUIRE(newbasic::ParsePlayString("O3 A", &tones, &error));
   CHECK(std::abs(tones[0].frequency_hz - 440) <= 1);
   tones.clear();
-  REQUIRE(lwbasic::ParsePlayString("O4 C", &tones, &error));
+  REQUIRE(newbasic::ParsePlayString("O4 C", &tones, &error));
   CHECK(std::abs(tones[0].frequency_hz - 523) <= 1);
   tones.clear();
-  REQUIRE(lwbasic::ParsePlayString("O6 B", &tones, &error));
+  REQUIRE(newbasic::ParsePlayString("O6 B", &tones, &error));
   CHECK(std::abs(tones[0].frequency_hz - 3951) <= 4);
 }
 
 TEST_CASE("Sound: the synthesiser renders a pitched, enveloped tone", "[sound]") {
-  using lwbasic::RenderTone;
+  using newbasic::RenderTone;
   const std::vector<std::int16_t> tone = RenderTone(440, 100);
   CHECK(tone.size() == 4410); // 100 ms at 44.1 kHz
   // The envelope starts and ends near zero, so a note does not click at its edges.
@@ -245,7 +245,7 @@ TEST_CASE("Sound: the synthesiser renders a pitched, enveloped tone", "[sound]")
 }
 
 TEST_CASE("Sound: the synthesiser has an ADSR shape and a steady sustain", "[sound]") {
-  using lwbasic::RenderTone;
+  using newbasic::RenderTone;
   const std::vector<std::int16_t> tone = RenderTone(440, 500);
   CHECK(tone.size() == 22050);
   // Attack: the first millisecond is much quieter than the body of the note.

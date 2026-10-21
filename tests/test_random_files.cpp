@@ -6,14 +6,14 @@
 #include <cstdio>
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 namespace {
 
 std::string TempPath() {
   static int counter = 0;
-  return "lwbasic_rand_" + std::to_string(++counter) + ".dat";
+  return "newbasic_rand_" + std::to_string(++counter) + ".dat";
 }
 
 struct TempFile {
@@ -68,7 +68,7 @@ TEST_CASE("Random files: FIELD cannot exceed the record length", "[random]") {
                               "20 FIELD #1, 10 AS A$\n"
                               "30 FIELD #1, 5 AS B$\n" // 15 > 10
                               "40 CLOSE\n";
-  CHECK(lwtest::RunErrorCode(program) == lwbasic::kErrFieldOverflow);
+  CHECK(lwtest::RunErrorCode(program) == newbasic::kErrFieldOverflow);
 }
 
 TEST_CASE("Random files: LOF and LOC report position and size", "[random]") {

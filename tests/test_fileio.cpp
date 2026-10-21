@@ -6,13 +6,13 @@
 #include <sstream>
 #include <string>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 namespace {
 
 // Unique per process: a leftover file cannot affect this run (plan.md 7b).
-#define kFile lwtest::TempName("lwbasic_tmp_io.txt")
+#define kFile lwtest::TempName("newbasic_tmp_io.txt")
 
 std::string ReadAll(const std::string& path) {
   std::ifstream in(path, std::ios::binary);
@@ -91,17 +91,17 @@ TEST_CASE("Sequential files: EOF reports the end of an input file", "[fileio]") 
 
 TEST_CASE("Sequential files: errors", "[fileio]") {
   CHECK(lwtest::RunErrorCode("10 OPEN \"no_such_file_xyz.txt\" FOR INPUT AS #1\n") ==
-        lwbasic::kErrFileNotFound);
-  CHECK(lwtest::RunErrorCode("10 PRINT #7, \"x\"\n") == lwbasic::kErrBadFileNumber);
-  CHECK(lwtest::RunErrorCode("10 CLOSE #7\n") == lwbasic::kErrBadFileNumber);
+        newbasic::kErrFileNotFound);
+  CHECK(lwtest::RunErrorCode("10 PRINT #7, \"x\"\n") == newbasic::kErrBadFileNumber);
+  CHECK(lwtest::RunErrorCode("10 CLOSE #7\n") == newbasic::kErrBadFileNumber);
   CHECK(lwtest::RunErrorCode("10 OPEN \"" + Path() + "\" FOR OUTPUT AS #0\n") ==
-        lwbasic::kErrBadFileNumber);
+        newbasic::kErrBadFileNumber);
   std::remove(kFile);
   lwtest::RunRows("10 OPEN \"" + Path() + "\" FOR OUTPUT AS #1\n20 CLOSE #1\n");
   CHECK(lwtest::RunErrorCode("10 OPEN \"" + Path() +
                              "\" FOR OUTPUT AS #1\n"
                              "20 OPEN \"" +
-                             Path() + "\" FOR OUTPUT AS #1\n") == lwbasic::kErrFileAlreadyOpen);
+                             Path() + "\" FOR OUTPUT AS #1\n") == newbasic::kErrFileAlreadyOpen);
   std::remove(kFile);
 }
 
@@ -143,7 +143,7 @@ TEST_CASE("Sequential files: reading past the end", "[fileio]") {
   CHECK(lwtest::RunErrorCode("10 OPEN \"" + Path() +
                              "\" FOR INPUT AS #1\n"
                              "20 INPUT #1, A\n"
-                             "30 INPUT #1, B\n") == lwbasic::kErrInputPastEnd);
-  CHECK(lwtest::RunErrorCode("10 INPUT #3, A\n") == lwbasic::kErrBadFileNumber);
+                             "30 INPUT #1, B\n") == newbasic::kErrInputPastEnd);
+  CHECK(lwtest::RunErrorCode("10 INPUT #3, A\n") == newbasic::kErrBadFileNumber);
   std::remove(kFile);
 }

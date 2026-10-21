@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "lwbasic/errors.h"
+#include "newbasic/errors.h"
 #include "test_helpers.h"
 
 using lwtest::CompileCode;
@@ -106,7 +106,7 @@ TEST_CASE("Statements: GOTO, GOSUB and ON ... GOTO/GOSUB", "[stmt][jump]") {
                  "200 PRINT \"NO\": END\n");
   REQUIRE(!rows.empty());
   CHECK(rows[0] == "NEXT");
-  CHECK(RunErrorCode("10 ON -1 GOTO 100,200\n100 END\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(RunErrorCode("10 ON -1 GOTO 100,200\n100 END\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(RunErrorCode("10 ON 2 GOSUB 100,200: END\n100 RETURN\n200 RETURN\n") == 0);
 }
 
@@ -128,15 +128,15 @@ TEST_CASE("Statements: CLS, LOCATE and COLOR", "[stmt][screen]") {
   CHECK(rows[1] == "         X");
 
   // COLOR sets the current attribute; clear screens use it too.
-  lwbasic::Program program;
-  lwbasic::CompileError error;
-  lwbasic::LineStore store;
-  REQUIRE(lwbasic::LineStore::ParseTextBas("10 COLOR 14,1\n20 PRINT \"X\"\n", &store, nullptr));
-  REQUIRE(lwbasic::Compile(store, &program, &error));
-  lwbasic::screen::HeadlessScreen screen;
-  lwbasic::Vm vm(screen);
+  newbasic::Program program;
+  newbasic::CompileError error;
+  newbasic::LineStore store;
+  REQUIRE(newbasic::LineStore::ParseTextBas("10 COLOR 14,1\n20 PRINT \"X\"\n", &store, nullptr));
+  REQUIRE(newbasic::Compile(store, &program, &error));
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::Vm vm(screen);
   vm.Load(std::move(program));
-  CHECK(vm.Run().status == lwbasic::RunResult::Status::Done);
+  CHECK(vm.Run().status == newbasic::RunResult::Status::Done);
   CHECK(screen.ColorFg() == 14);
   CHECK(screen.ColorBg() == 1);
   CHECK(screen.AttrFg(screen.CellAttrAt(0, 0)) == 14);
@@ -144,28 +144,28 @@ TEST_CASE("Statements: CLS, LOCATE and COLOR", "[stmt][screen]") {
 }
 
 TEST_CASE("Statements: compile-time errors", "[stmt][errors]") {
-  CHECK(CompileCode("10 NEXT I\n") == lwbasic::kErrNextWithoutFor);
-  CHECK(CompileCode("10 FOR I=1 TO 3\n") == lwbasic::kErrForWithoutNext);
-  CHECK(CompileCode("10 WEND\n") == lwbasic::kErrWendWithoutWhile);
-  CHECK(CompileCode("10 WHILE 1\n20 PRINT 1\n") == lwbasic::kErrWhileWithoutWend);
+  CHECK(CompileCode("10 NEXT I\n") == newbasic::kErrNextWithoutFor);
+  CHECK(CompileCode("10 FOR I=1 TO 3\n") == newbasic::kErrForWithoutNext);
+  CHECK(CompileCode("10 WEND\n") == newbasic::kErrWendWithoutWhile);
+  CHECK(CompileCode("10 WHILE 1\n20 PRINT 1\n") == newbasic::kErrWhileWithoutWend);
   CHECK(CompileCode("10 PRINT\n") == 0);
-  CHECK(CompileCode("10 FOO 1\n") == lwbasic::kErrSyntax);
-  CHECK(CompileCode("10 PRINT 1+\n") == lwbasic::kErrSyntax);
-  CHECK(CompileCode("10 PRINT (1\n") == lwbasic::kErrSyntax);
-  CHECK(CompileCode("10 FOR I=1 TO\n") == lwbasic::kErrSyntax);
-  CHECK(CompileCode("10 PRINT ABS(1,2)\n") == lwbasic::kErrSyntax);
+  CHECK(CompileCode("10 FOO 1\n") == newbasic::kErrSyntax);
+  CHECK(CompileCode("10 PRINT 1+\n") == newbasic::kErrSyntax);
+  CHECK(CompileCode("10 PRINT (1\n") == newbasic::kErrSyntax);
+  CHECK(CompileCode("10 FOR I=1 TO\n") == newbasic::kErrSyntax);
+  CHECK(CompileCode("10 PRINT ABS(1,2)\n") == newbasic::kErrSyntax);
   int line = 0;
-  CHECK(CompileCode("10 PRINT 1\n20 FOR I=1 TO 3\n", &line) == lwbasic::kErrForWithoutNext);
+  CHECK(CompileCode("10 PRINT 1\n20 FOR I=1 TO 3\n", &line) == newbasic::kErrForWithoutNext);
   CHECK(line == 20);
 }
 
 TEST_CASE("Statements: runtime errors", "[stmt][errors]") {
-  CHECK(RunErrorCode("10 GOTO 999\n") == lwbasic::kErrUndefinedLineNumber);
-  CHECK(RunErrorCode("10 RETURN\n") == lwbasic::kErrReturnWithoutGosub);
-  CHECK(RunErrorCode("10 NEXT I\n") == lwbasic::kErrNextWithoutFor);
-  CHECK(RunErrorCode("10 FOR I=1 TO 3\n20 NEXT J\n") == lwbasic::kErrNextWithoutFor);
+  CHECK(RunErrorCode("10 GOTO 999\n") == newbasic::kErrUndefinedLineNumber);
+  CHECK(RunErrorCode("10 RETURN\n") == newbasic::kErrReturnWithoutGosub);
+  CHECK(RunErrorCode("10 NEXT I\n") == newbasic::kErrNextWithoutFor);
+  CHECK(RunErrorCode("10 FOR I=1 TO 3\n20 NEXT J\n") == newbasic::kErrNextWithoutFor);
   int line = 0;
-  CHECK(RunErrorCode("10 PRINT 1\n20 GOTO 999\n", &line) == lwbasic::kErrUndefinedLineNumber);
+  CHECK(RunErrorCode("10 PRINT 1\n20 GOTO 999\n", &line) == newbasic::kErrUndefinedLineNumber);
   CHECK(line == 20);
 }
 
@@ -188,8 +188,8 @@ TEST_CASE("READ fills array elements, in DATA order", "[statements]") {
                      "40 IF A = 1 AND N(2) = 2 AND B = 3 THEN PRINT \"OK\";\n") == "OK");
 
   // Running out of DATA, and a subscript outside the array, report the reference's errors.
-  CHECK(RunErrorCode("10 DIM N(3)\n20 READ N(1)\n") == lwbasic::kErrOutOfData);
-  CHECK(RunErrorCode("10 DIM N(3)\n20 DATA 1\n30 READ N(9)\n") == lwbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM N(3)\n20 READ N(1)\n") == newbasic::kErrOutOfData);
+  CHECK(RunErrorCode("10 DIM N(3)\n20 DATA 1\n30 READ N(9)\n") == newbasic::kErrSubscriptOutOfRange);
 }
 
 // PRINT USING: one assertion per field kind. The `;` on the PRINT and the "|" on the next
@@ -230,7 +230,7 @@ TEST_CASE("PRINT USING and TAB edge cases", "[statements]") {
   // An empty string in a variable-length field prints nothing.
   CHECK(lwtest::Row0("10 PRINT USING \"&\"; \"\";\n20 PRINT \"|\"\n") == "|");
   // TAB(0) has no column, which the reference rejects.
-  CHECK(lwtest::RunErrorCode("10 PRINT TAB(0); \"X\"\n") == lwbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT TAB(0); \"X\"\n") == newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("PRINT USING prints an escaped character literally", "[statements]") {
@@ -243,7 +243,7 @@ TEST_CASE("PRINT USING cycles the format and reports mismatches", "[statements]"
   // The format restarts for each item, so both fields print.
   CHECK(lwtest::Row0("10 PRINT USING \"##-\"; 1; 2;\n20 PRINT \"|\"\n") == " 1  2 |");
   // A string in a numeric field is an error, not silent output.
-  CHECK(lwtest::RunErrorCode("10 PRINT USING \"###\"; \"x\"\n") == lwbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 PRINT USING \"###\"; \"x\"\n") == newbasic::kErrTypeMismatch);
 }
 
 TEST_CASE("TAB and SPC position the cursor", "[statements]") {
@@ -267,5 +267,5 @@ TEST_CASE("CLEAR works inside a program", "[statements]") {
                      "40 IF B(1) = 9 THEN PRINT \"OK\";\n") == "OK");
 
   // The argument form (string space / stack size) is not modelled and says so.
-  CHECK(lwtest::RunErrorCode("10 CLEAR ,1000\n") == lwbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CLEAR ,1000\n") == newbasic::kErrAdvancedFeature);
 }
