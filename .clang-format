@@ -1,0 +1,13 @@
+---
+# lwbasic code style (plan section 6.5). CI lints with clang-format (19).
+BasedOnStyle: LLVM
+IndentWidth: 2
+ColumnLimit: 100
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: Inline
+SortIncludes: true
+SpaceBeforeParens: ControlStatements
+Cpp11BracedListStyle: true
+DerivePointerAlignment: false
+---

@@ -1,0 +1,8 @@
+10 SCREEN 2
+20 CLS
+30 REM SCREEN 2 is 640x200 monochrome: colour 1 must be white, not blue.
+40 LINE (0,0)-(639,199),1,B
+50 LINE (0,100)-(639,100),1
+60 LINE (320,0)-(320,199),1
+70 LOCATE 12,30: PRINT "TEXT OVER GRAPHICS";
+80 GOTO 80

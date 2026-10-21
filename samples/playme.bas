@@ -1,0 +1,8 @@
+10 CLS
+20 PRINT "Playing Ode to Joy..."
+30 REM T120 = Tempo 120, O3 = Octave 3, L4 = Quarter Notes
+50 PLAY "T120 O3 L4 E E F G G F E D C C D E E. D8 D2"
+60 PLAY "T120 O3 L4 E E F G G F E D C C D E D. C8 C2"
+70 PLAY "T120 O3 L4 D D E C D E8 F8 E C D E8 F8 E D C D G2"
+80 PLAY "T120 O3 L4 E E F G G F E D  C C D E D. C8 C2"
+90 END

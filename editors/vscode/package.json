@@ -1,0 +1,64 @@
+{
+  "name": "lwbasic-debug",
+  "displayName": "lwbasic debugger",
+  "description": "Debug GW-BASIC programs with the lwbasic interpreter.",
+  "version": "0.1.0",
+  "publisher": "lwbasic",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Debuggers"],
+  "main": "./extension.js",
+  "activationEvents": ["onDebug", "onDebugResolve:lwbasic"],
+  "contributes": {
+    "debuggers": [
+      {
+        "type": "lwbasic",
+        "label": "lwbasic (GW-BASIC)",
+        "configurationAttributes": {
+          "launch": {
+            "required": [],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the .bas file to run.",
+                "default": "${file}"
+              },
+              "programText": {
+                "type": "string",
+                "description": "Source to run instead of a file, for a scratch program."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "lwbasic",
+            "request": "launch",
+            "name": "Run this program",
+            "program": "${file}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "lwbasic: run a program",
+            "body": {
+              "type": "lwbasic",
+              "request": "launch",
+              "name": "Run this program",
+              "program": "${file}"
+            }
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "lwbasic",
+      "properties": {
+        "lwbasic.adapterPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to lwbasic-dap.exe. Leave empty to use out/src/lwbasic-dap/Release/lwbasic-dap.exe in the workspace folder."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# Protect fixtures, samples and binary references from EOL conversion.
+# These files carry CP437 bytes, CRLF state and other byte-exact content.
+* -text
+
+# Source, build and documentation files are ordinary text.
+*.cpp text
+*.h text
+*.md text
+*.cmake text
+CMakeLists.txt text
+CMakePresets.json text
+*.yml text
+*.yaml text
+*.ps1 text
+*.sh text
+*.json text
+.clang-format text
+.gitignore text
+.gitattributes text

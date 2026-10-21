@@ -1,0 +1,16 @@
+# Build output
+out/
+build/
+.vs/
+CMakeUserPresets.json
+*.user
+*.obj
+*.exe
+*.pdb
+
+# Runtime data written by samples/accounting.bas
+samples/accounting.dat
+
+# Reference material: Microsoft's revision places GW-BASIC and derived works
+# under MIT, so GWBASIC.txt and docs/gw-basic/ are committed rather than
+# ignored - they are the conformance source for M6 and the format notes.
