@@ -51,8 +51,10 @@ Phases 0–7 are implemented in this repository:
 Verification on this Linux host: the full upstream suite passes (365 test
 cases, 31,110 assertions), the hidden `[.audio]` timing test passes, and the
 hidden `[.gpu]` test passes with SDL2 under `SDL_VIDEODRIVER=dummy`.
-`LWBASIC_WERROR=ON` builds the first-party targets cleanly. The Windows build
-still needs a CI/MSVC run; it was not compiled on this Linux machine.
+`LWBASIC_WERROR=ON` builds the first-party targets cleanly. The Windows side
+was cross-compiled and linked with LLVM-MinGW (D3D11 backend, `lwbasic.exe`,
+`lwbasic-dap.exe` and `lwbasic-tests.exe`); the MSVC CI job still needs to run
+on Windows itself.
 
 ---
 

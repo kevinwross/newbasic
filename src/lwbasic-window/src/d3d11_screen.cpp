@@ -20,11 +20,6 @@ namespace {
 
 constexpr wchar_t kWindowClass[] = L"LwbasicD3D11Screen";
 constexpr wchar_t kWindowTitle[] = L"lwbasic";
-// Base scale for the glyph atlas, multiplied by the display DPI below. One cell is
-// 8x16 at 96 DPI, so the window is 640x400: the authentic text size, and a sensible
-// frame for 320x200 graphics, which then fill a 4:3 area inside it. A scale of two
-// doubled the window to 1280x800, which looked oversized for the content.
-constexpr int kScale = 1;
 
 // One vertex as the shader expects it: position in NDC, atlas uv, colour.
 struct RenderVertex {
