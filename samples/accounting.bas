@@ -22,11 +22,11 @@
 85 AmountReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##"
 90 JournalReportFormat$ = "  !  \" + SPACE$(8) + "\  \" + SPACE$(8) + "\  \" + SPACE$(20) + "\  ####/####  ####,###.##"
 95 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
-99 GOSUB 5000
-100 GOSUB 5100
-105 ON ERROR GOTO 0
-110 GOSUB 200
-120 END
+100 GOSUB 5000
+110 GOSUB 5100
+120 ON ERROR GOTO 0
+130 GOSUB 200
+140 END
 200 REM ---- MAIN MENU ------------------------------------------------
 210 CLS
 220 LOCATE 2,31: PRINT "NEWBASIC ACCOUNTING"
