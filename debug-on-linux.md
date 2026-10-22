@@ -1,6 +1,6 @@
 # Debugging newbasic from VS Code on Linux
 
-**Status:** verified on Linux (Debian 13, arm64) on 2026-10-22.
+**Status:** verified on Linux (Debian 13, arm64) on 2026-10-22 at `d7536e1`.
 **Audience:** AI coding agents (and humans) asked to make VS Code debugging work
 on a Linux machine for this repository.
 **Scope:** build the interpreter and DAP adapter, install the VS Code
@@ -24,8 +24,9 @@ A successful run produces all of the following:
 - **Output → newbasic** logs the adapter path, working directory and launch.
 - F5 on `fixtures/m0/hello.bas` opens the `newbasic` window, prints
   `HELLO FROM NEWBASIC` and `5  10`, and terminates.
-- A gutter breakpoint on `fixtures/m0/hello.bas` line 20 stops the session, and
-  F10 steps to the next line.
+- A gutter breakpoint on `fixtures/m0/hello.bas` **file line 2** (the
+  `20 PRINT 5, 10` statement) stops the session, and F10 steps to file line 3
+  (`30 END`).
 - Optionally, F5 on `samples/RingWorld.bas` shows `SCREEN 720` graphics while
   the session runs.
 
@@ -69,7 +70,7 @@ Exact test counts can change. Zero failures is the acceptance criterion.
 | CMake | 3.31.6 |
 | Compiler | g++ 14.2.0 |
 | SDL2 | 2.32.4 (`libsdl2-dev`) |
-| Node/npm/npx | Node 24.22.0, npm 11.19.1 |
+| Node/npm/npx | Node 24.22.1, npm 11.19.1 |
 | Build directory | `build-sdl` (Release, SDL window backend) |
 
 Other versions are expected to work if VS Code is at least 1.60, CMake at least
@@ -271,9 +272,12 @@ workspace on Windows.
    adapter: /home/.../build-sdl/src/newbasic-dap/newbasic-dap args=[] cwd=/home/.../newbasic
    ```
 
-6. Set a breakpoint by clicking the **gutter** left of line 20 (or right-click
-   the gutter). Press F5. The session should stop on line 20; F10 steps; the
-   Variables view should show the program state.
+6. Set a breakpoint by clicking the **gutter** next to **file line 2**, the
+   `20 PRINT 5, 10` statement (or right-click the gutter). The fixture has only
+   three physical lines; BASIC line 20 is file line 2, and gutter row 20 does
+   not exist. Press F5. The session should stop on BASIC line 20; F10 steps to
+   BASIC line 30; the Variables view should show the program state. A hollow
+   breakpoint circle means the line was not found in the loaded program.
 
 PRINT output appears in the `newbasic` window, **not** in the VS Code Debug
 Console. An empty Debug Console is expected.
@@ -288,6 +292,11 @@ planet appears in the `newbasic` window.
 `.bas` files are claimed by VS Code's built-in **Visual Basic** language
 (`vb`). The debugger contributes breakpoint support for both `basic` and `vb`,
 and the workspace sets `debug.allowBreakpointsEverywhere` as a fallback.
+
+**File line vs. BASIC line.** `fixtures/m0/hello.bas` is only three physical
+lines; its BASIC line 20 is file line 2. A breakpoint on gutter row 20 is
+outside the file and will not verify, so the program runs to completion without
+stopping. Use file line 2 and confirm the breakpoint circle is solid.
 
 - **Left-click the gutter** to toggle a breakpoint.
 - **Right-click the gutter** for Add Breakpoint / Conditional Breakpoint /
@@ -340,6 +349,7 @@ This copies the VM at every line boundary and is off by default.
 | `code: command not found` | `command -v code` | Install the VS Code CLI or add it to `PATH`; use `/usr/bin/code` explicitly. |
 | `npx` cannot download `vsce` | Network/proxy | Use a VSIX produced on another machine; do not vendor `node_modules`. |
 | Adapter path has `.exe` on Linux | `newbasic.adapterPath` manually set | Remove the setting or point it at the Linux `newbasic-dap`. |
+| Breakpoint circle is hollow; session starts and exits immediately | Gutter row is outside the file or not a loaded program line | Use the file line: `hello.bas` file line 2 is BASIC line 20. Confirm the adapter reports the breakpoint as `verified`. |
 
 ---
 
@@ -355,4 +365,58 @@ Report all of these:
 - `code --list-extensions --show-versions` line for `newbasic`.
 - Output → newbasic lines showing the resolved adapter and cwd.
 - Fixture result in the `newbasic` window.
-- Breakpoint line and the fact that the session stopped there.
+- Breakpoint location (file line 2 = BASIC line 20 for the shipped fixture), the
+  fact that the session stopped there, and the line F10 stepped to.
+
+---
+
+## 13. Verification record (2026-10-22)
+
+This runbook was executed end to end at commit `d7536e1` on Debian 13 (trixie),
+arm64, with VS Code 1.142.0, CMake 3.31.6, g++ 14.2.0, SDL2 2.32.4 and Node
+24.22.1. No C++ sources or CMake files were changed for the verification.
+
+| Check | Observed |
+| --- | --- |
+| Configure `build-sdl` with `NEWBASIC_WINDOW_SDL=ON` | success |
+| `test -x build-sdl/src/newbasic-dap/newbasic-dap` | `adapter OK` |
+| `tests/dap_smoke.cmake` | `newbasic-dap smoke test passed` |
+| `ctest --test-dir build-sdl` | 7/7 passed, 0 failed |
+| `build-sdl/tests/newbasic-tests` | 385 cases, 31,275 assertions |
+| `code --list-extensions --show-versions` | `newbasic.newbasic-debug@0.1.0` |
+| Breakpoint on file line 2 (BASIC line 20) | verified; stopped at line 20 |
+| F10 / step over | stopped at BASIC line 30 (file line 3) |
+| `newbasic` window | `HELLO FROM NEWBASIC`, then `5  10` |
+
+The first attempt used gutter row 20 (the BASIC line number, not the file line).
+The adapter returned `verified: false`, and the session ran to completion and
+terminated immediately. Moving the breakpoint to file line 2 produced
+`verified: true` and the expected stop. This is the most likely failure mode for
+older notes that say `line 20`.
+
+The Output → newbasic channel showed:
+
+```text
+newbasic debugger on linux/arm64, VS Code 1.142.0
+registered debug configuration provider and adapter factory
+launch: type=newbasic program=/home/.../fixtures/m0/hello.bas cwd=/home/.../newbasic
+adapter: /home/.../newbasic/build-sdl/src/newbasic-dap/newbasic-dap args=[] cwd=/home/.../newbasic
+```
+
+### Scripted or headless verification
+
+If no interactive input is available, these techniques drive the same installed
+extension and adapter without modifying the repository:
+
+- Load a temporary extension with `--extensionDevelopmentPath`; it can call
+  `vscode.debug.startDebugging`, add a `vscode.SourceBreakpoint`, and run
+  `workbench.action.debug.stepOver` (the F10 command).
+- Register a `vscode.debug.registerDebugAdapterTrackerFactory('newbasic', ...)`
+  tracker to record the `setBreakpoints` response (`verified: true`), `stopped`
+  events, and the `stackTrace` line for each stop.
+- Under Wayland the adapter window's app id is `newbasic-dap` and its title is
+  `newbasic`; match the app id when focusing it for screenshots.
+- To reveal Output → newbasic without a pointer, attempt a launch with a missing
+  `program`. The extension logs `program not found` and calls
+  `output.show(true)`, exposing the channel with the earlier session lines. That
+  deliberate error is the final line, not part of a healthy session.
