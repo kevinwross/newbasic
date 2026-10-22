@@ -2,8 +2,8 @@
 
 A thin extension that lets VS Code debug GW-BASIC programs with the `newbasic` interpreter. It adds
 the `newbasic` debug type; when a session starts it runs `newbasic-dap.exe`, which speaks the Debug
-Adapter Protocol over stdin/stdout. Breakpoints, stepping, variable inspection and reverse debugging
-(`stepBack`, `reverseContinue`) all come from the adapter - see `docs/m5-dap-debugger.md`.
+Adapter Protocol over stdin/stdout. Breakpoints, stepping, pause, variable inspection and reverse
+debugging (`stepBack`, `reverseContinue`) all come from the adapter - see `docs/m5-dap-debugger.md`.
 
 ## Before you start
 
@@ -72,8 +72,9 @@ screen contents, so the window keeps showing the later frame after a rewind.
 
 ## What it does not do
 
-- **No pause button.** The adapter cannot be interrupted mid-run, so `continue` runs to the next
-  breakpoint or the end. Set a breakpoint instead.
+- **Pause cannot interrupt a blocking statement.** While a program is running the toolbar's main
+  button becomes Pause, and clicking it stops at the next instruction. `INPUT`, `SHELL` and other
+  synchronous host calls keep the adapter inside that instruction until they return.
 - A program is a single thread, so there is one thread and one stack frame in the UI.
 - Arrays appear as a single variable per array; individual elements are not expanded in the
   variables view (they are available through the adapter's `variables` request for arrays).

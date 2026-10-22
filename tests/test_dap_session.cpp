@@ -69,10 +69,13 @@ TEST_CASE("DAP session: a full handshake over framed streams", "[dap]") {
   const Json breakpoints = BodyOf(ReadFrame(out));
   CHECK(breakpoints.Find("command")->AsString() == "setBreakpoints");
 
-  // configurationDone produces its response and then a stopped event, both
-  // framed on the same stream and in that order.
+  // configurationDone produces its response, a continued event, and then a
+  // stopped event, all framed on the same stream and in that order.
   const Json config = BodyOf(ReadFrame(out));
   CHECK(config.Find("command")->AsString() == "configurationDone");
+  const Json continued = BodyOf(ReadFrame(out));
+  CHECK(continued.Find("type")->AsString() == "event");
+  CHECK(continued.Find("event")->AsString() == "continued");
   const Json stopped = BodyOf(ReadFrame(out));
   CHECK(stopped.Find("type")->AsString() == "event");
   CHECK(stopped.Find("event")->AsString() == "stopped");
@@ -85,6 +88,38 @@ TEST_CASE("DAP session: a full handshake over framed streams", "[dap]") {
   const Frame end = ReadFrame(out);
   CHECK_FALSE(end.ok);
   CHECK(end.error == "eof");
+}
+
+TEST_CASE("DAP session: a pause request stops a running program", "[dap]") {
+  Adapter adapter;
+  std::stringstream in;
+  WriteFrame(in, "{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\"}");
+  WriteFrame(in, "{\"seq\":2,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                 "{\"programText\":\"10 FOR I=1 TO 1000000\\n20 NEXT I\\n30 END\\n\"}}");
+  WriteFrame(in, "{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
+  WriteFrame(in, "{\"seq\":4,\"type\":\"request\",\"command\":\"pause\",\"arguments\":"
+                 "{\"threadId\":1}}");
+  WriteFrame(in, "{\"seq\":5,\"type\":\"request\",\"command\":\"disconnect\"}");
+
+  std::stringstream out;
+  CHECK(adapter.session.Run(in, out) == 5);
+
+  bool paused = false;
+  for (;;) {
+    const Frame frame = ReadFrame(out);
+    if (!frame.ok)
+      break;
+    const Json message = BodyOf(frame);
+    const Json* type = message.Find("type");
+    const Json* event = message.Find("event");
+    if (type != nullptr && type->AsString() == "event" && event != nullptr &&
+        event->AsString() == "stopped") {
+      const Json* reason = message.Find("body")->Find("reason");
+      if (reason != nullptr && reason->AsString() == "pause")
+        paused = true;
+    }
+  }
+  CHECK(paused);
 }
 
 TEST_CASE("DAP session: malformed JSON is reported and the loop continues", "[dap]") {

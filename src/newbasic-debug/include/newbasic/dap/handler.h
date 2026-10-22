@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <fstream>
@@ -26,10 +27,21 @@ namespace newbasic::dap {
 // and the stdin/stdout loop on top.
 class Handler {
 public:
+  // What execution, if any, a request asks for. Session flushes the response
+  // and continued event before calling RunActionNow, so a client enters its
+  // running state before the VM blocks; tests can keep the old immediate
+  // behaviour by leaving run_immediately at its default.
+  enum class RunAction { None, Continue, StepLine, StepBack, ReverseContinue };
+
   Handler(Vm& vm, debug::Debugger& debugger) : vm_(vm), debugger_(debugger) {}
 
-  // Handles one request; appends responses/events to `outgoing`.
-  void Handle(const Json& request, std::vector<Json>* outgoing) {
+  void SetPauseFlag(std::atomic<bool>* flag) { debugger_.SetPauseFlag(flag); }
+
+  // Handles one request; appends responses/events to `outgoing`. When
+  // run_immediately is false, a run/step action is returned to the caller
+  // instead of being executed here.
+  RunAction Handle(const Json& request, std::vector<Json>* outgoing,
+                   bool run_immediately = true) {
     const std::string command = String(request, "command");
     const Json* arguments = request.Find("arguments");
     if (command == "initialize") {
@@ -43,7 +55,7 @@ public:
       // DAP requires this event after the initialize response. Clients such as
       // VS Code wait for it before sending breakpoints and configurationDone.
       outgoing->push_back(Event("initialized"));
-      return;
+      return RunAction::None;
     }
     if (command == "launch" || command == "attach") {
       ResetLineMap();
@@ -52,7 +64,7 @@ public:
         const std::string path = String(*arguments, "program");
         if (!text.empty()) {
           LoadSource(text, outgoing);
-          return;
+          return RunAction::None;
         }
         if (!path.empty()) {
           const std::string source = ReadFile(path);
@@ -60,13 +72,13 @@ public:
           std::string error;
           if (!LineStore::ParseTextBas(source, &store, &error)) {
             Fail(request, error, outgoing);
-            return;
+            return RunAction::None;
           }
           Program program;
           CompileError compile_error;
           if (!Compile(store, &program, &compile_error)) {
             Fail(request, compile_error.message, outgoing);
-            return;
+            return RunAction::None;
           }
           debugger_.ClearBreakpoints();
           debugger_.ClearHistory(); // a new program invalidates recorded history
@@ -74,11 +86,11 @@ public:
           BuildLineMap(source);
           source_path_ = path;
           Respond(request, Json::Object(), outgoing);
-          return;
+          return RunAction::None;
         }
       }
       Respond(request, Json::Object(), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "setBreakpoints") {
       debugger_.ClearBreakpoints();
@@ -114,26 +126,41 @@ public:
       }
       body.Set("breakpoints", std::move(verified));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "configurationDone" || command == "continue") {
       Respond(request, Json::Object(), outgoing);
-      RunAndReport(outgoing);
-      return;
+      PushContinued(outgoing);
+      if (run_immediately)
+        RunAndReport(outgoing);
+      return RunAction::Continue;
     }
     if (command == "next" || command == "stepIn" || command == "stepOver") {
       Respond(request, Json::Object(), outgoing);
-      ReportStop(debugger_.StepLine(), "step", outgoing);
-      return;
+      PushContinued(outgoing);
+      if (run_immediately)
+        ReportStop(debugger_.StepLine(), "step", outgoing);
+      return RunAction::StepLine;
     }
     if (command == "stepBack" || command == "reverseContinue") {
       // Time travel (M7): the debugger keeps a bounded ring of snapshots taken
       // at line boundaries, so these walk back through recorded history.
       Respond(request, Json::Object(), outgoing);
-      const debug::StopState state =
-          command == "stepBack" ? debugger_.StepBack() : debugger_.ReverseContinue();
-      ReportStop(state, "step", outgoing);
-      return;
+      PushContinued(outgoing);
+      if (run_immediately) {
+        const debug::StopState state =
+            command == "stepBack" ? debugger_.StepBack() : debugger_.ReverseContinue();
+        ReportStop(state, "step", outgoing);
+      }
+      return command == "stepBack" ? RunAction::StepBack : RunAction::ReverseContinue;
+    }
+    if (command == "pause") {
+      // The reader thread has already set the debugger's pause flag; this is
+      // the acknowledgement. The stopped event follows when Continue notices it.
+      // A pause received while stopped must not stop the next Continue.
+      debugger_.ClearPause();
+      Respond(request, Json::Object(), outgoing);
+      return RunAction::None;
     }
     if (command == "threads") {
       Json body = Json::Object();
@@ -144,7 +171,7 @@ public:
       threads.Push(std::move(thread));
       body.Set("threads", std::move(threads));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "stackTrace") {
       Json body = Json::Object();
@@ -173,7 +200,7 @@ public:
       body.Set("stackFrames", std::move(frames));
       body.Set("totalFrames", Json::Number(id));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "scopes") {
       Json body = Json::Object();
@@ -185,7 +212,7 @@ public:
       scopes.Push(std::move(locals));
       body.Set("scopes", std::move(scopes));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "variables") {
       Json body = Json::Object();
@@ -202,7 +229,7 @@ public:
       }
       body.Set("variables", std::move(variables));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "evaluate") {
       const std::string expression =
@@ -211,19 +238,42 @@ public:
       const std::optional<Value> value = debugger_.Variable(expression);
       if (!value.has_value()) {
         Fail(request, "No such variable: " + expression, outgoing);
-        return;
+        return RunAction::None;
       }
       Json body = Json::Object();
       body.Set("result", Json::Str(FormatValue(*value)));
       body.Set("variablesReference", Json::Number(0));
       Respond(request, std::move(body), outgoing);
-      return;
+      return RunAction::None;
     }
     if (command == "disconnect" || command == "terminate") {
       Respond(request, Json::Object(), outgoing);
-      return;
+      return RunAction::None;
     }
     Fail(request, "Unsupported request: " + command, outgoing);
+    return RunAction::None;
+  }
+
+  // Executes the action a deferred request asked for. Session calls this after
+  // it has written the response and continued event, so the client sees the
+  // session enter its running state before the VM blocks.
+  void RunActionNow(RunAction action, std::vector<Json>* outgoing) {
+    switch (action) {
+    case RunAction::None:
+      return;
+    case RunAction::Continue:
+      RunAndReport(outgoing);
+      return;
+    case RunAction::StepLine:
+      ReportStop(debugger_.StepLine(), "step", outgoing);
+      return;
+    case RunAction::StepBack:
+      ReportStop(debugger_.StepBack(), "step", outgoing);
+      return;
+    case RunAction::ReverseContinue:
+      ReportStop(debugger_.ReverseContinue(), "step", outgoing);
+      return;
+    }
   }
 
 private:
@@ -360,6 +410,15 @@ private:
     ReportStop(debugger_.Continue(), "breakpoint", outgoing);
   }
 
+  void PushContinued(std::vector<Json>* outgoing) {
+    Json event = Event("continued");
+    Json body = Json::Object();
+    body.Set("threadId", Json::Number(1));
+    body.Set("allThreadsContinued", Json::Bool(true));
+    event.Set("body", std::move(body));
+    outgoing->push_back(std::move(event));
+  }
+
   void ReportStop(const debug::StopState& state, const char* step_reason,
                   std::vector<Json>* outgoing) {
     if (state.reason == debug::StopReason::ProgramEnd) {
@@ -374,6 +433,8 @@ private:
     const char* reason = state.reason == debug::StopReason::Error ? "exception" : step_reason;
     if (state.reason == debug::StopReason::Breakpoint)
       reason = "breakpoint";
+    else if (state.reason == debug::StopReason::Pause)
+      reason = "pause";
     body.Set("reason", Json::Str(reason));
     body.Set("threadId", Json::Number(1));
     body.Set("allThreadsStopped", Json::Bool(true));

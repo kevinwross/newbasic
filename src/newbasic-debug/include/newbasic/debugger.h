@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <map>
 #include <optional>
 #include <set>
@@ -13,7 +14,7 @@
 namespace newbasic::debug {
 
 // Why the debugger stopped.
-enum class StopReason { None, Step, Breakpoint, ProgramEnd, Error };
+enum class StopReason { None, Step, Breakpoint, Pause, ProgramEnd, Error };
 
 struct StopState {
   StopReason reason = StopReason::None;
@@ -71,6 +72,16 @@ public:
   }
 
   // --- execution ---
+  // Optional asynchronous pause request. The DAP reader thread sets the flag;
+  // Continue consumes it and stops at the next instruction, like a one-shot
+  // breakpoint. The debugger never touches the flag memory itself.
+  void SetPauseFlag(std::atomic<bool>* flag) { pause_requested_ = flag; }
+  // Drops a pause that arrived while the VM was already stopped, so it does not
+  // stop the next Continue immediately.
+  void ClearPause() {
+    if (pause_requested_ != nullptr)
+      pause_requested_->store(false);
+  }
   // Runs until a breakpoint, an error or the end of the program.
   StopState Continue();
   // Executes a single instruction.
@@ -134,6 +145,7 @@ private:
   Vm& vm_;
   std::set<int> breakpoints_;
   std::map<int, std::string> conditions_;
+  std::atomic<bool>* pause_requested_ = nullptr; // set by the DAP reader thread
   int resume_line_ = 0; // line of the last reported breakpoint stop
   std::vector<Vm::Snapshot> history_;
   std::size_t history_limit_ = 500;

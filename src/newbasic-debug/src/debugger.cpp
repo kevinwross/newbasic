@@ -62,6 +62,17 @@ StopState Debugger::Continue() {
   int skip_line = resume_line_;
   resume_line_ = 0;
   for (;;) {
+    // A pause is a one-shot breakpoint at the current instruction. Consume the
+    // flag here, on the thread that owns the VM, so the reader thread never
+    // touches debugger state.
+    if (pause_requested_ != nullptr && pause_requested_->exchange(false)) {
+      const int line = CurrentLine();
+      resume_line_ = line;
+      StopState paused = StateFor(StopReason::Pause);
+      paused.line = line;
+      vm_.PresentNow();
+      return paused;
+    }
     const StopState state = StepInstruction();
     if (state.AtEnd()) {
       vm_.PresentNow();

@@ -1,6 +1,7 @@
 // M5: DAP request dispatcher driven without stdio.
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -104,9 +105,10 @@ TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {
   CHECK(outgoing[0].Find("body")->Find("threads")->Items()[0].Find("id")->AsNumber() == 1.0);
 
   outgoing = adapter.Request("{\"seq\":4,\"type\":\"request\",\"command\":\"configurationDone\"}");
-  // Response then a stopped event on the breakpoint line.
-  REQUIRE(outgoing.size() == 2);
+  // Response, continued event, then a stopped event on the breakpoint line.
+  REQUIRE(outgoing.size() == 3);
   CHECK(outgoing[0].Find("success")->AsBool());
+  CHECK(outgoing[1].Find("event")->AsString() == "continued");
   const Json* stopped = FirstEvent(outgoing, "stopped");
   REQUIRE(stopped != nullptr);
   CHECK(stopped->Find("body")->Find("reason")->AsString() == "breakpoint");
@@ -149,6 +151,19 @@ TEST_CASE("DAP: conditional breakpoints", "[dap]") {
   REQUIRE(stopped != nullptr);
   CHECK(stopped->Find("body")->Find("line")->AsNumber() == 2.0);
   CHECK(adapter.debugger.Variable("I")->AsNumber() == 4.0);
+}
+
+TEST_CASE("DAP: a pause request stops the running program", "[dap]") {
+  Adapter adapter;
+  std::atomic<bool> pause{true};
+  adapter.handler.SetPauseFlag(&pause);
+  adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 A=A+1\\n20 END\\n\"}}");
+  const std::vector<Json> run =
+      adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"configurationDone\"}");
+  const Json* stopped = FirstEvent(run, "stopped");
+  REQUIRE(stopped != nullptr);
+  CHECK(stopped->Find("body")->Find("reason")->AsString() == "pause");
 }
 
 TEST_CASE("DAP: evaluate reads a variable and rejects an unknown one", "[dap]") {

@@ -1,9 +1,14 @@
 #pragma once
 
+#include <atomic>
+#include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <istream>
+#include <mutex>
 #include <ostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "newbasic/dap/framing.h"
@@ -23,15 +28,69 @@ public:
   // Runs until end of input, returning the number of requests handled.
   std::size_t Run(std::istream& in, std::ostream& out) {
     std::size_t handled = 0;
+    pause_requested_.store(false);
+    handler_.SetPauseFlag(&pause_requested_);
+
+    // Input runs on a reader thread so a pause can arrive while Continue() is
+    // executing. The reader never touches the VM, debugger or output stream: it
+    // parses commands only to set the pause flag, then queues the frame for the
+    // main thread.
+    std::mutex queue_mutex;
+    std::condition_variable queue_cv;
+    std::deque<Frame> queue;
+    bool eof = false;
+    std::thread reader([&] {
+      for (;;) {
+        Frame frame = ReadFrame(in);
+        if (!frame.ok && frame.error == "eof") {
+          std::lock_guard<std::mutex> lock(queue_mutex);
+          eof = true;
+          queue_cv.notify_one();
+          return;
+        }
+        if (frame.ok) {
+          Json request;
+          std::string error;
+          if (Json::Parse(frame.body, &request, &error)) {
+            const Json* command = request.Find("command");
+            if (command != nullptr && command->IsString() &&
+                command->AsString() == "pause") {
+              pause_requested_.store(true);
+            }
+          }
+        }
+        const bool frame_ok = frame.ok;
+        {
+          std::lock_guard<std::mutex> lock(queue_mutex);
+          queue.push_back(std::move(frame));
+          queue_cv.notify_one();
+        }
+        if (!frame_ok) {
+          // Malformed framing: the main thread reports it and stops, so no
+          // further input is expected.
+          std::lock_guard<std::mutex> lock(queue_mutex);
+          eof = true;
+          queue_cv.notify_one();
+          return;
+        }
+      }
+    });
+
     for (;;) {
-      const Frame frame = ReadFrame(in);
+      Frame frame;
+      {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        queue_cv.wait(lock, [&] { return !queue.empty() || eof; });
+        if (queue.empty() && eof)
+          break;
+        frame = std::move(queue.front());
+        queue.pop_front();
+      }
       if (!frame.ok) {
-        if (frame.error == "eof")
-          return handled;
         // The framing is broken, so the stream position is unknown: report
         // and stop rather than emit garbage forever.
         WriteFrame(out, ErrorResponse("", "framing error: " + frame.error).Dump());
-        return handled;
+        break;
       }
       Json request;
       std::string error;
@@ -41,12 +100,25 @@ public:
         continue;
       }
       std::vector<Json> outgoing;
-      handler_.Handle(request, &outgoing);
+      const Handler::RunAction action = handler_.Handle(request, &outgoing, false);
       for (const Json& message : outgoing) {
         WriteFrame(out, message.Dump());
       }
+      if (action != Handler::RunAction::None) {
+        // The response and continued event are on the wire before this blocks;
+        // the reader thread can now raise pause while the VM runs.
+        std::vector<Json> after;
+        handler_.RunActionNow(action, &after);
+        for (const Json& message : after) {
+          WriteFrame(out, message.Dump());
+        }
+      }
       ++handled;
     }
+
+    if (reader.joinable())
+      reader.join();
+    return handled;
   }
 
 private:
@@ -65,6 +137,7 @@ private:
 
   Handler handler_;
   double seq_ = 1;
+  std::atomic<bool> pause_requested_{false};
 };
 
 } // namespace newbasic::dap
