@@ -133,10 +133,11 @@ needs a small extension that registers the type and forwards to the port.
   every line boundary.
 - **Set Variable is scalar-only.** The Variables view can edit existing scalar Locals. Numbers are
   parsed according to the variable's type suffix (`%`, `&`, `!`, `#`); strings accept both quoted
-  and unquoted text. Arrays cannot be expanded or edited.
-- **Arrays are summary-only in the DAP Variables view.** Each `DIM`'d array appears as one row
-  showing its bounds and element count, such as `ARRAY(0..20)  21 elements`. Individual elements are
-  not expanded or editable, though the debugger library exposes them to other callers.
+  and unquoted text. Array elements are read-only.
+- **Arrays are expandable in the DAP Variables view.** Each `DIM`'d array appears as one summary
+  row showing its bounds and element count, and expands into numbered element rows such as
+  `ACCOUNTNUMBER!(0)`. Elements are read-only. Very large arrays are capped at 1,000 displayed
+  elements to keep the client responsive.
 - **No disassembly or memory requests.** The plan lists both; neither is exposed. Memory is
   consistent with the M13 decision to have no machine model.
 - **`terminate` is not supported** (`supportsTerminateRequest` is false); use `disconnect`.

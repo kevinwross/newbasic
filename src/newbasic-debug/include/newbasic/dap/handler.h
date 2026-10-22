@@ -230,27 +230,40 @@ public:
       return RunAction::None;
     }
     if (command == "variables") {
+      const int reference = arguments == nullptr
+                                ? 1
+                                : static_cast<int>(Number(*arguments, "variablesReference"));
       Json body = Json::Object();
       Json variables = Json::Array();
-      for (const std::string& name : debugger_.VariableNames()) {
-        const std::optional<Value> value = debugger_.Variable(name);
-        if (!value.has_value())
-          continue;
-        Json item = Json::Object();
-        item.Set("name", Json::Str(name));
-        item.Set("value", Json::Str(FormatValue(*value)));
-        item.Set("variablesReference", Json::Number(0));
-        variables.Push(std::move(item));
-      }
-      // Arrays live in a separate VM table; show them as summary rows so a
-      // DIM'd array is visible even though individual elements are not expanded.
-      for (const Vm::ArrayInfo& array : debugger_.Arrays()) {
-        Json item = Json::Object();
-        item.Set("name", Json::Str(array.name));
-        item.Set("value", Json::Str(FormatArray(array)));
-        item.Set("type", Json::Str("array"));
-        item.Set("variablesReference", Json::Number(0));
-        variables.Push(std::move(item));
+      const std::vector<Vm::ArrayInfo> arrays = debugger_.Arrays();
+      if (reference >= kArrayReferenceBase) {
+        const std::size_t index = static_cast<std::size_t>(reference - kArrayReferenceBase);
+        if (index < arrays.size())
+          AppendArrayElements(arrays[index], &variables);
+      } else {
+        for (const std::string& name : debugger_.VariableNames()) {
+          const std::optional<Value> value = debugger_.Variable(name);
+          if (!value.has_value())
+            continue;
+          Json item = Json::Object();
+          item.Set("name", Json::Str(name));
+          item.Set("value", Json::Str(FormatValue(*value)));
+          item.Set("variablesReference", Json::Number(0));
+          variables.Push(std::move(item));
+        }
+        // Arrays are a separate VM table. Give each summary row a child
+        // reference so the client can expand it into individual elements.
+        for (std::size_t i = 0; i < arrays.size(); ++i) {
+          const Vm::ArrayInfo& array = arrays[i];
+          Json item = Json::Object();
+          item.Set("name", Json::Str(array.name));
+          item.Set("value", Json::Str(FormatArray(array)));
+          item.Set("type", Json::Str("array"));
+          item.Set("variablesReference",
+                   Json::Number(kArrayReferenceBase + static_cast<int>(i)));
+          item.Set("indexedVariables", Json::Number(static_cast<int>(array.elements)));
+          variables.Push(std::move(item));
+        }
       }
       body.Set("variables", std::move(variables));
       Respond(request, std::move(body), outgoing);
@@ -347,6 +360,9 @@ public:
   }
 
 private:
+  static constexpr int kArrayReferenceBase = 1000;
+  static constexpr std::size_t kMaxArrayElements = 1000;
+
   static std::string String(const Json& object, const char* key) {
     const Json* value = object.Find(key);
     return value != nullptr && value->IsString() ? value->AsString() : std::string();
@@ -371,6 +387,49 @@ private:
     }
     text << ")  " << array.elements << " elements";
     return text.str();
+  }
+
+  void AppendArrayElements(const Vm::ArrayInfo& array, Json* variables) {
+    if (array.dims.empty())
+      return;
+    const std::size_t limit = array.elements < kMaxArrayElements ? array.elements
+                                                                 : kMaxArrayElements;
+    std::vector<int> subscripts(array.dims.size(), array.base);
+    for (std::size_t flat = 0; flat < limit; ++flat) {
+      std::size_t remaining = flat;
+      for (std::size_t i = array.dims.size(); i-- > 0;) {
+        const int extent = array.dims[i] - array.base + 1;
+        if (extent <= 0)
+          return;
+        subscripts[i] =
+            array.base + static_cast<int>(remaining % static_cast<std::size_t>(extent));
+        remaining /= static_cast<std::size_t>(extent);
+      }
+      const std::optional<Value> value = debugger_.ArrayElement(array.name, subscripts);
+      if (!value.has_value())
+        continue;
+      std::ostringstream name;
+      name << array.name << "(";
+      for (std::size_t i = 0; i < subscripts.size(); ++i) {
+        if (i != 0)
+          name << ",";
+        name << subscripts[i];
+      }
+      name << ")";
+      Json item = Json::Object();
+      item.Set("name", Json::Str(name.str()));
+      item.Set("value", Json::Str(FormatValue(*value)));
+      item.Set("variablesReference", Json::Number(0));
+      variables->Push(std::move(item));
+    }
+    if (array.elements > limit) {
+      Json item = Json::Object();
+      item.Set("name", Json::Str(array.name + "(...)"));
+      item.Set("value", Json::Str("... " + std::to_string(array.elements - limit) +
+                                  " more elements"));
+      item.Set("variablesReference", Json::Number(0));
+      variables->Push(std::move(item));
+    }
   }
 
   static std::string FormatValue(const Value& value) {

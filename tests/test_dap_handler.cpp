@@ -136,10 +136,11 @@ TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {
   CHECK(FirstEvent(outgoing, "terminated") != nullptr);
 }
 
-TEST_CASE("DAP: arrays appear in Variables", "[dap]") {
+TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
   Adapter adapter;
   adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
-                  "{\"programText\":\"10 DIM Numbers(2,3), Names$(2)\\n20 A=1\\n30 END\\n\"}}");
+                  "{\"programText\":\"10 DIM Numbers(2,3), Names$(2)\\n"
+                  "20 A=1 : Numbers(0,0)=42 : Names$(1)=\\\"A\\\"\\n30 END\\n\"}}");
   adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
                   "\"arguments\":{\"breakpoints\":[{\"line\":3}]}}");
   adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
@@ -149,24 +150,49 @@ TEST_CASE("DAP: arrays appear in Variables", "[dap]") {
   const Json* variables = outgoing[0].Find("body")->Find("variables");
   REQUIRE(variables->Size() == 3); // A!, Numbers!, Names$
 
-  bool found_numbers = false;
-  bool found_names = false;
+  int numbers_reference = 0;
+  int names_reference = 0;
   for (const Json& item : variables->Items()) {
     const std::string name = item.Find("name")->AsString();
     if (name == "NUMBERS!") {
-      found_numbers = true;
       CHECK(item.Find("value")->AsString().find("ARRAY(0..2, 0..3)") != std::string::npos);
       CHECK(item.Find("value")->AsString().find("12 elements") != std::string::npos);
-      CHECK(item.Find("variablesReference")->AsNumber() == 0.0);
+      numbers_reference = static_cast<int>(item.Find("variablesReference")->AsNumber());
+      CHECK(numbers_reference > 0);
     }
     if (name == "NAMES$") {
-      found_names = true;
       CHECK(item.Find("value")->AsString().find("ARRAY(0..2)") != std::string::npos);
       CHECK(item.Find("value")->AsString().find("3 elements") != std::string::npos);
+      names_reference = static_cast<int>(item.Find("variablesReference")->AsNumber());
+      CHECK(names_reference > 0);
     }
   }
-  CHECK(found_numbers);
-  CHECK(found_names);
+  REQUIRE(numbers_reference > 0);
+  REQUIRE(names_reference > 0);
+
+  const std::string numbers_request =
+      "{\"seq\":5,\"type\":\"request\",\"command\":\"variables\",\"arguments\":"
+      "{\"variablesReference\":" + std::to_string(numbers_reference) + "}}";
+  const std::vector<Json> numbers = adapter.Request(numbers_request);
+  const Json* number_items = numbers[0].Find("body")->Find("variables");
+  REQUIRE(number_items->Size() == 12);
+  CHECK(number_items->Items()[0].Find("name")->AsString() == "NUMBERS!(0,0)");
+  CHECK(number_items->Items()[0].Find("value")->AsString() == "42");
+
+  const std::string names_request =
+      "{\"seq\":6,\"type\":\"request\",\"command\":\"variables\",\"arguments\":"
+      "{\"variablesReference\":" + std::to_string(names_reference) + "}}";
+  const std::vector<Json> names = adapter.Request(names_request);
+  const Json* name_items = names[0].Find("body")->Find("variables");
+  REQUIRE(name_items->Size() == 3);
+  bool found_name = false;
+  for (const Json& item : name_items->Items()) {
+    if (item.Find("name")->AsString() == "NAMES$(1)") {
+      found_name = true;
+      CHECK(item.Find("value")->AsString() == "\"A\"");
+    }
+  }
+  CHECK(found_name);
 }
 
 TEST_CASE("DAP: conditional breakpoints", "[dap]") {
