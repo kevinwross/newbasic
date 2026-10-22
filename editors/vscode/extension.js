@@ -40,8 +40,21 @@ class AdapterFactory {
       args.push('--nowindow');
     if (history === true)
       args.push('--history');
+    // Relative paths in the BASIC program (for example samples\accounting.dat)
+    // must resolve from the workspace, not from the adapter executable's folder.
+    const active = vscode.window.activeTextEditor;
+    const activeFolder = active ? vscode.workspace.getWorkspaceFolder(active.document.uri) : undefined;
+    const firstFolder =
+      vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+        ? vscode.workspace.workspaceFolders[0]
+        : undefined;
+    const workingDirectory = activeFolder
+      ? activeFolder.uri.fsPath
+      : firstFolder
+        ? firstFolder.uri.fsPath
+        : path.dirname(command);
     return new vscode.DebugAdapterExecutable(command, args, {
-      cwd: path.dirname(command),
+      cwd: workingDirectory,
     });
   }
 }

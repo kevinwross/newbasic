@@ -63,6 +63,16 @@ TEST_CASE("Sequential files: APPEND and the short OPEN form", "[fileio]") {
   std::remove(kFile);
 }
 
+TEST_CASE("Sequential files: APPEND creates a missing file", "[fileio]") {
+  std::remove(kFile);
+  lwtest::RunRows("10 OPEN \"" + Path() +
+                  "\" FOR APPEND AS #1\n"
+                  "20 PRINT #1, \"CREATED\"\n"
+                  "30 CLOSE #1\n");
+  CHECK(ReadAll(kFile) == "CREATED\r\n");
+  std::remove(kFile);
+}
+
 TEST_CASE("Sequential files: multiple items and zones", "[fileio]") {
   std::remove(kFile);
   lwtest::RunRows("10 OPEN \"" + Path() +

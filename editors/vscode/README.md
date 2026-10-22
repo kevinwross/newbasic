@@ -68,6 +68,10 @@ SDL2 on Linux), so `PRINT`, `CLS`, `LOCATE`, `SCREEN`, `PSET`, `LINE`, `CIRCLE`,
 to run headless; `INPUT`/`INKEY$` are not usable in that mode. On Linux a window requires SDL2 and a
 display; if either is unavailable the adapter falls back to a headless screen.
 
+The adapter runs with the active workspace folder as its working directory, so relative program paths
+such as `samples\accounting.dat` resolve from the repository root, not from the adapter executable's
+folder. When there is no active editor it uses the first workspace folder, then the adapter directory.
+
 Rewinding with `stepBack`/`reverseContinue` restores variables and the program counter, but not the
 screen contents, so the window keeps showing the later frame after a rewind. Reverse debugging is
 opt-in: set `newbasic.history` to `true`, because snapshots cost a full VM copy per line.

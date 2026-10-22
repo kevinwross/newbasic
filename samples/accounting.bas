@@ -15,8 +15,10 @@
 96 AmountReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##"
 97 JournalReportFormat$ = "  !  \" + SPACE$(8) + "\  \" + SPACE$(8) + "\  \" + SPACE$(20) + "\  ####/####  ####,###.##"
 98 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
+93 ON ERROR GOTO 5270
 99 GOSUB 5000
 100 GOSUB 5100
+105 ON ERROR GOTO 0
 110 GOSUB 200
 120 END
 200 REM ---- MAIN MENU ------------------------------------------------
@@ -355,6 +357,13 @@
 5245 END
 5250 CLOSE #1
 5260 RETURN
+5270 REM ---- STARTUP FILE ERROR ---------------------------------------
+5275 CLS
+5280 PRINT "CANNOT OPEN THE JOURNAL DATA FILE."
+5285 PRINT "FILE: "; DataFilePath$
+5290 PRINT "ERROR"; ERR; " IN LINE"; ERL
+5292 PRINT "RUN FROM THE REPOSITORY ROOT, OR CREATE THE SAMPLES DIRECTORY."
+5295 END
 5300 REM ---- APPEND THE CURRENT ENTRY TO THE JOURNAL FILE -------------
 5310 DataLine$ = MID$(STR$(JournalEntryType(JournalEntryCount)), 2) + "|" + JournalReference$(JournalEntryCount) + "|" + JournalDate$(JournalEntryCount) + "|" + JournalDescription$(JournalEntryCount) + "|" + MID$(STR$(JournalDebitAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalCreditAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalAmount(JournalEntryCount)), 2)
 5320 OPEN DataFilePath$ FOR APPEND AS #1
