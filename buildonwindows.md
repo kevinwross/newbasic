@@ -363,7 +363,7 @@ To see the Catch2 count directly:
 On this machine it reported:
 
 ```text
-All tests passed (31258 assertions in 383 test cases)
+All tests passed (31266 assertions in 384 test cases)
 ```
 
 The exact count is a snapshot; a different platform, compiler or a newly added
@@ -855,8 +855,8 @@ Measured on 2026-10-21 on the machine described in section 3.
 |---|---|---|
 | Configure | `cmake -S . -B build-vs2026 -G "Visual Studio 18 2026" -A x64` | exit 0; MSVC 19.51.36260.0; Windows SDK 10.0.26100.0; 3.9 s |
 | Clean build | `cmake --build build-vs2026 --config Release --parallel` | exit 0 from an empty build directory; all targets linked |
-| CTest | `ctest --test-dir build-vs2026 --build-config Release --timeout 180 --output-on-failure` | 7/7 passed, 0 failed, 2.40 s |
-| Catch2 suite | `build-vs2026\tests\Release\newbasic-tests.exe` | 31,258 assertions in 383 test cases, all passed |
+| CTest | `ctest --test-dir build-vs2026 --build-config Release --timeout 180 --output-on-failure` | 7/7 passed, 0 failed, 2.44 s |
+| Catch2 suite | `build-vs2026\tests\Release\newbasic-tests.exe` | 31,266 assertions in 384 test cases, all passed |
 | Headless CLI | `newbasic.exe --gpu-shot build-vs2026\hello.ppm --cli fixtures\m0\hello.bas` | exit 0; `P6`, 768,015 bytes |
 | Benchmark | `newbasic.exe --bench` | all four cases completed |
 | D3D11 readback | `newbasic.exe --gpu-check` | `PASS`; centre `170,0,0`, corner `0,0,0` |

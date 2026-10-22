@@ -92,6 +92,7 @@ public:
           }
           debugger_.ClearBreakpoints();
           debugger_.ClearHistory(); // a new program invalidates recorded history
+          vm_.Reset();              // do not carry variables/arrays into a new launch
           vm_.Load(std::move(program));
           BuildLineMap(source);
           source_path_ = path;
@@ -241,6 +242,16 @@ public:
         item.Set("variablesReference", Json::Number(0));
         variables.Push(std::move(item));
       }
+      // Arrays live in a separate VM table; show them as summary rows so a
+      // DIM'd array is visible even though individual elements are not expanded.
+      for (const Vm::ArrayInfo& array : debugger_.Arrays()) {
+        Json item = Json::Object();
+        item.Set("name", Json::Str(array.name));
+        item.Set("value", Json::Str(FormatArray(array)));
+        item.Set("type", Json::Str("array"));
+        item.Set("variablesReference", Json::Number(0));
+        variables.Push(std::move(item));
+      }
       body.Set("variables", std::move(variables));
       Respond(request, std::move(body), outgoing);
       return RunAction::None;
@@ -348,6 +359,18 @@ private:
     std::ostringstream buffer;
     buffer << in.rdbuf();
     return buffer.str();
+  }
+
+  static std::string FormatArray(const Vm::ArrayInfo& array) {
+    std::ostringstream text;
+    text << "ARRAY(";
+    for (std::size_t i = 0; i < array.dims.size(); ++i) {
+      if (i != 0)
+        text << ", ";
+      text << array.base << ".." << array.dims[i];
+    }
+    text << ")  " << array.elements << " elements";
+    return text.str();
   }
 
   static std::string FormatValue(const Value& value) {
@@ -480,6 +503,7 @@ private:
     }
     debugger_.ClearBreakpoints();
     debugger_.ClearHistory(); // a new program invalidates recorded history
+    vm_.Reset();              // do not carry variables/arrays into a new launch
     vm_.Load(std::move(program));
     BuildLineMap(text);
     source_path_.clear();

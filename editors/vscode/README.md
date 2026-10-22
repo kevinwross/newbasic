@@ -84,5 +84,5 @@ unquoted text. Arrays are not expandable or editable.
   button becomes Pause, and clicking it stops at the next instruction. `INPUT`, `SHELL` and other
   synchronous host calls keep the adapter inside that instruction until they return.
 - A program is a single thread, so there is one thread and one stack frame in the UI.
-- Arrays appear as a single variable per array; individual elements are not expanded in the
-  variables view (they are available through the adapter's `variables` request for arrays).
+- Arrays appear as a single summary variable per array, such as `ARRAY(0..20)  21 elements`;
+  individual elements are not expanded or editable in the Variables view.
