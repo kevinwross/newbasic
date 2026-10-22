@@ -12,7 +12,15 @@
 
 namespace newbasic {
 
+bool SystemHost::CanRunInteractiveShell() const {
+  return GetConsoleWindow() != nullptr;
+}
+
 int SystemHost::RunShell(const std::string& command) {
+  // An empty SHELL needs a console to attach to. Without one, cmd.exe would
+  // wait for input that can never arrive.
+  if (command.empty() && !CanRunInteractiveShell())
+    return -1;
   std::wstring wide;
   if (!command.empty()) {
     const int needed = MultiByteToWideChar(CP_ACP, 0, command.c_str(),

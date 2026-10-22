@@ -161,6 +161,10 @@ TEST_CASE("Renderer: the window backend constructs and presents a frame", "[.gpu
     SUCCEED();
     return;
   }
+  // A window has no terminal for an interactive SHELL to attach to. The VM
+  // uses this to reject a bare SHELL instead of freezing on invisible input.
+  CHECK_FALSE(screen->CanRunInteractiveShell());
+
   // Draw something so the glyph path runs, then present once.
   screen->Clear();
   screen->WriteAtCursor(L"GPU PATH OK");

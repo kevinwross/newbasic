@@ -25,6 +25,10 @@ public:
     (void)command;
     return -1;
   }
+  // True when an empty SHELL (an interactive session) can attach to a
+  // terminal. Windowed/headless runs must return false here: spawning an
+  // interactive shell without a terminal leaves newbasic waiting forever.
+  virtual bool CanRunInteractiveShell() const { return true; }
   // Plays a tone (M7). frequency_hz 0 means silence for the duration. The base
   // host ignores this, so headless runs and tests stay silent.
   virtual void PlayTone(int frequency_hz, int duration_ms) {
@@ -43,6 +47,7 @@ public:
   std::string DateString() override;
   std::string TimeString() override;
   int RunShell(const std::string& command) override;
+  bool CanRunInteractiveShell() const override;
   void PlayTone(int frequency_hz, int duration_ms) override;
   // Appends to the file named by NEWBASIC_PRINTER, or newbasic.prn in the working
   // directory. GW-BASIC sends this to LPT1; a hosted interpreter cannot assume a

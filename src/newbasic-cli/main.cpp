@@ -76,7 +76,8 @@ void ProbeWindowPixel(newbasic::screen::WindowScreen* window) {
     std::fprintf(stderr, "newbasic: --gpu-pixel could not read %d,%d\n", x, y);
     return;
   }
-  std::fprintf(stderr, "newbasic: window pixel %d,%d = %d,%d,%d\n", x, y, rgba[0], rgba[1], rgba[2]);
+  std::fprintf(stderr, "newbasic: window pixel %d,%d = %d,%d,%d\n", x, y, rgba[0], rgba[1],
+               rgba[2]);
 }
 
 // Writes what the screen shows as a binary PPM: the graphics canvas with the text layer
@@ -294,7 +295,7 @@ void ReportResult(const newbasic::RunResult& result) {
     std::printf("Break in %d\n", result.line);
     break;
   case newbasic::RunResult::Status::Error:
-    std::printf("%s\n", newbasic::FormatError(result.code, result.line).c_str());
+    std::printf("%s\n", newbasic::FormatError(result.code, result.line, result.message).c_str());
     break;
   }
 }
@@ -322,7 +323,7 @@ int RunFile(const char* path) {
   newbasic::Program program;
   newbasic::CompileError cerr;
   if (!newbasic::Compile(store, &program, &cerr)) {
-    std::fprintf(stderr, "%s\n", newbasic::FormatError(cerr.code, cerr.line).c_str());
+    std::fprintf(stderr, "%s\n", newbasic::FormatError(cerr.code, cerr.line, cerr.message).c_str());
     return 1;
   }
 

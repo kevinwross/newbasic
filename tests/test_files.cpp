@@ -34,6 +34,10 @@ struct Session {
   newbasic::Repl repl{screen, &host};
 };
 
+struct NoTerminalHost : newbasic::ScriptedHost {
+  bool CanRunInteractiveShell() const override { return false; }
+};
+
 } // namespace
 
 TEST_CASE("Program files: SAVE writes plain text and LOAD reads it back", "[files]") {
@@ -65,7 +69,7 @@ TEST_CASE("Program files: format auto-detection", "[files]") {
   // A leading 0xFE marks a protected program: LOAD unprotects it and runs it.
   {
     const std::vector<newbasic::fstok::DecodedLine> lines = {{10, "PRINT \"PROTECTED\""},
-                                                            {20, "END"}};
+                                                             {20, "END"}};
     const std::string tokenized = newbasic::fstok::EncodeTokenized(lines);
     const std::string protected_bytes = newbasic::fstok::ProtectTokenized(tokenized);
     std::ofstream out(kTempFile, std::ios::binary);
@@ -83,7 +87,7 @@ TEST_CASE("Program files: format auto-detection", "[files]") {
   {
     std::ofstream out(kTempFile, std::ios::binary | std::ios::trunc);
     const std::vector<newbasic::fstok::DecodedLine> lines = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                            {20, "END"}};
+                                                             {20, "END"}};
     const std::string bytes = newbasic::fstok::EncodeTokenized(lines);
     out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   }
@@ -110,7 +114,7 @@ TEST_CASE("Program files: format auto-detection", "[files]") {
     REQUIRE(!written.empty());
     CHECK(static_cast<unsigned char>(written[0]) == 0xFF);
     const std::vector<newbasic::fstok::DecodedLine> expected = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                               {20, "END"}};
+                                                                {20, "END"}};
     CHECK(written == newbasic::fstok::EncodeTokenized(expected));
   }
   // SAVE "file",P writes the protected form: the same program with a 0xFE
@@ -125,8 +129,9 @@ TEST_CASE("Program files: format auto-detection", "[files]") {
     REQUIRE(!written.empty());
     CHECK(static_cast<unsigned char>(written[0]) == 0xFE);
     const std::vector<newbasic::fstok::DecodedLine> expected = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                               {20, "END"}};
-    CHECK(newbasic::fstok::UnprotectTokenized(written) == newbasic::fstok::EncodeTokenized(expected));
+                                                                {20, "END"}};
+    CHECK(newbasic::fstok::UnprotectTokenized(written) ==
+          newbasic::fstok::EncodeTokenized(expected));
   }
   // And the protected file loads back as the same program.
   CHECK(s.repl.Process("NEW").status == newbasic::RunResult::Status::Done);
@@ -275,6 +280,23 @@ TEST_CASE("SHELL runs commands through the host", "[shell]") {
   s.repl.Process("SHELL A$");
   REQUIRE(s.host.shell_commands.size() == 4);
   CHECK(s.host.shell_commands[3] == "ver");
+}
+
+TEST_CASE("SHELL without a command is rejected when there is no terminal", "[shell]") {
+  newbasic::screen::HeadlessScreen screen;
+  NoTerminalHost host;
+  newbasic::Repl repl(screen, &host);
+
+  const newbasic::RunResult interactive = repl.Process("SHELL");
+  CHECK(interactive.status == newbasic::RunResult::Status::Error);
+  CHECK(interactive.code == newbasic::kErrAdvancedFeature);
+  CHECK(host.shell_commands.empty());
+
+  // An explicit command is still allowed: only the interactive form needs a
+  // terminal to attach to.
+  CHECK(repl.Process("SHELL \"echo hi\"").status == newbasic::RunResult::Status::Done);
+  REQUIRE(host.shell_commands.size() == 1);
+  CHECK(host.shell_commands[0] == "echo hi");
 }
 
 TEST_CASE("EOF reports end of file on an open file", "[files]") {

@@ -19,6 +19,9 @@ public:
 
   // Reads one pixel the backend actually presented, by canvas coordinate.
   virtual bool ReadBackCanvasPixel(int canvas_x, int canvas_y, std::uint8_t* rgba) = 0;
+
+  // A window is not a terminal: an interactive SHELL has nowhere to attach.
+  bool CanRunInteractiveShell() const override { return false; }
 };
 
 } // namespace newbasic::screen

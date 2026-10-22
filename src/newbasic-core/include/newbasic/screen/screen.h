@@ -394,6 +394,10 @@ public:
   // closed the window. The VM ends the run instead of looping forever into a destroyed
   // window.
   virtual bool Closed() const { return false; }
+  // True when this backend can hand the real terminal to an interactive SHELL.
+  // A window has no terminal to attach to, so it must reject the no-argument
+  // form rather than freeze while a shell waits for invisible input.
+  virtual bool CanRunInteractiveShell() const { return true; }
   // Cooked line input (GW-BASIC INPUT/LINE INPUT).
   virtual std::wstring ReadLine() = 0;
   // Non-blocking key poll (INKEY$). Returns true and fills *key if a key is

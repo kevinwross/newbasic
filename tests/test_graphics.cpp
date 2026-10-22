@@ -248,7 +248,8 @@ TEST_CASE("Graphics: DRAW X executes a string variable", "[graphics]") {
 }
 
 TEST_CASE("Graphics: DRAW rejects unknown commands", "[graphics]") {
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"Z10\"\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"Z10\"\n") ==
+        newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"A9\"\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DRAW \"S0\"\n") == newbasic::kErrIllegalFunctionCall);
 }
@@ -279,8 +280,10 @@ TEST_CASE("Graphics: PALETTE remaps attributes and resets", "[graphics]") {
 }
 
 TEST_CASE("Graphics: PALETTE rejects out-of-range values", "[graphics]") {
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 16,1\n") == newbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 1,64\n") == newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 16,1\n") ==
+        newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 PALETTE 1,64\n") ==
+        newbasic::kErrIllegalFunctionCall);
 }
 
 TEST_CASE("Graphics: PSET STEP is relative to the last point", "[graphics]") {

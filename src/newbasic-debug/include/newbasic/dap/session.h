@@ -62,8 +62,7 @@ public:
           std::string error;
           if (Json::Parse(frame.body, &request, &error)) {
             const Json* command = request.Find("command");
-            if (command != nullptr && command->IsString() &&
-                command->AsString() == "pause") {
+            if (command != nullptr && command->IsString() && command->AsString() == "pause") {
               pause_requested_.store(true);
             } else if (command != nullptr && command->IsString() &&
                        command->AsString() == "threads" && running.load()) {

@@ -111,12 +111,16 @@ const char* ErrorMessage(int code) {
   }
 }
 
-std::string FormatError(int code, int line) {
+std::string FormatError(int code, int line, const std::string& detail) {
   std::string text = "?";
   text += ErrorMessage(code);
   if (line > 0) {
     text += " in ";
     text += std::to_string(line);
+  }
+  if (!detail.empty() && detail != ErrorMessage(code)) {
+    text += ": ";
+    text += detail;
   }
   return text;
 }

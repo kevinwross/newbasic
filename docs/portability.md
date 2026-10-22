@@ -25,6 +25,11 @@ screen, then re-enters raw mode afterwards (`Screen::SuspendForChildProcess` /
 use normal shell commands (`ls`, `cat`, ...). The exit status is the child's
 status, or `128 + signal` when the child was killed by a signal.
 
+A bare `SHELL` starts an interactive shell, so it is only allowed when both the
+host and the screen can attach it to a terminal. Windowed and headless runs
+report “SHELL without a command needs a terminal” instead of waiting forever for
+invisible input.
+
 ## Paths and file names
 
 Paths are normalized at the host boundary, not inside string literals or the

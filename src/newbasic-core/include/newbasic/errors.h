@@ -67,6 +67,8 @@ const char* ErrorMessage(int code);
 
 // GW-BASIC display form: "?<message>" for direct mode,
 // "?<message> in <line>" for a program error (line 0 means direct mode).
-std::string FormatError(int code, int line);
+// `detail` adds a specific explanation when it differs from the generic code
+// text, e.g. "?Advanced Feature in 10: SHELL without a command needs a terminal".
+std::string FormatError(int code, int line, const std::string& detail = std::string());
 
 } // namespace newbasic

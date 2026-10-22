@@ -83,20 +83,22 @@ private:
 };
 
 void PrintUsage() {
-  std::fprintf(stderr,
-               "newbasic-dap: a Debug Adapter Protocol server.\n"
-               "\n"
-               "  newbasic-dap [--nowindow] [--history]            Speak DAP on stdin and stdout.\n"
-               "  newbasic-dap --port N [--nowindow] [--history]   Listen for DAP on 127.0.0.1:N instead.\n"
-               "                                                   Port 0 picks a free port and reports it.\n"
-               "                                                   Use this for editors that want a debug\n"
-               "                                                   server, such as VS Code debugServer.\n"
-               "\n"
-               "  --nowindow   Do not open the program's GUI window; run with a headless\n"
-               "               screen. The window is the default when a backend is available.\n"
-               "  --history    Record line-boundary snapshots for Step Back/reverse debugging.\n"
-               "               Off by default: snapshots cost a full VM copy per line.\n"
-               "  --nohistory  Disable snapshots explicitly (the default).\n");
+  std::fprintf(
+      stderr,
+      "newbasic-dap: a Debug Adapter Protocol server.\n"
+      "\n"
+      "  newbasic-dap [--nowindow] [--history]            Speak DAP on stdin and stdout.\n"
+      "  newbasic-dap --port N [--nowindow] [--history]   Listen for DAP on 127.0.0.1:N instead.\n"
+      "                                                   Port 0 picks a free port and reports "
+      "it.\n"
+      "                                                   Use this for editors that want a debug\n"
+      "                                                   server, such as VS Code debugServer.\n"
+      "\n"
+      "  --nowindow   Do not open the program's GUI window; run with a headless\n"
+      "               screen. The window is the default when a backend is available.\n"
+      "  --history    Record line-boundary snapshots for Step Back/reverse debugging.\n"
+      "               Off by default: snapshots cost a full VM copy per line.\n"
+      "  --nohistory  Disable snapshots explicitly (the default).\n");
 }
 
 // A visible window is the default so a debug session shows PRINT output and graphics like the

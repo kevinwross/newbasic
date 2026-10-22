@@ -189,7 +189,8 @@ TEST_CASE("READ fills array elements, in DATA order", "[statements]") {
 
   // Running out of DATA, and a subscript outside the array, report the reference's errors.
   CHECK(RunErrorCode("10 DIM N(3)\n20 READ N(1)\n") == newbasic::kErrOutOfData);
-  CHECK(RunErrorCode("10 DIM N(3)\n20 DATA 1\n30 READ N(9)\n") == newbasic::kErrSubscriptOutOfRange);
+  CHECK(RunErrorCode("10 DIM N(3)\n20 DATA 1\n30 READ N(9)\n") ==
+        newbasic::kErrSubscriptOutOfRange);
 }
 
 // PRINT USING: one assertion per field kind. The `;` on the PRINT and the "|" on the next

@@ -52,12 +52,11 @@ double SystemHost::SecondsSinceMidnight() {
   const Clock::time_point now = Clock::now();
   // Truncate first, then convert: to_time_t may round, which would make the
   // fractional part negative around a second boundary.
-  const Clock::time_point whole_point =
-      std::chrono::time_point_cast<std::chrono::seconds>(now);
+  const Clock::time_point whole_point = std::chrono::time_point_cast<std::chrono::seconds>(now);
   const std::tm local = LocalTime(Clock::to_time_t(whole_point));
   const double fraction = std::chrono::duration<double>(now - whole_point).count();
-  return static_cast<double>(local.tm_hour) * 3600.0 +
-         static_cast<double>(local.tm_min) * 60.0 + static_cast<double>(local.tm_sec) + fraction;
+  return static_cast<double>(local.tm_hour) * 3600.0 + static_cast<double>(local.tm_min) * 60.0 +
+         static_cast<double>(local.tm_sec) + fraction;
 }
 
 std::string SystemHost::DateString() {

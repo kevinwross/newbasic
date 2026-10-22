@@ -14,7 +14,8 @@
 
 namespace {
 
-std::vector<std::string> ListProgram(newbasic::Repl* repl, newbasic::screen::HeadlessScreen* screen) {
+std::vector<std::string> ListProgram(newbasic::Repl* repl,
+                                     newbasic::screen::HeadlessScreen* screen) {
   screen->Clear();
   repl->Process("LIST");
   return screen->RenderRows();

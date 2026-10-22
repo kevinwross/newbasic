@@ -11,11 +11,18 @@
 
 namespace newbasic {
 
+bool SystemHost::CanRunInteractiveShell() const {
+  return isatty(STDIN_FILENO) && isatty(STDOUT_FILENO);
+}
+
 int SystemHost::RunShell(const std::string& command) {
   // An empty SHELL starts an interactive session. std::system always adds
   // "sh -c", which is wrong for an interactive shell, so exec the user's
-  // shell directly.
+  // shell directly. Without a terminal there is nothing to attach to; the VM
+  // normally rejects this earlier, but guard the host as well.
   if (command.empty()) {
+    if (!CanRunInteractiveShell())
+      return -1;
     const char* configured = std::getenv("SHELL");
     const std::string shell =
         (configured != nullptr && *configured != '\0') ? std::string(configured) : "/bin/sh";

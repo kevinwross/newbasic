@@ -49,8 +49,7 @@ public:
   // Handles one request; appends responses/events to `outgoing`. When
   // run_immediately is false, a run/step action is returned to the caller
   // instead of being executed here.
-  RunAction Handle(const Json& request, std::vector<Json>* outgoing,
-                   bool run_immediately = true) {
+  RunAction Handle(const Json& request, std::vector<Json>* outgoing, bool run_immediately = true) {
     const std::string command = String(request, "command");
     const Json* arguments = request.Find("arguments");
     if (command == "initialize") {
@@ -230,9 +229,8 @@ public:
       return RunAction::None;
     }
     if (command == "variables") {
-      const int reference = arguments == nullptr
-                                ? 1
-                                : static_cast<int>(Number(*arguments, "variablesReference"));
+      const int reference =
+          arguments == nullptr ? 1 : static_cast<int>(Number(*arguments, "variablesReference"));
       Json body = Json::Object();
       Json variables = Json::Array();
       const std::vector<Vm::ArrayInfo> arrays = debugger_.Arrays();
@@ -259,8 +257,7 @@ public:
           item.Set("name", Json::Str(array.name));
           item.Set("value", Json::Str(FormatArray(array)));
           item.Set("type", Json::Str("array"));
-          item.Set("variablesReference",
-                   Json::Number(kArrayReferenceBase + static_cast<int>(i)));
+          item.Set("variablesReference", Json::Number(kArrayReferenceBase + static_cast<int>(i)));
           item.Set("indexedVariables", Json::Number(static_cast<int>(array.elements)));
           variables.Push(std::move(item));
         }
@@ -392,8 +389,8 @@ private:
   void AppendArrayElements(const Vm::ArrayInfo& array, Json* variables) {
     if (array.dims.empty())
       return;
-    const std::size_t limit = array.elements < kMaxArrayElements ? array.elements
-                                                                 : kMaxArrayElements;
+    const std::size_t limit =
+        array.elements < kMaxArrayElements ? array.elements : kMaxArrayElements;
     std::vector<int> subscripts(array.dims.size(), array.base);
     for (std::size_t flat = 0; flat < limit; ++flat) {
       std::size_t remaining = flat;
@@ -401,8 +398,7 @@ private:
         const int extent = array.dims[i] - array.base + 1;
         if (extent <= 0)
           return;
-        subscripts[i] =
-            array.base + static_cast<int>(remaining % static_cast<std::size_t>(extent));
+        subscripts[i] = array.base + static_cast<int>(remaining % static_cast<std::size_t>(extent));
         remaining /= static_cast<std::size_t>(extent);
       }
       const std::optional<Value> value = debugger_.ArrayElement(array.name, subscripts);
@@ -425,8 +421,8 @@ private:
     if (array.elements > limit) {
       Json item = Json::Object();
       item.Set("name", Json::Str(array.name + "(...)"));
-      item.Set("value", Json::Str("... " + std::to_string(array.elements - limit) +
-                                  " more elements"));
+      item.Set("value",
+               Json::Str("... " + std::to_string(array.elements - limit) + " more elements"));
       item.Set("variablesReference", Json::Number(0));
       variables->Push(std::move(item));
     }

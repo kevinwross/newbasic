@@ -104,7 +104,7 @@ void Repl::PrintLine(const std::string& text) {
 void Repl::PrintError(const RunResult& result) {
   if (result.status != RunResult::Status::Error)
     return;
-  PrintLine(FormatError(result.code, result.line));
+  PrintLine(FormatError(result.code, result.line, result.message));
 }
 
 bool Repl::Recompile(CompileError* error) {

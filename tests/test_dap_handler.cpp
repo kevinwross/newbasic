@@ -172,7 +172,8 @@ TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
 
   const std::string numbers_request =
       "{\"seq\":5,\"type\":\"request\",\"command\":\"variables\",\"arguments\":"
-      "{\"variablesReference\":" + std::to_string(numbers_reference) + "}}";
+      "{\"variablesReference\":" +
+      std::to_string(numbers_reference) + "}}";
   const std::vector<Json> numbers = adapter.Request(numbers_request);
   const Json* number_items = numbers[0].Find("body")->Find("variables");
   REQUIRE(number_items->Size() == 12);
@@ -181,7 +182,8 @@ TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
 
   const std::string names_request =
       "{\"seq\":6,\"type\":\"request\",\"command\":\"variables\",\"arguments\":"
-      "{\"variablesReference\":" + std::to_string(names_reference) + "}}";
+      "{\"variablesReference\":" +
+      std::to_string(names_reference) + "}}";
   const std::vector<Json> names = adapter.Request(names_request);
   const Json* name_items = names[0].Find("body")->Find("variables");
   REQUIRE(name_items->Size() == 3);

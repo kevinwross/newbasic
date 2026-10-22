@@ -2898,6 +2898,10 @@ bool Vm::StepImpl() {
       if (!String(v, &command))
         return false;
     }
+    if (command.empty() &&
+        (!host_->CanRunInteractiveShell() || !screen_.CanRunInteractiveShell())) {
+      return Fail(kErrAdvancedFeature, "SHELL without a command needs a terminal");
+    }
     screen_.SuspendForChildProcess();
     const int exit_code = host_->RunShell(command);
     screen_.ResumeAfterChildProcess();
