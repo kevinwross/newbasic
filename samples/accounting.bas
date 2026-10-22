@@ -11,8 +11,9 @@
 56 REM ACCOUNT_UPDATE|NUMBER|NAME|TYPE|STATE
 60 REM ================================================================
 65 ActiveState = 1 : InactiveState = 0
-70 DIM AccountNumber(50), AccountName$(50), AccountType(50), AccountBalance(50), AccountState(50)
-80 DIM JournalReference$(300), JournalDate$(300), JournalDescription$(300), JournalDebitAccount(300), JournalCreditAccount(300), JournalAmount(300), JournalEntryType(300), DataField$(10)
+66 MaxAccounts = 50 : MaxJournalEntries = 300
+70 DIM AccountNumber(MaxAccounts), AccountName$(MaxAccounts), AccountType(MaxAccounts), AccountBalance(MaxAccounts), AccountState(MaxAccounts)
+80 DIM JournalReference$(MaxJournalEntries), JournalDate$(MaxJournalEntries), JournalDescription$(MaxJournalEntries), JournalDebitAccount(MaxJournalEntries), JournalCreditAccount(MaxJournalEntries), JournalAmount(MaxJournalEntries), JournalEntryType(MaxJournalEntries), DataField$(10)
 90 DataFilePath$ = "samples\accounting.dat"
 91 BackupFilePath$ = "samples\accounting.bak"
 92 TodayDate$ = MID$(DATE$, 1, 2) + "/" + MID$(DATE$, 4, 2) + "/" + MID$(DATE$, 7, 4)
@@ -89,7 +90,7 @@
 1390 IF EntryAmount <= 0 THEN StatusMessage$ = "THE AMOUNT MUST BE POSITIVE" : GOSUB 7000 : GOTO 1380
 1400 EntryAmount = INT(EntryAmount * 100 + 0.5) / 100
 1410 LOCATE 10,22: PRINT SPACE$(45); : LOCATE 10,22: PRINT USING "####,###.##"; EntryAmount
-1420 IF JournalEntryCount >= 300 THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
+1420 IF JournalEntryCount >= MaxJournalEntries THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
 1430 LOCATE 23,5: PRINT SPACE$(70);
 1440 LOCATE 23,5: PRINT USING "DR #####   CR #####   AMOUNT ####,###.##"; DebitAccountNumber; CreditAccountNumber; EntryAmount
 1450 LOCATE 24,5: PRINT SPACE$(70); : PRINT "PRESS ENTER TO POST, OR N TO CANCEL: ";
@@ -136,7 +137,7 @@
 1780 IF EntryAmount <= 0 THEN StatusMessage$ = "THE AMOUNT MUST BE POSITIVE" : GOSUB 7000 : GOTO 1770
 1790 EntryAmount = INT(EntryAmount * 100 + 0.5) / 100
 1800 LOCATE 9,22: PRINT SPACE$(45); : LOCATE 9,22: PRINT USING "####,###.##"; EntryAmount
-1810 IF JournalEntryCount >= 300 THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
+1810 IF JournalEntryCount >= MaxJournalEntries THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
 1820 LOCATE 20,5: PRINT SPACE$(70);
 1830 LOCATE 20,5: PRINT USING "DR 1100 A/R   CR #####   AMOUNT ####,###.##"; IncomeAccountNumber; EntryAmount
 1840 LOCATE 22,5: PRINT SPACE$(70); : PRINT "PRESS ENTER TO POST, OR N TO CANCEL: ";
@@ -191,7 +192,7 @@
 2342 IF DateErrorCode = 1 THEN StatusMessage$ = "USE MM/DD/YYYY (E.G. 10/20/2026)" ELSE StatusMessage$ = "THAT DATE DOES NOT EXIST"
 2344 GOSUB 7000 : EditValue$ = EntryDate$ : GOTO 2330
 2350 IF INSTR(EntryDate$, "|") > 0 THEN StatusMessage$ = "NO | IN THE DATE" : GOSUB 7000 : GOTO 2320
-2360 IF JournalEntryCount >= 300 THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
+2360 IF JournalEntryCount >= MaxJournalEntries THEN StatusMessage$ = "THE JOURNAL IS FULL" : GOSUB 7000 : RETURN
 2370 LOCATE 21,5: PRINT SPACE$(70);
 2380 LOCATE 21,5: PRINT USING "DR 1000 CASH   CR 1100 A/R   AMOUNT ####,###.##"; EntryAmount
 2390 LOCATE 22,5: PRINT SPACE$(70); : PRINT "PRESS ENTER TO POST, OR N TO CANCEL: ";
@@ -391,7 +392,7 @@
 5600 REM ---- PARSE ONE ACCOUNT RECORD -----------------------------------
 5602 IF FieldCount < 5 THEN RETURN
 5604 IF FileHasAccounts = 0 THEN AccountCount = 0 : FileHasAccounts = 1
-5606 IF AccountCount >= 50 THEN RETURN
+5606 IF AccountCount >= MaxAccounts THEN RETURN
 5608 AccountNumberInput = VAL(DataField$(2))
 5610 IF AccountNumberInput <= 0 THEN RETURN
 5612 AccountCount = AccountCount + 1
@@ -414,7 +415,7 @@
 5670 RETURN
 5700 REM ---- PARSE ONE JOURNAL RECORD -----------------------------------
 5702 IF FieldCount < 8 THEN RETURN
-5704 IF JournalEntryCount >= 300 THEN RETURN
+5704 IF JournalEntryCount >= MaxJournalEntries THEN RETURN
 5706 JournalEntryCount = JournalEntryCount + 1
 5708 JournalEntryType(JournalEntryCount) = VAL(DataField$(2))
 5710 JournalReference$(JournalEntryCount) = DataField$(3)
@@ -426,7 +427,7 @@
 5722 RETURN
 5724 REM ---- PARSE ONE LEGACY JOURNAL RECORD -----------------------------
 5726 IF FieldCount <> 7 THEN RETURN
-5728 IF JournalEntryCount >= 300 THEN RETURN
+5728 IF JournalEntryCount >= MaxJournalEntries THEN RETURN
 5730 JournalEntryCount = JournalEntryCount + 1
 5732 JournalEntryType(JournalEntryCount) = VAL(DataField$(1))
 5734 JournalReference$(JournalEntryCount) = DataField$(2)
@@ -561,7 +562,7 @@
 9450 LOCATE 6,27: PRINT "3  MARK ACCOUNT INACTIVE"
 9460 LOCATE 7,27: PRINT "4  REACTIVATE ACCOUNT"
 9470 LOCATE 8,27: PRINT "5  RETURN TO MAIN MENU"
-9475 LOCATE 10,27: PRINT "ACCOUNTS: "; AccountCount; " OF 50"
+9475 LOCATE 10,27: PRINT "ACCOUNTS: "; AccountCount; " OF "; MaxAccounts
 9480 LOCATE 12,29: PRINT "CHOICE: ";
 9485 LOCATE 12,37: INPUT "", MenuChoice$
 9490 IF MenuChoice$ = "1" THEN GOSUB 9700 : GOTO 9410
@@ -571,7 +572,7 @@
 9498 IF MenuChoice$ = "5" THEN RETURN
 9499 GOTO 9410
 9700 REM ---- ADD ACCOUNT -----------------------------------------------
-9705 IF AccountCount >= 50 THEN StatusMessage$ = "THE CHART IS FULL" : GOSUB 7000 : RETURN
+9705 IF AccountCount >= MaxAccounts THEN StatusMessage$ = "THE CHART IS FULL" : GOSUB 7000 : RETURN
 9710 CLS
 9720 LOCATE 2,29: PRINT "ADD ACCOUNT"
 9730 LOCATE 4,5: PRINT "NUMBER: "; : INPUT "", AccountNumberInput
