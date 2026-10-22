@@ -12,7 +12,7 @@
 32 REM ================================================================
 40 ActiveState = 1 : InactiveState = 0
 45 MaxAccounts = 50 : MaxJournalEntries = 300
-50 DIM AccountNumber(MaxAccounts), AccountName$(MaxAccounts), AccountType(MaxAccounts), AccountBalance(MaxAccounts), AccountState(MaxAccounts)
+50 DIM AccountNumber(MaxAccounts), AccountName$(MaxAccounts), AccountType(MaxAccounts), AccountBalance(MaxAccounts), AccountState(MaxAccounts), AccountOrder(MaxAccounts)
 55 DIM JournalReference$(MaxJournalEntries), JournalDate$(MaxJournalEntries), JournalDescription$(MaxJournalEntries), JournalDebitAccount(MaxJournalEntries), JournalCreditAccount(MaxJournalEntries), JournalAmount(MaxJournalEntries), JournalEntryType(MaxJournalEntries), DataField$(10)
 60 DataFilePath$ = "samples\accounting.dat"
 65 BackupFilePath$ = "samples\accounting.bak"
@@ -472,6 +472,41 @@
 6060 NEXT AccountCursor
 6070 NEXT EntryCursor
 6080 RETURN
+6300 REM ---- CHART OF ACCOUNTS -----------------------------------------
+6302 GOSUB 6000
+6304 FOR AccountCursor = 1 TO AccountCount : AccountOrder(AccountCursor) = AccountCursor : NEXT AccountCursor
+6306 IF AccountCount < 2 THEN 6318
+6308 FOR AccountCursor = 1 TO AccountCount - 1
+6310 FOR AccountPosition = AccountCursor + 1 TO AccountCount
+6312 IF AccountNumber(AccountOrder(AccountPosition)) < AccountNumber(AccountOrder(AccountCursor)) THEN SWAP AccountOrder(AccountCursor), AccountOrder(AccountPosition)
+6314 NEXT AccountPosition
+6316 NEXT AccountCursor
+6318 CLS
+6320 GOSUB 6390
+6322 ScreenRow = 6
+6324 FOR AccountCursor = 1 TO AccountCount
+6326 IF ScreenRow > 21 THEN GOSUB 8000 : CLS : GOSUB 6390 : ScreenRow = 6
+6328 AccountIndex = AccountOrder(AccountCursor)
+6330 AccountTypeLabel$ = "UNKNOWN"
+6332 IF AccountType(AccountIndex) = 1 THEN AccountTypeLabel$ = "ASSET"
+6334 IF AccountType(AccountIndex) = 2 THEN AccountTypeLabel$ = "LIABILITY"
+6336 IF AccountType(AccountIndex) = 3 THEN AccountTypeLabel$ = "EQUITY"
+6338 IF AccountType(AccountIndex) = 4 THEN AccountTypeLabel$ = "REVENUE"
+6340 IF AccountType(AccountIndex) = 5 THEN AccountTypeLabel$ = "EXPENSE"
+6342 AccountStateLabel$ = "INACTIVE"
+6344 IF AccountState(AccountIndex) = ActiveState THEN AccountStateLabel$ = "ACTIVE"
+6346 LOCATE ScreenRow,1: PRINT TAB(3); AccountNumber(AccountIndex); TAB(12); LEFT$(AccountName$(AccountIndex), 30); TAB(44); AccountTypeLabel$; TAB(56); AccountStateLabel$; TAB(68);
+6348 PRINT USING "####,###.##"; AccountBalance(AccountIndex)
+6350 ScreenRow = ScreenRow + 1
+6352 NEXT AccountCursor
+6354 RETURN
+6390 REM ---- CHART HEADER ----------------------------------------------
+6392 PRINT "CHART OF ACCOUNTS"
+6394 PRINT "AS OF "; DATE$
+6396 PRINT
+6398 PRINT "  NUMBER  NAME                           TYPE       STATE       BALANCE"
+6400 PRINT "  ------  ------------------------------ ----------  ----------  ------------"
+6402 RETURN
 7000 REM ---- SHOW THE CURRENT MESSAGE ON THE ERROR LINE ---------------
 7010 LOCATE 22,5: PRINT SPACE$(70);
 7020 LOCATE 22,5: PRINT StatusMessage$;
@@ -546,14 +581,16 @@
 9240 LOCATE 5,29: PRINT "2  TRIAL BALANCE"
 9250 LOCATE 6,29: PRINT "3  INCOME STATEMENT"
 9260 LOCATE 7,29: PRINT "4  BALANCE SHEET"
-9270 LOCATE 8,29: PRINT "5  RETURN TO MAIN MENU"
-9280 LOCATE 10,29: PRINT "CHOICE: ";
-9285 LOCATE 10,37: INPUT "", MenuChoice$
+9270 LOCATE 8,29: PRINT "5  CHART OF ACCOUNTS"
+9272 LOCATE 9,29: PRINT "6  RETURN TO MAIN MENU"
+9280 LOCATE 11,29: PRINT "CHOICE: ";
+9285 LOCATE 11,37: INPUT "", MenuChoice$
 9290 IF MenuChoice$ = "1" THEN GOSUB 3750 : GOSUB 8000 : GOTO 9210
 9292 IF MenuChoice$ = "2" THEN GOSUB 2600 : GOSUB 8000 : GOTO 9210
 9294 IF MenuChoice$ = "3" THEN GOSUB 2900 : GOSUB 8000 : GOTO 9210
 9296 IF MenuChoice$ = "4" THEN GOSUB 3250 : GOSUB 8000 : GOTO 9210
-9298 IF MenuChoice$ = "5" THEN RETURN
+9297 IF MenuChoice$ = "5" THEN GOSUB 6300 : GOSUB 8000 : GOTO 9210
+9298 IF MenuChoice$ = "6" THEN RETURN
 9299 GOTO 9210
 9400 REM ---- SYSTEM CONFIGURATION -------------------------------------
 9410 CLS
