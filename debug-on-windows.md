@@ -26,8 +26,8 @@ A successful run produces all of the following:
 - **Output → newbasic** logs the `.exe` path, working directory and launch.
 - F5 on `fixtures\m0\hello.bas` opens the `newbasic` window, prints
   `HELLO FROM NEWBASIC` and `5  10`, and terminates.
-- A gutter breakpoint on `fixtures\m0\hello.bas` line 20 stops the session, and
-  F10 steps.
+- A gutter breakpoint on **editor line 2** of `fixtures\m0\hello.bas` — the line
+  containing BASIC line 20 — stops the session, and F10 steps.
 - Optionally, `newbasic.exe --gpu-check` reports `PASS` on the D3D11 backend.
 
 Exact test counts can change. Zero failures is the acceptance criterion.
@@ -326,9 +326,10 @@ Windows path, for example:
    adapter: C:\...\out\src\newbasic-dap\Release\newbasic-dap.exe args=[] cwd=C:\...\newbasic
    ```
 
-6. Click the **gutter** left of line 20 (or right-click the gutter), press F5,
-   and confirm the session stops on line 20. F10 steps; the Variables view shows
-   program state.
+6. Click the **gutter** left of **editor line 2** — the line reading
+   `20 PRINT 5, 10` (BASIC line 20) — press F5, and confirm the session stops on
+   BASIC line 20 (editor line 2). F10 steps; the Variables view shows program
+   state.
 
 PRINT output appears in the `newbasic` window, **not** in the VS Code Debug
 Console. An empty Debug Console is expected.
@@ -393,6 +394,7 @@ For `Step Back`/`reverseContinue`, set `"newbasic.history": true`.
 | `Invalid debug adapter` | **Output → newbasic**, adapter process | Usually a bad adapter path, non-existent program, or launch-time error. The Output channel now names the path. |
 | `program not found: .../${file}` | Output shows literal `${file}` | Old extension. Repackage/reinstall current `editors\vscode`, then reload. |
 | No breakpoint menu | Window not reloaded | Reload; confirm `newbasic.newbasic-debug@0.1.0`; keep `debug.allowBreakpointsEverywhere`. |
+| Breakpoint circle is hollow; session runs to completion | Gutter row is outside the file or not a loaded program line | Use **editor line 2** for `hello.bas`; that is BASIC line 20. Confirm `setBreakpoints` reports it as verified. |
 | Session starts, no output window | Interactive desktop? D3D11? | Run on a desktop session; check Output for fallback; or use `showWindow: false`. PRINT is not in the Debug Console. |
 | `npx` policy error | PowerShell execution policy | `Set-ExecutionPolicy -Scope Process Bypass`, then retry; or use `npx.cmd`. |
 | `vsce` network failure | Network/proxy | Use a VSIX produced elsewhere; do not vendor `node_modules`. |
