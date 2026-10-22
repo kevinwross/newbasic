@@ -62,6 +62,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the program's GUI window during debug sessions. Turn off to pass --nowindow and run with a headless screen."
+        },
+        "newbasic.history": {
+          "type": "boolean",
+          "default": false,
+          "description": "Record line-boundary VM snapshots for Step Back/reverse debugging. This costs a full VM copy per line, so it is off by default."
         }
       }
     }

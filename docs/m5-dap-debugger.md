@@ -18,7 +18,7 @@ DAP conversation with `newbasic-dap`.
 | Breakpoints | Line breakpoints, and conditional ones whose condition is a BASIC expression evaluated in the stopped context with the VM state saved and restored around it |
 | Stepping | `next`, `stepIn`, `stepOver` (step to the next source line), plus instruction-level stepping in the library |
 | Pause | `pause` interrupts a running `continue` at the next instruction; a reader thread sets a flag that the debugger checks between instructions |
-| Time travel | `stepBack` and `reverseContinue` rewind through snapshots recorded at line boundaries in a bounded ring (default 500 entries) |
+| Time travel | `stepBack` and `reverseContinue` rewind through snapshots recorded at line boundaries in a bounded ring (default 500 entries). Snapshots are opt-in with `--history`; without it the capability is not advertised. |
 | Inspection | `stackTrace`, `scopes`, `variables`, `evaluate`; the library also exposes call frames (GOSUB and FOR), arrays and array elements |
 | Lifecycle | `initialize`, `launch` (with `programText` or `program`), `attach`, `setBreakpoints`, `configurationDone`, `continue`, `next`/`stepIn`/`stepOver`, `pause`, `stepBack`, `reverseContinue`, `disconnect` |
 
@@ -128,6 +128,9 @@ needs a small extension that registers the type and forwards to the port.
 
 - **Pause latency.** `pause` stops at the next instruction. A blocking statement such as `INPUT` or
   `SHELL` keeps the adapter inside that instruction until it returns, so a pause cannot interrupt it.
+- **Time travel is opt-in.** Start the adapter with `--history` (or set `newbasic.history` in the VS
+  Code extension) to record snapshots. The default is off because a snapshot copies the entire VM at
+  every line boundary.
 - **No disassembly or memory requests.** The plan lists both; neither is exposed. Memory is
   consistent with the M13 decision to have no machine model.
 - **`terminate` is not supported** (`supportsTerminateRequest` is false); use `disconnect`.

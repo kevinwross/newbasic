@@ -23,7 +23,8 @@ namespace newbasic::dap {
 // tests (no pipes, no subprocess).
 class Session {
 public:
-  Session(Vm& vm, debug::Debugger& debugger) : handler_(vm, debugger) {}
+  Session(Vm& vm, debug::Debugger& debugger, bool history = true)
+      : handler_(vm, debugger, history) {}
 
   // Runs until end of input, returning the number of requests handled.
   std::size_t Run(std::istream& in, std::ostream& out) {

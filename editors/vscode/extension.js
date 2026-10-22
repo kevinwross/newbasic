@@ -31,8 +31,15 @@ class AdapterFactory {
     }
     // The adapter opens the interpreter's GUI window by default so PRINT output and graphics are
     // visible while debugging. --nowindow keeps a session headless (CI, SSH, or an explicit opt-out).
-    const showWindow = vscode.workspace.getConfiguration('newbasic').get('showWindow', true);
-    const args = showWindow === false ? ['--nowindow'] : [];
+    // Time-travel snapshots are opt-in because they copy the VM at every line boundary.
+    const config = vscode.workspace.getConfiguration('newbasic');
+    const showWindow = config.get('showWindow', true);
+    const history = config.get('history', false);
+    const args = [];
+    if (showWindow === false)
+      args.push('--nowindow');
+    if (history === true)
+      args.push('--history');
     return new vscode.DebugAdapterExecutable(command, args, {
       cwd: path.dirname(command),
     });

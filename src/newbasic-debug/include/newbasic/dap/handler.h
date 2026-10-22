@@ -33,7 +33,10 @@ public:
   // behaviour by leaving run_immediately at its default.
   enum class RunAction { None, Continue, StepLine, StepBack, ReverseContinue };
 
-  Handler(Vm& vm, debug::Debugger& debugger) : vm_(vm), debugger_(debugger) {}
+  Handler(Vm& vm, debug::Debugger& debugger, bool history = true)
+      : vm_(vm), debugger_(debugger), history_enabled_(history) {
+    debugger_.SetHistoryEnabled(history);
+  }
 
   void SetPauseFlag(std::atomic<bool>* flag) { debugger_.SetPauseFlag(flag); }
 
@@ -53,7 +56,7 @@ public:
       body.Set("supportsConfigurationDoneRequest", Json::Bool(true));
       body.Set("supportsConditionalBreakpoints", Json::Bool(true));
       body.Set("supportsEvaluateForHovers", Json::Bool(true));
-      body.Set("supportsStepBack", Json::Bool(true));
+      body.Set("supportsStepBack", Json::Bool(history_enabled_));
       body.Set("supportsTerminateRequest", Json::Bool(false));
       Respond(request, std::move(body), outgoing);
       // DAP requires this event after the initialize response. Clients such as
@@ -147,6 +150,10 @@ public:
       return RunAction::StepLine;
     }
     if (command == "stepBack" || command == "reverseContinue") {
+      if (!history_enabled_) {
+        Fail(request, "Step Back is disabled; start the adapter with --history.", outgoing);
+        return RunAction::None;
+      }
       // Time travel (M7): the debugger keeps a bounded ring of snapshots taken
       // at line boundaries, so these walk back through recorded history.
       Respond(request, Json::Object(), outgoing);
@@ -487,6 +494,7 @@ private:
 
   Vm& vm_;
   debug::Debugger& debugger_;
+  bool history_enabled_ = true;
   std::atomic<int> seq_{1};
   std::vector<int> file_line_to_program_line_;
   std::map<int, int> program_line_to_file_line_;

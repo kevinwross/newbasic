@@ -110,6 +110,15 @@ public:
   void RestoreState(const Vm::Snapshot& state) { vm_.RestoreState(state); }
 
   // --- time travel (M7) ---
+  // Snapshots are optional: they cost a full VM copy at every line boundary.
+  // The DAP adapter leaves this off unless reverse debugging is requested.
+  void SetHistoryEnabled(bool enabled) {
+    history_enabled_ = enabled;
+    if (!enabled)
+      ClearHistory();
+  }
+  bool HistoryEnabled() const { return history_enabled_; }
+
   // A snapshot is recorded at each line boundary while stepping, so undo costs
   // one line's worth of state. The ring is bounded: once the limit is reached
   // the oldest entries are dropped, which keeps memory predictable rather than
@@ -146,6 +155,7 @@ private:
   std::set<int> breakpoints_;
   std::map<int, std::string> conditions_;
   std::atomic<bool>* pause_requested_ = nullptr; // set by the DAP reader thread
+  bool history_enabled_ = true;
   int resume_line_ = 0; // line of the last reported breakpoint stop
   std::vector<Vm::Snapshot> history_;
   std::size_t history_limit_ = 500;

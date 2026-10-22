@@ -12,6 +12,8 @@ StopState Debugger::StateFor(StopReason reason) const {
 }
 
 void Debugger::RecordHistory() {
+  if (!history_enabled_)
+    return;
   const int line = CurrentLine();
   // One snapshot per source line: enough for line-granularity rewind without
   // copying state for every instruction.
@@ -61,6 +63,7 @@ StopState Debugger::Continue() {
   // a fresh Continue reports the first breakpoint it reaches.
   int skip_line = resume_line_;
   resume_line_ = 0;
+  int steps_since_present = 0;
   for (;;) {
     // A pause is a one-shot breakpoint at the current instruction. Consume the
     // flag here, on the thread that owns the VM, so the reader thread never
@@ -73,19 +76,39 @@ StopState Debugger::Continue() {
       vm_.PresentNow();
       return paused;
     }
-    const StopState state = StepInstruction();
-    if (state.AtEnd()) {
+
+    // Fast continue path: do not go through StepInstruction (which records
+    // history, builds a StopState and presents on every instruction). Snapshot
+    // once per line when history is enabled, present only when the line
+    // changes, and check breakpoints without constructing a full stop state.
+    const int line_before = CurrentLine();
+    if (history_enabled_ && line_before != last_recorded_line_)
+      RecordHistory();
+    const bool more = vm_.Step();
+    if (!more && !vm_.TakeTrap()) {
       vm_.PresentNow();
-      return state;
+      const RunResult& last = vm_.Last();
+      return StateFor(last.status == RunResult::Status::Error ? StopReason::Error
+                                                              : StopReason::ProgramEnd);
     }
+
     const int line = CurrentLine();
-    if (skip_line != 0 && line != skip_line)
-      skip_line = 0;
+    ++steps_since_present;
+    if (line != line_before) {
+      if (skip_line != 0 && line != skip_line)
+        skip_line = 0;
+      vm_.Present();
+      steps_since_present = 0;
+    } else if (steps_since_present >= 256) {
+      // Keep a same-line input loop responsive (Present pumps the window)
+      // without paying for a present on every instruction.
+      vm_.Present();
+      steps_since_present = 0;
+    }
     if (line != 0 && line != skip_line && HasBreakpoint(line) &&
         (!HasCondition(line) || ConditionTrue(Condition(line)))) {
       resume_line_ = line;
-      StopState hit = state;
-      hit.reason = StopReason::Breakpoint;
+      StopState hit = StateFor(StopReason::Breakpoint);
       hit.line = line;
       vm_.PresentNow();
       return hit;
@@ -94,7 +117,7 @@ StopState Debugger::Continue() {
 }
 
 StopState Debugger::StepBack() {
-  if (history_.empty())
+  if (!history_enabled_ || history_.empty())
     return StateFor(StopReason::None);
   const Vm::Snapshot previous = history_.back();
   history_.pop_back();

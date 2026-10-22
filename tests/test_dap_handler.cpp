@@ -15,7 +15,7 @@ using newbasic::dap::Json;
 namespace {
 
 struct Adapter {
-  Adapter() : debugger(vm) {}
+  explicit Adapter(bool history = true) : debugger(vm), handler(vm, debugger, history) {}
 
   // Feeds one request and returns everything the adapter would send.
   std::vector<Json> Request(const std::string& text) {
@@ -33,7 +33,7 @@ struct Adapter {
   newbasic::ScriptedHost host;
   newbasic::Vm vm{screen, &host};
   newbasic::debug::Debugger debugger;
-  Handler handler{vm, debugger};
+  Handler handler;
 };
 
 const char* const kProgram = "10 A=1\n"
@@ -151,6 +151,22 @@ TEST_CASE("DAP: conditional breakpoints", "[dap]") {
   REQUIRE(stopped != nullptr);
   CHECK(stopped->Find("body")->Find("line")->AsNumber() == 2.0);
   CHECK(adapter.debugger.Variable("I")->AsNumber() == 4.0);
+}
+
+TEST_CASE("DAP: Step Back follows the history setting", "[dap]") {
+  Adapter adapter(false);
+  const std::vector<Json> initialize =
+      adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"initialize\"}");
+  REQUIRE(initialize.size() == 2);
+  const Json* body = initialize[0].Find("body");
+  REQUIRE(body != nullptr);
+  CHECK_FALSE(body->Find("supportsStepBack")->AsBool());
+
+  const std::vector<Json> back =
+      adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"stepBack\"}");
+  REQUIRE(back.size() == 1);
+  CHECK_FALSE(back[0].Find("success")->AsBool());
+  CHECK(back[0].Find("message")->AsString().find("--history") != std::string::npos);
 }
 
 TEST_CASE("DAP: a pause request stops the running program", "[dap]") {

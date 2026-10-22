@@ -86,14 +86,17 @@ void PrintUsage() {
   std::fprintf(stderr,
                "newbasic-dap: a Debug Adapter Protocol server.\n"
                "\n"
-               "  newbasic-dap [--nowindow]            Speak DAP on stdin and stdout.\n"
-               "  newbasic-dap --port N [--nowindow]   Listen for DAP on 127.0.0.1:N instead.\n"
-               "                                       Port 0 picks a free port and reports it.\n"
-               "                                       Use this for editors that want a debug\n"
-               "                                       server, such as VS Code debugServer.\n"
+               "  newbasic-dap [--nowindow] [--history]            Speak DAP on stdin and stdout.\n"
+               "  newbasic-dap --port N [--nowindow] [--history]   Listen for DAP on 127.0.0.1:N instead.\n"
+               "                                                   Port 0 picks a free port and reports it.\n"
+               "                                                   Use this for editors that want a debug\n"
+               "                                                   server, such as VS Code debugServer.\n"
                "\n"
                "  --nowindow   Do not open the program's GUI window; run with a headless\n"
-               "               screen. The window is the default when a backend is available.\n");
+               "               screen. The window is the default when a backend is available.\n"
+               "  --history    Record line-boundary snapshots for Step Back/reverse debugging.\n"
+               "               Off by default: snapshots cost a full VM copy per line.\n"
+               "  --nohistory  Disable snapshots explicitly (the default).\n");
 }
 
 // A visible window is the default so a debug session shows PRINT output and graphics like the
@@ -114,7 +117,7 @@ std::unique_ptr<newbasic::screen::Screen> CreateDebugScreen(bool show_window) {
 
 // Serves DAP on a listening socket until the listener fails. Each connection gets a fresh session
 // over the same machine, so an editor can reconnect after a reload.
-int RunPort(int port, bool show_window) {
+int RunPort(int port, bool show_window, bool history) {
   std::string error;
   newbasic::dap::Socket listener = newbasic::dap::Socket::ListenLoopback(port, &error);
   if (!listener.Valid()) {
@@ -135,7 +138,7 @@ int RunPort(int port, bool show_window) {
       newbasic::SystemHost host;
       newbasic::Vm vm(*screen, &host);
       newbasic::debug::Debugger debugger(vm);
-      newbasic::dap::Session session(vm, debugger);
+      newbasic::dap::Session session(vm, debugger, history);
       SocketBuf buffer(std::move(client)); // closes the socket when it goes out of scope
       std::istream in(&buffer);
       std::ostream out(&buffer);
@@ -147,7 +150,7 @@ int RunPort(int port, bool show_window) {
   return 0;
 }
 
-int RunStdio(bool show_window) {
+int RunStdio(bool show_window, bool history) {
 #if defined(_WIN32)
   // DAP framing is byte-oriented. Windows text mode turns the required CRLF
   // into CRCRLF, which strict clients such as VS Code reject before they ever
@@ -159,7 +162,7 @@ int RunStdio(bool show_window) {
   newbasic::SystemHost host;
   newbasic::Vm vm(*screen, &host);
   newbasic::debug::Debugger debugger(vm);
-  newbasic::dap::Session session(vm, debugger);
+  newbasic::dap::Session session(vm, debugger, history);
   session.Run(std::cin, std::cout);
   std::cout.flush();
   return 0;
@@ -170,6 +173,7 @@ int RunStdio(bool show_window) {
 int main(int argc, char** argv) {
   int port = -1;
   bool show_window = true;
+  bool history = false;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-?") == 0) {
       PrintUsage();
@@ -177,6 +181,14 @@ int main(int argc, char** argv) {
     }
     if (std::strcmp(argv[i], "--nowindow") == 0) {
       show_window = false;
+      continue;
+    }
+    if (std::strcmp(argv[i], "--history") == 0) {
+      history = true;
+      continue;
+    }
+    if (std::strcmp(argv[i], "--nohistory") == 0) {
+      history = false;
       continue;
     }
     if (std::strcmp(argv[i], "--port") == 0) {
@@ -196,6 +208,6 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (port >= 0)
-    return RunPort(port, show_window);
-  return RunStdio(show_window);
+    return RunPort(port, show_window, history);
+  return RunStdio(show_window, history);
 }

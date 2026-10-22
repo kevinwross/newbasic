@@ -55,6 +55,7 @@ and use the **Step Back** button to rewind through the recorded history.
 |---|---|
 | `newbasic.adapterPath` | Full path to `newbasic-dap.exe`. Empty means "use the workspace's build output". |
 | `newbasic.showWindow` | Show the program's GUI window during debug sessions (default `true`). Set `false` to pass `--nowindow` and run headless. |
+| `newbasic.history` | Record VM snapshots for `stepBack`/`reverseContinue` (default `false`). Snapshots cost a full VM copy per line; enable only when you need reverse debugging. |
 
 ## Program output
 
@@ -68,7 +69,8 @@ to run headless; `INPUT`/`INKEY$` are not usable in that mode. On Linux a window
 display; if either is unavailable the adapter falls back to a headless screen.
 
 Rewinding with `stepBack`/`reverseContinue` restores variables and the program counter, but not the
-screen contents, so the window keeps showing the later frame after a rewind.
+screen contents, so the window keeps showing the later frame after a rewind. Reverse debugging is
+opt-in: set `newbasic.history` to `true`, because snapshots cost a full VM copy per line.
 
 ## What it does not do
 
