@@ -2,17 +2,19 @@
 20 REM NEWBASIC ACCOUNTING - DOUBLE ENTRY BOOKKEEPING.
 30 REM SCREENS: JOURNAL ENTRY, BILLING, PAYMENTS, REPORTING, CONFIGURATION.
 40 REM REPORTS USE PRINT USING. RUN FROM THE REPO ROOT.
-42 REM CONFIGURATION CHANGES APPLY TO THIS RUN.
+42 REM ACCOUNT RECORDS AND UPDATES ARE SAVED IN THE DATA FILE.
 43 REM ACCOUNT STATE: 1=ACTIVE, 0=INACTIVE.
 45 REM DATE FIELDS OPEN ON TODAY: TYPE TO REPLACE IT, BACKSPACE TO EDIT.
 47 REM DATES ARE MM/DD/YYYY AND MUST BE REAL DATES (1900-2099).
-50 REM DATA: samples\accounting.dat, ONE "|"-SEPARATED RECORD PER ENTRY:
-55 REM TYPE|REF|DATE|DESCRIPTION|DEBIT|CREDIT|AMOUNT  (1=J 2=BILL 3=PAY)
+50 REM DATA: samples\accounting.dat, TAGGED RECORDS.
+55 REM META|VERSION, ACCOUNT|NUMBER|NAME|TYPE|STATE, JOURNAL|TYPE|REF|DATE|DESC|DR|CR|AMOUNT
+56 REM ACCOUNT_UPDATE|NUMBER|NAME|TYPE|STATE
 60 REM ================================================================
 65 ActiveState = 1 : InactiveState = 0
 70 DIM AccountNumber(50), AccountName$(50), AccountType(50), AccountBalance(50), AccountState(50)
 80 DIM JournalReference$(300), JournalDate$(300), JournalDescription$(300), JournalDebitAccount(300), JournalCreditAccount(300), JournalAmount(300), JournalEntryType(300), DataField$(10)
 90 DataFilePath$ = "samples\accounting.dat"
+91 BackupFilePath$ = "samples\accounting.bak"
 92 TodayDate$ = MID$(DATE$, 1, 2) + "/" + MID$(DATE$, 4, 2) + "/" + MID$(DATE$, 7, 4)
 93 ON ERROR GOTO 5270
 95 BalanceReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##  ####,###.##"
@@ -347,37 +349,118 @@
 5040 AccountCount = AccountCount + 1 : AccountNumber(AccountCount) = AccountNumberInput : AccountName$(AccountCount) = DataAccountName$ : AccountType(AccountCount) = DataAccountType : AccountState(AccountCount) = ActiveState
 5050 GOTO 5020
 5060 RETURN
-5100 REM ---- CREATE IF NEEDED AND LOAD THE JOURNAL FILE ---------------
-5110 OPEN DataFilePath$ FOR APPEND AS #1
-5120 CLOSE #1
-5130 OPEN DataFilePath$ FOR INPUT AS #1
-5140 JournalEntryCount = 0
-5150 IF EOF(1) THEN 5250
-5160 IF JournalEntryCount >= 300 THEN 5250
-5170 LINE INPUT #1, DataLine$
-5180 GOSUB 4400
-5190 IF FieldCount <> 7 THEN 5230
-5200 JournalEntryCount = JournalEntryCount + 1
-5210 JournalEntryType(JournalEntryCount) = VAL(DataField$(1)) : JournalReference$(JournalEntryCount) = DataField$(2) : JournalDate$(JournalEntryCount) = DataField$(3) : JournalDescription$(JournalEntryCount) = DataField$(4) : JournalDebitAccount(JournalEntryCount) = VAL(DataField$(5)) : JournalCreditAccount(JournalEntryCount) = VAL(DataField$(6)) : JournalAmount(JournalEntryCount) = VAL(DataField$(7))
-5220 GOTO 5150
-5230 CLS : PRINT "THE DATA FILE IS NOT IN THIS PROGRAM'S FORMAT."
-5240 PRINT "RENAME OR DELETE samples\accounting.dat, THEN RUN AGAIN."
-5245 END
+5100 REM ---- CREATE IF NEEDED AND LOAD THE ACCOUNTING FILE ------------
+5105 OPEN DataFilePath$ FOR APPEND AS #1
+5107 CLOSE #1
+5110 OPEN DataFilePath$ FOR INPUT AS #1
+5115 FileHasHeader = 0 : FileHasAccounts = 0 : LegacyData = 0 : JournalEntryCount = 0
+5120 IF EOF(1) THEN 5250
+5125 LINE INPUT #1, DataLine$
+5130 IF DataLine$ = "" THEN 5120
+5135 GOSUB 4400
+5140 IF FieldCount = 0 THEN 5120
+5145 IF DataField$(1) = "META" THEN FileHasHeader = 1 : GOTO 5120
+5150 IF DataField$(1) = "ACCOUNT" THEN GOSUB 5600 : GOTO 5120
+5155 IF DataField$(1) = "ACCOUNT_UPDATE" THEN GOSUB 5650 : GOTO 5120
+5160 IF DataField$(1) = "JOURNAL" THEN GOSUB 5700 : GOTO 5120
+5165 IF FileHasHeader = 0 THEN LegacyData = 1 : GOSUB 5724
+5170 GOTO 5120
 5250 CLOSE #1
-5260 RETURN
+5255 IF FileHasHeader = 0 THEN LegacyData = 1
+5260 IF LegacyData = 1 THEN GOSUB 5800 : GOTO 5268
+5265 IF FileHasAccounts = 0 THEN GOSUB 5750
+5268 RETURN
 5270 REM ---- STARTUP FILE ERROR ---------------------------------------
 5275 CLS
-5280 PRINT "CANNOT OPEN THE JOURNAL DATA FILE."
+5280 PRINT "CANNOT OPEN THE ACCOUNTING DATA FILE."
 5285 PRINT "FILE: "; DataFilePath$
 5290 PRINT "ERROR"; ERR; " IN LINE"; ERL
 5292 PRINT "RUN FROM THE REPOSITORY ROOT, OR CREATE THE SAMPLES DIRECTORY."
 5295 END
 5300 REM ---- APPEND THE CURRENT ENTRY TO THE JOURNAL FILE -------------
-5310 DataLine$ = MID$(STR$(JournalEntryType(JournalEntryCount)), 2) + "|" + JournalReference$(JournalEntryCount) + "|" + JournalDate$(JournalEntryCount) + "|" + JournalDescription$(JournalEntryCount) + "|" + MID$(STR$(JournalDebitAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalCreditAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalAmount(JournalEntryCount)), 2)
+5310 DataLine$ = "JOURNAL|" + MID$(STR$(JournalEntryType(JournalEntryCount)), 2) + "|" + JournalReference$(JournalEntryCount) + "|" + JournalDate$(JournalEntryCount) + "|" + JournalDescription$(JournalEntryCount) + "|" + MID$(STR$(JournalDebitAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalCreditAccount(JournalEntryCount)), 2) + "|" + MID$(STR$(JournalAmount(JournalEntryCount)), 2)
 5320 OPEN DataFilePath$ FOR APPEND AS #1
 5330 PRINT #1, DataLine$
 5340 CLOSE #1
 5350 RETURN
+5400 REM ---- APPEND ONE ACCOUNT RECORD ---------------------------------
+5410 OPEN DataFilePath$ FOR APPEND AS #1
+5420 PRINT #1, AccountRecordLine$
+5430 CLOSE #1
+5440 RETURN
+5600 REM ---- PARSE ONE ACCOUNT RECORD -----------------------------------
+5602 IF FieldCount < 5 THEN RETURN
+5604 IF FileHasAccounts = 0 THEN AccountCount = 0 : FileHasAccounts = 1
+5606 IF AccountCount >= 50 THEN RETURN
+5608 AccountNumberInput = VAL(DataField$(2))
+5610 IF AccountNumberInput <= 0 THEN RETURN
+5612 AccountCount = AccountCount + 1
+5614 AccountNumber(AccountCount) = AccountNumberInput
+5616 AccountName$(AccountCount) = DataField$(3)
+5618 AccountType(AccountCount) = VAL(DataField$(4))
+5620 AccountState(AccountCount) = VAL(DataField$(5))
+5622 IF AccountState(AccountCount) <> 0 AND AccountState(AccountCount) <> 1 THEN AccountState(AccountCount) = ActiveState
+5624 RETURN
+5650 REM ---- APPLY ONE ACCOUNT UPDATE ------------------------------------
+5652 IF FieldCount < 5 THEN RETURN
+5654 AccountNumberInput = VAL(DataField$(2))
+5656 GOSUB 4000
+5658 IF FoundAccountIndex = 0 THEN RETURN
+5660 IF DataField$(3) <> "" THEN AccountName$(FoundAccountIndex) = DataField$(3)
+5662 AccountTypeInput = VAL(DataField$(4))
+5664 IF AccountTypeInput >= 1 AND AccountTypeInput <= 5 THEN AccountType(FoundAccountIndex) = AccountTypeInput
+5666 AccountStateInput = VAL(DataField$(5))
+5668 IF AccountStateInput = 0 OR AccountStateInput = 1 THEN AccountState(FoundAccountIndex) = AccountStateInput
+5670 RETURN
+5700 REM ---- PARSE ONE JOURNAL RECORD -----------------------------------
+5702 IF FieldCount < 8 THEN RETURN
+5704 IF JournalEntryCount >= 300 THEN RETURN
+5706 JournalEntryCount = JournalEntryCount + 1
+5708 JournalEntryType(JournalEntryCount) = VAL(DataField$(2))
+5710 JournalReference$(JournalEntryCount) = DataField$(3)
+5712 JournalDate$(JournalEntryCount) = DataField$(4)
+5714 JournalDescription$(JournalEntryCount) = DataField$(5)
+5716 JournalDebitAccount(JournalEntryCount) = VAL(DataField$(6))
+5718 JournalCreditAccount(JournalEntryCount) = VAL(DataField$(7))
+5720 JournalAmount(JournalEntryCount) = VAL(DataField$(8))
+5722 RETURN
+5724 REM ---- PARSE ONE LEGACY JOURNAL RECORD -----------------------------
+5726 IF FieldCount <> 7 THEN RETURN
+5728 IF JournalEntryCount >= 300 THEN RETURN
+5730 JournalEntryCount = JournalEntryCount + 1
+5732 JournalEntryType(JournalEntryCount) = VAL(DataField$(1))
+5734 JournalReference$(JournalEntryCount) = DataField$(2)
+5736 JournalDate$(JournalEntryCount) = DataField$(3)
+5738 JournalDescription$(JournalEntryCount) = DataField$(4)
+5740 JournalDebitAccount(JournalEntryCount) = VAL(DataField$(5))
+5742 JournalCreditAccount(JournalEntryCount) = VAL(DataField$(6))
+5744 JournalAmount(JournalEntryCount) = VAL(DataField$(7))
+5746 RETURN
+5750 REM ---- APPEND DEFAULT ACCOUNT RECORDS TO A HEADER-ONLY FILE --------
+5752 FOR AccountCursor = 1 TO AccountCount
+5754 AccountRecordLine$ = "ACCOUNT|" + MID$(STR$(AccountNumber(AccountCursor)), 2) + "|" + AccountName$(AccountCursor) + "|" + MID$(STR$(AccountType(AccountCursor)), 2) + "|" + MID$(STR$(AccountState(AccountCursor)), 2)
+5756 GOSUB 5400
+5758 NEXT AccountCursor
+5760 RETURN
+5800 REM ---- MIGRATE/INITIALISE THE SINGLE ACCOUNTING FILE --------------
+5802 OPEN DataFilePath$ FOR INPUT AS #1
+5804 OPEN BackupFilePath$ FOR OUTPUT AS #2
+5806 IF EOF(1) THEN 5812
+5808 LINE INPUT #1, DataLine$ : PRINT #2, DataLine$ : GOTO 5806
+5810 REM
+5812 CLOSE #1 : CLOSE #2
+5814 OPEN DataFilePath$ FOR OUTPUT AS #1
+5816 PRINT #1, "META|VERSION|1"
+5818 FOR AccountCursor = 1 TO AccountCount
+5820 AccountRecordLine$ = "ACCOUNT|" + MID$(STR$(AccountNumber(AccountCursor)), 2) + "|" + AccountName$(AccountCursor) + "|" + MID$(STR$(AccountType(AccountCursor)), 2) + "|" + MID$(STR$(AccountState(AccountCursor)), 2)
+5822 PRINT #1, AccountRecordLine$
+5824 NEXT AccountCursor
+5826 FOR EntryCursor = 1 TO JournalEntryCount
+5828 DataLine$ = "JOURNAL|" + MID$(STR$(JournalEntryType(EntryCursor)), 2) + "|" + JournalReference$(EntryCursor) + "|" + JournalDate$(EntryCursor) + "|" + JournalDescription$(EntryCursor) + "|" + MID$(STR$(JournalDebitAccount(EntryCursor)), 2) + "|" + MID$(STR$(JournalCreditAccount(EntryCursor)), 2) + "|" + MID$(STR$(JournalAmount(EntryCursor)), 2)
+5830 PRINT #1, DataLine$
+5832 NEXT EntryCursor
+5834 CLOSE #1
+5836 RETURN
 6000 REM ---- BALANCES: DEBIT POSITIVE, CREDIT NEGATIVE -----------------
 6010 FOR AccountCursor = 1 TO AccountCount : AccountBalance(AccountCursor) = 0 : NEXT AccountCursor
 6020 FOR EntryCursor = 1 TO JournalEntryCount
@@ -507,6 +590,8 @@
 9762 AccountType(AccountCount) = AccountTypeInput
 9764 AccountBalance(AccountCount) = 0
 9766 AccountState(AccountCount) = ActiveState
+9767 AccountRecordLine$ = "ACCOUNT|" + MID$(STR$(AccountNumber(AccountCount)), 2) + "|" + AccountName$(AccountCount) + "|" + MID$(STR$(AccountType(AccountCount)), 2) + "|" + MID$(STR$(AccountState(AccountCount)), 2)
+9768 GOSUB 5400
 9770 LOCATE 9,5: PRINT "ACCOUNT "; AccountNumberInput; " ADDED ACTIVE."
 9775 GOSUB 8000
 9780 RETURN
@@ -524,9 +609,11 @@
 9824 IF INSTR(AccountNameInput$, "|") > 0 THEN StatusMessage$ = "NO | IN THE NAME" : GOSUB 7000 : GOTO 9820
 9826 AccountName$(FoundAccountIndex) = AccountNameInput$
 9830 LOCATE 7,5: PRINT "NEW TYPE (0 KEEPS): "; : INPUT "", AccountTypeInput
-9832 IF AccountTypeInput = 0 THEN 9840
+9832 IF AccountTypeInput = 0 THEN 9837
 9834 IF AccountTypeInput < 1 OR AccountTypeInput > 5 THEN StatusMessage$ = "TYPE MUST BE 1 TO 5" : GOSUB 7000 : GOTO 9830
 9836 AccountType(FoundAccountIndex) = AccountTypeInput
+9837 AccountRecordLine$ = "ACCOUNT_UPDATE|" + MID$(STR$(AccountNumber(FoundAccountIndex)), 2) + "|" + AccountName$(FoundAccountIndex) + "|" + MID$(STR$(AccountType(FoundAccountIndex)), 2) + "|" + MID$(STR$(AccountState(FoundAccountIndex)), 2)
+9838 GOSUB 5400
 9840 LOCATE 9,5: PRINT "ACCOUNT UPDATED."
 9845 GOSUB 8000
 9850 RETURN
@@ -539,7 +626,9 @@
 9912 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT NOT IN THE CHART" : GOSUB 7000 : GOTO 9906
 9914 IF AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "ACCOUNT IS ALREADY INACTIVE" : GOSUB 7000 : GOTO 9906
 9916 AccountState(FoundAccountIndex) = InactiveState
-9918 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " MARKED INACTIVE."
+9917 AccountRecordLine$ = "ACCOUNT_UPDATE|" + MID$(STR$(AccountNumber(FoundAccountIndex)), 2) + "|" + AccountName$(FoundAccountIndex) + "|" + MID$(STR$(AccountType(FoundAccountIndex)), 2) + "|" + MID$(STR$(AccountState(FoundAccountIndex)), 2)
+9918 GOSUB 5400
+9919 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " MARKED INACTIVE."
 9920 GOSUB 8000
 9922 RETURN
 9950 REM ---- REACTIVATE ACCOUNT ----------------------------------------
@@ -551,6 +640,8 @@
 9962 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT NOT IN THE CHART" : GOSUB 7000 : GOTO 9956
 9964 IF AccountState(FoundAccountIndex) = ActiveState THEN StatusMessage$ = "ACCOUNT IS ALREADY ACTIVE" : GOSUB 7000 : GOTO 9956
 9966 AccountState(FoundAccountIndex) = ActiveState
-9968 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " REACTIVATED."
+9967 AccountRecordLine$ = "ACCOUNT_UPDATE|" + MID$(STR$(AccountNumber(FoundAccountIndex)), 2) + "|" + AccountName$(FoundAccountIndex) + "|" + MID$(STR$(AccountType(FoundAccountIndex)), 2) + "|" + MID$(STR$(AccountState(FoundAccountIndex)), 2)
+9968 GOSUB 5400
+9969 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " REACTIVATED."
 9970 GOSUB 8000
 9972 RETURN
