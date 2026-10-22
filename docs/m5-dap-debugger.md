@@ -19,7 +19,7 @@ DAP conversation with `newbasic-dap`.
 | Stepping | `next`, `stepIn`, `stepOver` (step to the next source line), plus instruction-level stepping in the library |
 | Pause | `pause` interrupts a running `continue` at the next instruction; a reader thread sets a flag that the debugger checks between instructions |
 | Time travel | `stepBack` and `reverseContinue` rewind through snapshots recorded at line boundaries in a bounded ring (default 500 entries). Snapshots are opt-in with `--history`; without it the capability is not advertised. |
-| Inspection | `stackTrace`, `scopes`, `variables`, `evaluate`; the library also exposes call frames (GOSUB and FOR), arrays and array elements |
+| Inspection | `stackTrace`, `scopes`, `variables`, `evaluate`, and `setVariable` for scalar Locals; the library also exposes call frames (GOSUB and FOR), arrays and array elements |
 | Lifecycle | `initialize`, `launch` (with `programText` or `program`), `attach`, `setBreakpoints`, `configurationDone`, `continue`, `next`/`stepIn`/`stepOver`, `pause`, `stepBack`, `reverseContinue`, `disconnect` |
 
 Variable names carry their type suffix, so a single-precision `A` appears as `A!`.
@@ -131,6 +131,9 @@ needs a small extension that registers the type and forwards to the port.
 - **Time travel is opt-in.** Start the adapter with `--history` (or set `newbasic.history` in the VS
   Code extension) to record snapshots. The default is off because a snapshot copies the entire VM at
   every line boundary.
+- **Set Variable is scalar-only.** The Variables view can edit existing scalar Locals. Numbers are
+  parsed according to the variable's type suffix (`%`, `&`, `!`, `#`); strings accept both quoted
+  and unquoted text. Arrays cannot be expanded or edited.
 - **No disassembly or memory requests.** The plan lists both; neither is exposed. Memory is
   consistent with the M13 decision to have no machine model.
 - **`terminate` is not supported** (`supportsTerminateRequest` is false); use `disconnect`.

@@ -2,7 +2,9 @@
 
 #include <atomic>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -55,6 +57,7 @@ public:
       Json body = Json::Object();
       body.Set("supportsConfigurationDoneRequest", Json::Bool(true));
       body.Set("supportsConditionalBreakpoints", Json::Bool(true));
+      body.Set("supportsSetVariable", Json::Bool(true));
       body.Set("supportsEvaluateForHovers", Json::Bool(true));
       body.Set("supportsStepBack", Json::Bool(history_enabled_));
       body.Set("supportsTerminateRequest", Json::Bool(false));
@@ -242,6 +245,51 @@ public:
       Respond(request, std::move(body), outgoing);
       return RunAction::None;
     }
+    if (command == "setVariable") {
+      if (arguments == nullptr) {
+        Fail(request, "setVariable needs arguments", outgoing);
+        return RunAction::None;
+      }
+      const int reference = static_cast<int>(Number(*arguments, "variablesReference"));
+      const std::string name = String(*arguments, "name");
+      const std::string text = String(*arguments, "value");
+      if (reference != 1) {
+        Fail(request, "Only Locals variables can be edited", outgoing);
+        return RunAction::None;
+      }
+      const std::optional<Value> current = debugger_.Variable(name);
+      if (!current.has_value()) {
+        Fail(request, "No such variable: " + name, outgoing);
+        return RunAction::None;
+      }
+      Value updated;
+      if (current->IsString()) {
+        updated = Value::Str(Unquote(text));
+      } else {
+        double number = 0.0;
+        if (!ParseNumber(text, &number)) {
+          Fail(request, "Not a number: " + text, outgoing);
+          return RunAction::None;
+        }
+        const char suffix = VarTypeSuffix(CanonicalVarName(name));
+        if (suffix == '%' && (number < -32768.0 || number > 32767.0)) {
+          Fail(request, "Integer variable out of range", outgoing);
+          return RunAction::None;
+        }
+        if (suffix == '&' && (number < -2147483648.0 || number > 2147483647.0)) {
+          Fail(request, "Long variable out of range", outgoing);
+          return RunAction::None;
+        }
+        updated = Value::Sgl(number);
+      }
+      vm_.SetVar(name, updated);
+      const std::optional<Value> result = debugger_.Variable(name);
+      Json body = Json::Object();
+      body.Set("value", Json::Str(result.has_value() ? FormatValue(*result) : text));
+      body.Set("variablesReference", Json::Number(0));
+      Respond(request, std::move(body), outgoing);
+      return RunAction::None;
+    }
     if (command == "evaluate") {
       const std::string expression =
           arguments == nullptr ? std::string() : String(*arguments, "expression");
@@ -308,6 +356,27 @@ private:
     char buffer[40];
     std::snprintf(buffer, sizeof(buffer), "%g", value.AsNumber());
     return buffer;
+  }
+
+  static bool ParseNumber(const std::string& text, double* out) {
+    if (text.empty())
+      return false;
+    char* end = nullptr;
+    const double value = std::strtod(text.c_str(), &end);
+    if (end == text.c_str())
+      return false;
+    while (*end == ' ' || *end == '\t')
+      ++end;
+    if (*end != '\0' || !std::isfinite(value))
+      return false;
+    *out = value;
+    return true;
+  }
+
+  static std::string Unquote(std::string text) {
+    if (text.size() >= 2 && text.front() == '"' && text.back() == '"')
+      text = text.substr(1, text.size() - 2);
+    return text;
   }
 
   // DAP clients (VS Code) use physical editor lines, while the debugger's

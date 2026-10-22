@@ -72,6 +72,12 @@ Rewinding with `stepBack`/`reverseContinue` restores variables and the program c
 screen contents, so the window keeps showing the later frame after a rewind. Reverse debugging is
 opt-in: set `newbasic.history` to `true`, because snapshots cost a full VM copy per line.
 
+## Editing variables
+
+While stopped, double-click an existing scalar variable in the **Variables** view, type the new
+value, and press Enter. Numeric values use the variable's type suffix; strings accept quoted or
+unquoted text. Arrays are not expandable or editable.
+
 ## What it does not do
 
 - **Pause cannot interrupt a blocking statement.** While a program is running the toolbar's main

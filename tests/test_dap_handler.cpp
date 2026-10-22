@@ -81,6 +81,7 @@ TEST_CASE("DAP: initialize advertises the supported capabilities", "[dap]") {
   REQUIRE(body != nullptr);
   CHECK(body->Find("supportsConfigurationDoneRequest")->AsBool());
   CHECK(body->Find("supportsConditionalBreakpoints")->AsBool());
+  CHECK(body->Find("supportsSetVariable")->AsBool());
   CHECK(outgoing[1].Find("type")->AsString() == "event");
   CHECK(outgoing[1].Find("event")->AsString() == "initialized");
 }
@@ -151,6 +152,37 @@ TEST_CASE("DAP: conditional breakpoints", "[dap]") {
   REQUIRE(stopped != nullptr);
   CHECK(stopped->Find("body")->Find("line")->AsNumber() == 2.0);
   CHECK(adapter.debugger.Variable("I")->AsNumber() == 4.0);
+}
+
+TEST_CASE("DAP: setVariable edits Locals scalars", "[dap]") {
+  Adapter adapter;
+  adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 A=1\\n20 B$=\\\"HI\\\"\\n30 END\\n\"}}");
+  adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
+                  "\"arguments\":{\"breakpoints\":[{\"line\":3}]}}");
+  adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
+
+  const std::vector<Json> number =
+      adapter.Request("{\"seq\":4,\"type\":\"request\",\"command\":\"setVariable\","
+                      "\"arguments\":{\"variablesReference\":1,\"name\":\"A\",\"value\":\"42\"}}");
+  REQUIRE(number[0].Find("success")->AsBool());
+  CHECK(number[0].Find("body")->Find("value")->AsString() == "42");
+  REQUIRE(adapter.debugger.Variable("A").has_value());
+  CHECK(adapter.debugger.Variable("A")->AsNumber() == 42.0);
+
+  const std::vector<Json> text =
+      adapter.Request("{\"seq\":5,\"type\":\"request\",\"command\":\"setVariable\","
+                      "\"arguments\":{\"variablesReference\":1,\"name\":\"B$\","
+                      "\"value\":\"\\\"BYE\\\"\"}}");
+  REQUIRE(text[0].Find("success")->AsBool());
+  CHECK(text[0].Find("body")->Find("value")->AsString() == "\"BYE\"");
+  REQUIRE(adapter.debugger.Variable("B$").has_value());
+  CHECK(adapter.debugger.Variable("B$")->AsString() == "BYE");
+
+  const std::vector<Json> unknown =
+      adapter.Request("{\"seq\":6,\"type\":\"request\",\"command\":\"setVariable\","
+                      "\"arguments\":{\"variablesReference\":1,\"name\":\"ZZ\",\"value\":\"1\"}}");
+  CHECK_FALSE(unknown[0].Find("success")->AsBool());
 }
 
 TEST_CASE("DAP: Step Back follows the history setting", "[dap]") {
