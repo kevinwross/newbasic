@@ -37,8 +37,14 @@ public:
 
   // --- breakpoints ---
   void SetBreakpoint(int line) { breakpoints_.insert(line); }
-  void ClearBreakpoint(int line) { breakpoints_.erase(line); }
-  void ClearBreakpoints() { breakpoints_.clear(); }
+  void ClearBreakpoint(int line) {
+    breakpoints_.erase(line);
+    conditions_.erase(line);
+  }
+  void ClearBreakpoints() {
+    breakpoints_.clear();
+    conditions_.clear();
+  }
   bool HasBreakpoint(int line) const { return breakpoints_.count(line) != 0; }
   const std::set<int>& Breakpoints() const { return breakpoints_; }
 

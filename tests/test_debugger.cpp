@@ -51,11 +51,15 @@ TEST_CASE("Debugger: clearing breakpoints resumes to the end", "[debug]") {
   debugger.SetBreakpoint(10);
   debugger.SetBreakpoint(20);
   CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
+  debugger.SetCondition(10, "A=1");
   debugger.ClearBreakpoint(10);
   CHECK_FALSE(debugger.HasBreakpoint(10));
+  CHECK_FALSE(debugger.HasCondition(10));
   CHECK(debugger.Continue().reason == newbasic::debug::StopReason::Breakpoint);
+  debugger.SetCondition(20, "A=1");
   debugger.ClearBreakpoints();
   CHECK(debugger.Breakpoints().empty());
+  CHECK_FALSE(debugger.HasCondition(20));
   CHECK(debugger.Continue().reason == newbasic::debug::StopReason::ProgramEnd);
 }
 

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -103,6 +104,38 @@ public:
       return RunAction::None;
     }
     if (command == "setBreakpoints") {
+      std::string request_source;
+      if (arguments != nullptr) {
+        const Json* source = arguments->Find("source");
+        if (source != nullptr)
+          request_source = String(*source, "path");
+      }
+      // VS Code can send setBreakpoints for every open source, in any order.
+      // Only the loaded program's source may change adapter breakpoint state;
+      // a request for another editor must not resurrect old breakpoints.
+      if (!source_path_.empty() && !request_source.empty() &&
+          !SameSource(source_path_, request_source)) {
+        Json body = Json::Object();
+        Json verified = Json::Array();
+        const Json* list = arguments->Find("breakpoints");
+        if (list != nullptr && list->IsArray()) {
+          for (const Json& entry : list->Items()) {
+            if (!entry.IsObject())
+              continue;
+            const Json* line = entry.Find("line");
+            if (line == nullptr || !line->IsNumber())
+              continue;
+            Json item = Json::Object();
+            item.Set("line", Json::Number(line->AsNumber()));
+            item.Set("verified", Json::Bool(false));
+            item.Set("message", Json::Str("Breakpoint is for a different source"));
+            verified.Push(std::move(item));
+          }
+        }
+        body.Set("breakpoints", std::move(verified));
+        Respond(request, std::move(body), outgoing);
+        return RunAction::None;
+      }
       debugger_.ClearBreakpoints();
       Json body = Json::Object();
       Json verified = Json::Array();
@@ -363,6 +396,24 @@ private:
   static std::string String(const Json& object, const char* key) {
     const Json* value = object.Find(key);
     return value != nullptr && value->IsString() ? value->AsString() : std::string();
+  }
+
+  static bool SameSource(const std::string& first, const std::string& second) {
+    if (first.empty() || second.empty())
+      return true;
+    std::error_code error;
+    std::filesystem::path a = std::filesystem::weakly_canonical(first, error);
+    error.clear();
+    std::filesystem::path b = std::filesystem::weakly_canonical(second, error);
+    std::string left = a.lexically_normal().string();
+    std::string right = b.lexically_normal().string();
+#if defined(_WIN32)
+    for (char& c : left)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char& c : right)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+#endif
+    return left == right;
   }
 
   static std::string ReadFile(const std::string& path) {

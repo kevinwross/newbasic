@@ -197,6 +197,21 @@ TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
   CHECK(found_name);
 }
 
+TEST_CASE("DAP: a new launch clears breakpoints and conditions", "[dap]") {
+  Adapter adapter;
+  adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 A=1\\n20 A=2\\n30 END\\n\"}}");
+  adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
+                  "\"arguments\":{\"breakpoints\":[{\"line\":2,\"condition\":\"A=1\"}]}}");
+  CHECK(adapter.debugger.HasBreakpoint(20));
+  CHECK(adapter.debugger.HasCondition(20));
+
+  adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 B=1\\n20 B=2\\n30 END\\n\"}}");
+  CHECK_FALSE(adapter.debugger.HasBreakpoint(20));
+  CHECK_FALSE(adapter.debugger.HasCondition(20));
+}
+
 TEST_CASE("DAP: conditional breakpoints", "[dap]") {
   Adapter adapter;
   adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
