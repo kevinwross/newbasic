@@ -10,18 +10,18 @@
 28 REM META|VERSION, ACCOUNT|NUMBER|NAME|TYPE|STATE, JOURNAL|TYPE|REF|DATE|DESC|DR|CR|AMOUNT
 30 REM ACCOUNT_UPDATE|NUMBER|NAME|TYPE|STATE
 32 REM ================================================================
-65 ActiveState = 1 : InactiveState = 0
-66 MaxAccounts = 50 : MaxJournalEntries = 300
-70 DIM AccountNumber(MaxAccounts), AccountName$(MaxAccounts), AccountType(MaxAccounts), AccountBalance(MaxAccounts), AccountState(MaxAccounts)
-80 DIM JournalReference$(MaxJournalEntries), JournalDate$(MaxJournalEntries), JournalDescription$(MaxJournalEntries), JournalDebitAccount(MaxJournalEntries), JournalCreditAccount(MaxJournalEntries), JournalAmount(MaxJournalEntries), JournalEntryType(MaxJournalEntries), DataField$(10)
-90 DataFilePath$ = "samples\accounting.dat"
-91 BackupFilePath$ = "samples\accounting.bak"
-92 TodayDate$ = MID$(DATE$, 1, 2) + "/" + MID$(DATE$, 4, 2) + "/" + MID$(DATE$, 7, 4)
-93 ON ERROR GOTO 5270
-95 BalanceReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##  ####,###.##"
-96 AmountReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##"
-97 JournalReportFormat$ = "  !  \" + SPACE$(8) + "\  \" + SPACE$(8) + "\  \" + SPACE$(20) + "\  ####/####  ####,###.##"
-98 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
+40 ActiveState = 1 : InactiveState = 0
+45 MaxAccounts = 50 : MaxJournalEntries = 300
+50 DIM AccountNumber(MaxAccounts), AccountName$(MaxAccounts), AccountType(MaxAccounts), AccountBalance(MaxAccounts), AccountState(MaxAccounts)
+55 DIM JournalReference$(MaxJournalEntries), JournalDate$(MaxJournalEntries), JournalDescription$(MaxJournalEntries), JournalDebitAccount(MaxJournalEntries), JournalCreditAccount(MaxJournalEntries), JournalAmount(MaxJournalEntries), JournalEntryType(MaxJournalEntries), DataField$(10)
+60 DataFilePath$ = "samples\accounting.dat"
+65 BackupFilePath$ = "samples\accounting.bak"
+70 TodayDate$ = MID$(DATE$, 1, 2) + "/" + MID$(DATE$, 4, 2) + "/" + MID$(DATE$, 7, 4)
+75 ON ERROR GOTO 5270
+80 BalanceReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##  ####,###.##"
+85 AmountReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##"
+90 JournalReportFormat$ = "  !  \" + SPACE$(8) + "\  \" + SPACE$(8) + "\  \" + SPACE$(20) + "\  ####/####  ####,###.##"
+95 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
 99 GOSUB 5000
 100 GOSUB 5100
 105 ON ERROR GOTO 0
