@@ -1,21 +1,24 @@
 10 REM ================================================================
 20 REM NEWBASIC ACCOUNTING - DOUBLE ENTRY BOOKKEEPING.
-30 REM SCREENS: JOURNAL ENTRY, BILLING, PAYMENTS. FORMS USE LOCATE.
+30 REM SCREENS: JOURNAL ENTRY, BILLING, PAYMENTS, REPORTING, CONFIGURATION.
 40 REM REPORTS USE PRINT USING. RUN FROM THE REPO ROOT.
+42 REM CONFIGURATION CHANGES APPLY TO THIS RUN.
+43 REM ACCOUNT STATE: 1=ACTIVE, 0=INACTIVE.
 45 REM DATE FIELDS OPEN ON TODAY: TYPE TO REPLACE IT, BACKSPACE TO EDIT.
 47 REM DATES ARE MM/DD/YYYY AND MUST BE REAL DATES (1900-2099).
 50 REM DATA: samples\accounting.dat, ONE "|"-SEPARATED RECORD PER ENTRY:
 55 REM TYPE|REF|DATE|DESCRIPTION|DEBIT|CREDIT|AMOUNT  (1=J 2=BILL 3=PAY)
 60 REM ================================================================
-70 DIM AccountNumber(20), AccountName$(20), AccountType(20), AccountBalance(20)
+65 ActiveState = 1 : InactiveState = 0
+70 DIM AccountNumber(50), AccountName$(50), AccountType(50), AccountBalance(50), AccountState(50)
 80 DIM JournalReference$(300), JournalDate$(300), JournalDescription$(300), JournalDebitAccount(300), JournalCreditAccount(300), JournalAmount(300), JournalEntryType(300), DataField$(10)
 90 DataFilePath$ = "samples\accounting.dat"
 92 TodayDate$ = MID$(DATE$, 1, 2) + "/" + MID$(DATE$, 4, 2) + "/" + MID$(DATE$, 7, 4)
+93 ON ERROR GOTO 5270
 95 BalanceReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##  ####,###.##"
 96 AmountReportFormat$ = "  \" + SPACE$(34) + "\  ####,###.##"
 97 JournalReportFormat$ = "  !  \" + SPACE$(8) + "\  \" + SPACE$(8) + "\  \" + SPACE$(20) + "\  ####/####  ####,###.##"
 98 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
-93 ON ERROR GOTO 5270
 99 GOSUB 5000
 100 GOSUB 5100
 105 ON ERROR GOTO 0
@@ -27,21 +30,17 @@
 230 LOCATE 4,29: PRINT "1  JOURNAL ENTRY"
 240 LOCATE 5,29: PRINT "2  BILL A CUSTOMER"
 250 LOCATE 6,29: PRINT "3  ACCEPT A PAYMENT"
-260 LOCATE 7,29: PRINT "4  JOURNAL"
-270 LOCATE 8,29: PRINT "5  TRIAL BALANCE"
-280 LOCATE 9,29: PRINT "6  INCOME STATEMENT"
-290 LOCATE 10,29: PRINT "7  BALANCE SHEET"
-300 LOCATE 11,29: PRINT "8  QUIT"
-310 LOCATE 13,29: PRINT "CHOICE: ";
-320 LOCATE 13,37: INPUT "", MenuChoice$
+260 LOCATE 7,29: PRINT "4  REPORTING"
+270 LOCATE 8,29: PRINT "5  SYSTEM CONFIGURATION"
+280 LOCATE 9,29: PRINT "6  QUIT"
+310 LOCATE 11,29: PRINT "CHOICE: ";
+320 LOCATE 11,37: INPUT "", MenuChoice$
 330 IF MenuChoice$ = "1" THEN GOSUB 1000 : GOTO 210
 340 IF MenuChoice$ = "2" THEN GOSUB 1500 : GOTO 210
 350 IF MenuChoice$ = "3" THEN GOSUB 2000 : GOTO 210
-360 IF MenuChoice$ = "4" THEN GOSUB 3750 : GOSUB 8000 : GOTO 210
-370 IF MenuChoice$ = "5" THEN GOSUB 2600 : GOSUB 8000 : GOTO 210
-380 IF MenuChoice$ = "6" THEN GOSUB 2900 : GOSUB 8000 : GOTO 210
-390 IF MenuChoice$ = "7" THEN GOSUB 3250 : GOSUB 8000 : GOTO 210
-400 IF MenuChoice$ = "8" THEN RETURN
+360 IF MenuChoice$ = "4" THEN GOSUB 9200 : GOTO 210
+370 IF MenuChoice$ = "5" THEN GOSUB 9400 : GOTO 210
+380 IF MenuChoice$ = "6" THEN RETURN
 410 GOTO 210
 1000 REM ---- JOURNAL ENTRY (ANY TWO ACCOUNTS) -------------------------
 1010 CLS
@@ -76,11 +75,13 @@
 1290 GOSUB 7200 : LOCATE 8,22: PRINT SPACE$(45); : LOCATE 8,22: DebitAccountNumber = 0 : INPUT "", DebitAccountNumber
 1300 AccountNumberInput = DebitAccountNumber : GOSUB 4000
 1310 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT " + MID$(STR$(DebitAccountNumber), 2) + " IS NOT IN THE CHART" : GOSUB 7000 : GOTO 1290
+1315 IF AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "ACCOUNT " + MID$(STR$(DebitAccountNumber), 2) + " IS INACTIVE" : GOSUB 7000 : GOTO 1290
 1320 DebitAccountIndex = FoundAccountIndex : LOCATE 8,34: PRINT SPACE$(38); : LOCATE 8,34: PRINT AccountName$(DebitAccountIndex)
 1330 GOSUB 7200 : LOCATE 9,22: PRINT SPACE$(45); : LOCATE 9,22: CreditAccountNumber = 0 : INPUT "", CreditAccountNumber
 1340 IF CreditAccountNumber = DebitAccountNumber THEN StatusMessage$ = "DEBIT AND CREDIT MUST BE DIFFERENT ACCOUNTS" : GOSUB 7000 : GOTO 1330
 1350 AccountNumberInput = CreditAccountNumber : GOSUB 4000
 1360 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT " + MID$(STR$(CreditAccountNumber), 2) + " IS NOT IN THE CHART" : GOSUB 7000 : GOTO 1330
+1365 IF AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "ACCOUNT " + MID$(STR$(CreditAccountNumber), 2) + " IS INACTIVE" : GOSUB 7000 : GOTO 1330
 1370 CreditAccountIndex = FoundAccountIndex : LOCATE 9,34: PRINT SPACE$(38); : LOCATE 9,34: PRINT AccountName$(CreditAccountIndex)
 1380 GOSUB 7200 : LOCATE 10,22: PRINT SPACE$(45); : LOCATE 10,22: EntryAmount = 0 : INPUT "", EntryAmount
 1390 IF EntryAmount <= 0 THEN StatusMessage$ = "THE AMOUNT MUST BE POSITIVE" : GOSUB 7000 : GOTO 1380
@@ -98,6 +99,8 @@
 1495 RETURN
 1500 REM ---- BILL A CUSTOMER: DR A/R, CR THE INCOME ACCOUNT -------------
 1510 CLS
+1512 AccountNumberInput = 1100 : GOSUB 4000
+1514 IF FoundAccountIndex = 0 OR AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "A/R ACCOUNT 1100 IS NOT ACTIVE" : GOSUB 7000 : RETURN
 1520 LOCATE 2,29: PRINT "BILL A CUSTOMER"
 1530 LOCATE 4,5: PRINT "INVOICE #  :"
 1540 LOCATE 5,5: PRINT "DATE       :"
@@ -124,6 +127,7 @@
 1720 GOSUB 7200 : LOCATE 8,22: PRINT SPACE$(45); : LOCATE 8,22: IncomeAccountNumber = 4000 : INPUT "", IncomeAccountNumber
 1730 AccountNumberInput = IncomeAccountNumber : GOSUB 4000
 1740 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT " + MID$(STR$(IncomeAccountNumber), 2) + " IS NOT IN THE CHART" : GOSUB 7000 : GOTO 1720
+1745 IF AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "THAT ACCOUNT IS INACTIVE" : GOSUB 7000 : GOTO 1720
 1750 IF AccountType(FoundAccountIndex) <> 4 THEN StatusMessage$ = "THAT ACCOUNT IS NOT AN INCOME ACCOUNT" : GOSUB 7000 : GOTO 1720
 1760 LOCATE 8,34: PRINT SPACE$(38); : LOCATE 8,34: PRINT AccountName$(FoundAccountIndex)
 1770 GOSUB 7200 : LOCATE 9,22: PRINT SPACE$(45); : LOCATE 9,22: EntryAmount = 0 : INPUT "", EntryAmount
@@ -142,6 +146,10 @@
 1895 RETURN
 2000 REM ---- ACCEPT A PAYMENT: DR CASH, CR A/R --------------------------
 2010 CLS
+2012 AccountNumberInput = 1000 : GOSUB 4000
+2014 IF FoundAccountIndex = 0 OR AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "CASH ACCOUNT 1000 IS NOT ACTIVE" : GOSUB 7000 : RETURN
+2016 AccountNumberInput = 1100 : GOSUB 4000
+2018 IF FoundAccountIndex = 0 OR AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "A/R ACCOUNT 1100 IS NOT ACTIVE" : GOSUB 7000 : RETURN
 2020 LOCATE 2,28: PRINT "ACCEPT A PAYMENT"
 2030 LOCATE 3,5: PRINT "OPEN INVOICES"
 2040 LOCATE 4,1: PRINT "  INVOICE"; TAB(15); "CUSTOMER"; TAB(42); "BILLED"; TAB(57); "PAID"; TAB(70); "OPEN"
@@ -336,7 +344,7 @@
 5010 AccountCount = 0
 5020 READ AccountNumberInput, DataAccountName$, DataAccountType
 5030 IF AccountNumberInput = 0 THEN 5060
-5040 AccountCount = AccountCount + 1 : AccountNumber(AccountCount) = AccountNumberInput : AccountName$(AccountCount) = DataAccountName$ : AccountType(AccountCount) = DataAccountType
+5040 AccountCount = AccountCount + 1 : AccountNumber(AccountCount) = AccountNumberInput : AccountName$(AccountCount) = DataAccountName$ : AccountType(AccountCount) = DataAccountType : AccountState(AccountCount) = ActiveState
 5050 GOTO 5020
 5060 RETURN
 5100 REM ---- CREATE IF NEEDED AND LOAD THE JOURNAL FILE ---------------
@@ -431,7 +439,7 @@
 8020 LOCATE 24,5: PRINT "PRESS ENTER TO CONTINUE: ";
 8030 INPUT "", Confirmation$
 8040 RETURN
-9000 REM ---- THE CHART: NUMBER, NAME, TYPE ----------------------------
+9000 REM ---- THE CHART: NUMBER, NAME, TYPE (STATE STARTS ACTIVE) --------
 9010 DATA 1000,CASH,1
 9020 DATA 1100,ACCOUNTS RECEIVABLE,1
 9030 DATA 1200,SUPPLIES,1
@@ -446,3 +454,103 @@
 9120 DATA 5200,UTILITIES EXPENSE,5
 9130 DATA 5300,SUPPLIES EXPENSE,5
 9140 DATA 0,END,0
+9200 REM ---- REPORTING MENU --------------------------------------------
+9210 CLS
+9220 LOCATE 2,31: PRINT "REPORTING"
+9230 LOCATE 4,29: PRINT "1  JOURNAL"
+9240 LOCATE 5,29: PRINT "2  TRIAL BALANCE"
+9250 LOCATE 6,29: PRINT "3  INCOME STATEMENT"
+9260 LOCATE 7,29: PRINT "4  BALANCE SHEET"
+9270 LOCATE 8,29: PRINT "5  RETURN TO MAIN MENU"
+9280 LOCATE 10,29: PRINT "CHOICE: ";
+9285 LOCATE 10,37: INPUT "", MenuChoice$
+9290 IF MenuChoice$ = "1" THEN GOSUB 3750 : GOSUB 8000 : GOTO 9210
+9292 IF MenuChoice$ = "2" THEN GOSUB 2600 : GOSUB 8000 : GOTO 9210
+9294 IF MenuChoice$ = "3" THEN GOSUB 2900 : GOSUB 8000 : GOTO 9210
+9296 IF MenuChoice$ = "4" THEN GOSUB 3250 : GOSUB 8000 : GOTO 9210
+9298 IF MenuChoice$ = "5" THEN RETURN
+9299 GOTO 9210
+9400 REM ---- SYSTEM CONFIGURATION -------------------------------------
+9410 CLS
+9420 LOCATE 2,27: PRINT "SYSTEM CONFIGURATION"
+9430 LOCATE 4,27: PRINT "1  ADD ACCOUNT"
+9440 LOCATE 5,27: PRINT "2  EDIT ACCOUNT"
+9450 LOCATE 6,27: PRINT "3  MARK ACCOUNT INACTIVE"
+9460 LOCATE 7,27: PRINT "4  REACTIVATE ACCOUNT"
+9470 LOCATE 8,27: PRINT "5  RETURN TO MAIN MENU"
+9475 LOCATE 10,27: PRINT "ACCOUNTS: "; AccountCount; " OF 50"
+9480 LOCATE 12,29: PRINT "CHOICE: ";
+9485 LOCATE 12,37: INPUT "", MenuChoice$
+9490 IF MenuChoice$ = "1" THEN GOSUB 9700 : GOTO 9410
+9492 IF MenuChoice$ = "2" THEN GOSUB 9800 : GOTO 9410
+9494 IF MenuChoice$ = "3" THEN GOSUB 9900 : GOTO 9410
+9496 IF MenuChoice$ = "4" THEN GOSUB 9950 : GOTO 9410
+9498 IF MenuChoice$ = "5" THEN RETURN
+9499 GOTO 9410
+9700 REM ---- ADD ACCOUNT -----------------------------------------------
+9705 IF AccountCount >= 50 THEN StatusMessage$ = "THE CHART IS FULL" : GOSUB 7000 : RETURN
+9710 CLS
+9720 LOCATE 2,29: PRINT "ADD ACCOUNT"
+9730 LOCATE 4,5: PRINT "NUMBER: "; : INPUT "", AccountNumberInput
+9732 IF AccountNumberInput = 0 THEN RETURN
+9734 GOSUB 4000
+9736 IF FoundAccountIndex > 0 THEN StatusMessage$ = "THAT ACCOUNT NUMBER ALREADY EXISTS" : GOSUB 7000 : GOTO 9730
+9740 LOCATE 5,5: PRINT "NAME  : "; : LINE INPUT "", AccountNameInput$
+9742 IF AccountNameInput$ = "" THEN StatusMessage$ = "A NAME IS REQUIRED" : GOSUB 7000 : GOTO 9740
+9744 IF INSTR(AccountNameInput$, "|") > 0 THEN StatusMessage$ = "NO | IN THE NAME" : GOSUB 7000 : GOTO 9740
+9750 LOCATE 6,5: PRINT "TYPE 1=ASSET 2=LIABILITY 3=EQUITY 4=REVENUE 5=EXPENSE"
+9752 LOCATE 7,5: PRINT "TYPE  : "; : INPUT "", AccountTypeInput
+9754 IF AccountTypeInput < 1 OR AccountTypeInput > 5 THEN StatusMessage$ = "TYPE MUST BE 1 TO 5" : GOSUB 7000 : GOTO 9752
+9756 AccountCount = AccountCount + 1
+9758 AccountNumber(AccountCount) = AccountNumberInput
+9760 AccountName$(AccountCount) = AccountNameInput$
+9762 AccountType(AccountCount) = AccountTypeInput
+9764 AccountBalance(AccountCount) = 0
+9766 AccountState(AccountCount) = ActiveState
+9770 LOCATE 9,5: PRINT "ACCOUNT "; AccountNumberInput; " ADDED ACTIVE."
+9775 GOSUB 8000
+9780 RETURN
+9800 REM ---- EDIT ACCOUNT ----------------------------------------------
+9802 CLS
+9804 LOCATE 2,29: PRINT "EDIT ACCOUNT"
+9806 LOCATE 4,5: PRINT "NUMBER: "; : INPUT "", AccountNumberInput
+9808 IF AccountNumberInput = 0 THEN RETURN
+9810 GOSUB 4000
+9812 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT NOT IN THE CHART" : GOSUB 7000 : GOTO 9806
+9814 LOCATE 5,5: PRINT "CURRENT: "; AccountName$(FoundAccountIndex); "  TYPE "; AccountType(FoundAccountIndex)
+9816 IF AccountState(FoundAccountIndex) = ActiveState THEN LOCATE 5,60: PRINT "ACTIVE" ELSE LOCATE 5,60: PRINT "INACTIVE"
+9820 LOCATE 6,5: PRINT "NEW NAME (BLANK KEEPS): "; : LINE INPUT "", AccountNameInput$
+9822 IF AccountNameInput$ = "" THEN 9830
+9824 IF INSTR(AccountNameInput$, "|") > 0 THEN StatusMessage$ = "NO | IN THE NAME" : GOSUB 7000 : GOTO 9820
+9826 AccountName$(FoundAccountIndex) = AccountNameInput$
+9830 LOCATE 7,5: PRINT "NEW TYPE (0 KEEPS): "; : INPUT "", AccountTypeInput
+9832 IF AccountTypeInput = 0 THEN 9840
+9834 IF AccountTypeInput < 1 OR AccountTypeInput > 5 THEN StatusMessage$ = "TYPE MUST BE 1 TO 5" : GOSUB 7000 : GOTO 9830
+9836 AccountType(FoundAccountIndex) = AccountTypeInput
+9840 LOCATE 9,5: PRINT "ACCOUNT UPDATED."
+9845 GOSUB 8000
+9850 RETURN
+9900 REM ---- MARK ACCOUNT INACTIVE ------------------------------------
+9902 CLS
+9904 LOCATE 2,25: PRINT "MARK ACCOUNT INACTIVE"
+9906 LOCATE 4,5: PRINT "NUMBER: "; : INPUT "", AccountNumberInput
+9908 IF AccountNumberInput = 0 THEN RETURN
+9910 GOSUB 4000
+9912 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT NOT IN THE CHART" : GOSUB 7000 : GOTO 9906
+9914 IF AccountState(FoundAccountIndex) = InactiveState THEN StatusMessage$ = "ACCOUNT IS ALREADY INACTIVE" : GOSUB 7000 : GOTO 9906
+9916 AccountState(FoundAccountIndex) = InactiveState
+9918 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " MARKED INACTIVE."
+9920 GOSUB 8000
+9922 RETURN
+9950 REM ---- REACTIVATE ACCOUNT ----------------------------------------
+9952 CLS
+9954 LOCATE 2,25: PRINT "REACTIVATE ACCOUNT"
+9956 LOCATE 4,5: PRINT "NUMBER: "; : INPUT "", AccountNumberInput
+9958 IF AccountNumberInput = 0 THEN RETURN
+9960 GOSUB 4000
+9962 IF FoundAccountIndex = 0 THEN StatusMessage$ = "ACCOUNT NOT IN THE CHART" : GOSUB 7000 : GOTO 9956
+9964 IF AccountState(FoundAccountIndex) = ActiveState THEN StatusMessage$ = "ACCOUNT IS ALREADY ACTIVE" : GOSUB 7000 : GOTO 9956
+9966 AccountState(FoundAccountIndex) = ActiveState
+9968 LOCATE 6,5: PRINT "ACCOUNT "; AccountNumberInput; " REACTIVATED."
+9970 GOSUB 8000
+9972 RETURN
