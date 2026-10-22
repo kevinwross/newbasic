@@ -24,6 +24,7 @@
 95 InvoiceReportFormat$ = "  \" + SPACE$(8) + "\  \" + SPACE$(18) + "\  ####,###.##  ####,###.##  ####,###.##"
 100 GOSUB 5000
 110 GOSUB 5100
+119 REM DISABLE THE STARTUP FILE ERROR TRAP; RUNTIME ERRORS ARE NORMAL.
 120 ON ERROR GOTO 0
 130 GOSUB 200
 140 END
