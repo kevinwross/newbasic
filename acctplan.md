@@ -625,12 +625,12 @@ These are real behaviours of the interpreter; another AI will hit them.
 
 1. **Keywords are whole words.** `TOTAL` and `FORT` are now valid variable names, but keyword and
    operand still need separation: `FOR I=1 TO 10`, `GOTO 100`, `IF A THEN 100`. Run-together forms
-   such as `FORI=1TO10` and `GOTO100` no longer parse. The sample uses `TS` rather than `TOT` from the
-   old prefix restriction; `TOT` would work now, but `TS` is retained.
+   such as `FORI=1TO10` and `GOTO100` no longer parse. The sample accounting program now uses
+   descriptive names such as `PostedTotal` and `JournalEntryCount`.
 2. **A colon is required after a trailing `PRINT;` when another statement follows.**
-   `PRINT DV$; SPACE$(25); LOCATE ...` is parsed as a PRINT item list containing `LOCATE`
-   and is a syntax error. Write `PRINT DV$; SPACE$(25); : LOCATE ...`. The same applies to
-   `PRINT "DATE :"; : DV$ = TD$`.
+   `PRINT EditValue$; SPACE$(25); LOCATE ...` is parsed as a PRINT item list containing `LOCATE`
+   and is a syntax error. Write `PRINT EditValue$; SPACE$(25); : LOCATE ...`. The same applies to
+   `PRINT "DATE :"; : EditValue$ = TodayDate$`.
 3. **`INPUT` splits on commas.** `INPUT A$` with `SMITH, JOHN` gives `?Redo from start`.
    Use `LINE INPUT "", A$` for free text (descriptions, customer names). `LINE INPUT`
    keeps the whole line, commas included.
