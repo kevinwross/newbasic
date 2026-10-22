@@ -17,6 +17,7 @@
 #include <cstring>
 #include <iostream>
 #include <istream>
+#include <memory>
 #include <ostream>
 #include <streambuf>
 #include <string>
@@ -30,8 +31,10 @@
 #include "newbasic/dap/session.h"
 #include "newbasic/debugger.h"
 #include "newbasic/host.h"
-#include "newbasic/screen/console_screen.h"
+#include "newbasic/screen/headless_screen.h"
 #include "newbasic/vm.h"
+#include "newbasic/window/screen_factory.h"
+#include "newbasic/window/window_screen.h"
 #include "socket.h"
 
 namespace {
@@ -83,15 +86,35 @@ void PrintUsage() {
   std::fprintf(stderr,
                "newbasic-dap: a Debug Adapter Protocol server.\n"
                "\n"
-               "  newbasic-dap            Speak DAP on stdin and stdout.\n"
-               "  newbasic-dap --port N   Listen for DAP on 127.0.0.1:N instead. Port 0 picks a\n"
-               "                         free port and reports it. Use this for editors that want\n"
-               "                         a debug server, such as VS Code debugServer.\n");
+               "  newbasic-dap [--nowindow]            Speak DAP on stdin and stdout.\n"
+               "  newbasic-dap --port N [--nowindow]   Listen for DAP on 127.0.0.1:N instead.\n"
+               "                                       Port 0 picks a free port and reports it.\n"
+               "                                       Use this for editors that want a debug\n"
+               "                                       server, such as VS Code debugServer.\n"
+               "\n"
+               "  --nowindow   Do not open the program's GUI window; run with a headless\n"
+               "               screen. The window is the default when a backend is available.\n");
+}
+
+// A visible window is the default so a debug session shows PRINT output and graphics like the
+// normal runner. --nowindow (and a missing/headless backend) falls back to a headless screen, which
+// keeps the protocol usable in CI and over SSH. The window must outlive the Vm that draws into it.
+std::unique_ptr<newbasic::screen::Screen> CreateDebugScreen(bool show_window) {
+  if (show_window) {
+    std::string error;
+    if (auto window = newbasic::screen::CreateWindowScreen(&error, 1))
+      return window;
+    std::fprintf(stderr,
+                 "newbasic-dap: no debug window (%s); using a headless screen. "
+                 "Pass --nowindow to make this explicit.\n",
+                 error.c_str());
+  }
+  return std::make_unique<newbasic::screen::HeadlessScreen>();
 }
 
 // Serves DAP on a listening socket until the listener fails. Each connection gets a fresh session
 // over the same machine, so an editor can reconnect after a reload.
-int RunPort(int port) {
+int RunPort(int port, bool show_window) {
   std::string error;
   newbasic::dap::Socket listener = newbasic::dap::Socket::ListenLoopback(port, &error);
   if (!listener.Valid()) {
@@ -108,9 +131,9 @@ int RunPort(int port) {
     if (!client.Valid())
       break;
     {
-      newbasic::screen::ConsoleScreen screen;
+      const std::unique_ptr<newbasic::screen::Screen> screen = CreateDebugScreen(show_window);
       newbasic::SystemHost host;
-      newbasic::Vm vm(screen, &host);
+      newbasic::Vm vm(*screen, &host);
       newbasic::debug::Debugger debugger(vm);
       newbasic::dap::Session session(vm, debugger);
       SocketBuf buffer(std::move(client)); // closes the socket when it goes out of scope
@@ -124,7 +147,7 @@ int RunPort(int port) {
   return 0;
 }
 
-int RunStdio() {
+int RunStdio(bool show_window) {
 #if defined(_WIN32)
   // DAP framing is byte-oriented. Windows text mode turns the required CRLF
   // into CRCRLF, which strict clients such as VS Code reject before they ever
@@ -132,9 +155,9 @@ int RunStdio() {
   _setmode(_fileno(stdin), _O_BINARY);
   _setmode(_fileno(stdout), _O_BINARY);
 #endif
-  newbasic::screen::ConsoleScreen screen;
+  const std::unique_ptr<newbasic::screen::Screen> screen = CreateDebugScreen(show_window);
   newbasic::SystemHost host;
-  newbasic::Vm vm(screen, &host);
+  newbasic::Vm vm(*screen, &host);
   newbasic::debug::Debugger debugger(vm);
   newbasic::dap::Session session(vm, debugger);
   session.Run(std::cin, std::cout);
@@ -146,10 +169,15 @@ int RunStdio() {
 
 int main(int argc, char** argv) {
   int port = -1;
+  bool show_window = true;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-?") == 0) {
       PrintUsage();
       return 0;
+    }
+    if (std::strcmp(argv[i], "--nowindow") == 0) {
+      show_window = false;
+      continue;
     }
     if (std::strcmp(argv[i], "--port") == 0) {
       if (i + 1 >= argc) {
@@ -168,6 +196,6 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (port >= 0)
-    return RunPort(port);
-  return RunStdio();
+    return RunPort(port, show_window);
+  return RunStdio(show_window);
 }

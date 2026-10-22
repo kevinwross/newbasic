@@ -32,7 +32,7 @@ set(request_file "${TMP_DIR}/dap_request.tmp")
 file(WRITE "${request_file}" "Content-Length: ${request_length}\n\n${request}")
 
 execute_process(
-  COMMAND "${DAP_EXE}"
+  COMMAND "${DAP_EXE}" --nowindow
   INPUT_FILE "${request_file}"
   OUTPUT_VARIABLE response
   ERROR_VARIABLE errors
@@ -73,7 +73,7 @@ file(WRITE "${request_file}"
   "Content-Length: ${first_length}\n\n${two_requests}"
   "Content-Length: ${second_length}\n\n${second}")
 execute_process(
-  COMMAND "${DAP_EXE}"
+  COMMAND "${DAP_EXE}" --nowindow
   INPUT_FILE "${request_file}"
   OUTPUT_VARIABLE both
   ERROR_VARIABLE errors

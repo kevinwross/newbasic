@@ -336,6 +336,12 @@ public:
   // follow the last instruction (handler bodies, for instance).
   bool Step();
 
+  // Debugger seam: Vm::Run presents between instructions, but a debugger drives
+  // Step() directly. These let it refresh a visible Screen while stepping and
+  // force a final frame when execution stops.
+  void Present() { screen_.PresentIfDirty(); }
+  void PresentNow() { screen_.PresentNow(); }
+
 private:
   // One instruction, without the halted guard that Step() applies.
   bool StepImpl();

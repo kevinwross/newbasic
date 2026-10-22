@@ -42,9 +42,12 @@ foreach ($r in $reqs) {
 }
 [System.IO.File]::WriteAllText("dap_in.txt", $sb.ToString(), (New-Object System.Text.UTF8Encoding($false)))
 Start-Process -FilePath "out\src\newbasic-dap\Release\newbasic-dap.exe" `
+  -ArgumentList "--nowindow" `
   -RedirectStandardInput dap_in.txt -RedirectStandardOutput dap_out.txt -PassThru -Wait
 Get-Content dap_out.txt
 ```
+
+`--nowindow` keeps this scripted session headless; remove it to see the GUI output window.
 
 `launch` accepts either a `program` path or inline `programText`. `configurationDone` (or
 `continue`) is what starts execution; execution stops at the first breakpoint and a `stopped` event
@@ -55,6 +58,24 @@ them to and from BASIC line numbers using the loaded source: in the inline progr
 line 3 is BASIC line 30. Breakpoints on blank lines or lines without a BASIC number are reported as
 unverified rather than silently landing on a different line.
 
+## The output window
+
+By default `newbasic-dap` opens the interpreter's GUI window (D3D11 on Windows, SDL2 on Linux) and
+presents the program's screen as execution proceeds. That makes `PRINT`, `CLS`, `LOCATE`, `SCREEN`,
+`PSET`, `LINE`, `CIRCLE`, `PAINT`, `SCREEN 720` and the rest visible while stepping or continuing;
+the debugger calls `Screen::PresentIfDirty` after each step and forces a final frame at a stop. The
+window is separate from VS Code, which remains the debug UI.
+
+Pass `--nowindow` to use a headless screen instead. This is what CI and other non-interactive clients
+should do; it also avoids opening a window when no display exists. `INPUT` and `INKEY$` need the
+window, so they are not usable with `--nowindow`. If the window backend is missing or fails to
+initialise, the adapter prints one line to stderr and falls back to headless rather than failing the
+session.
+
+The DAP Debug Console does not receive `PRINT` output; it belongs to the GUI window. Time travel
+restores the VM state but not the screen, so after `stepBack`/`reverseContinue` the window still
+shows the later frame.
+
 ## Driving it from an editor
 
 **Neovim** with `nvim-dap` can spawn a stdio adapter directly:
@@ -64,7 +85,7 @@ local dap = require("dap")
 dap.adapters.newbasic = {
   type = "executable",
   command = "C:/Users/kevin/repos/newbasic/out/src/newbasic-dap/Release/newbasic-dap.exe",
-  args = {},
+  args = {}, -- add "--nowindow" for a headless session
 }
 dap.configurations.basic = {
   {
@@ -78,8 +99,8 @@ dap.configurations.basic = {
 
 ### The TCP transport
 
-`newbasic-dap --port N` listens on `127.0.0.1:N` instead of using stdio; `--port 0` picks a free port
-and reports it on stderr, which makes the transport scriptable:
+`newbasic-dap --port N [--nowindow]` listens on `127.0.0.1:N` instead of using stdio; `--port 0`
+picks a free port and reports it on stderr, which makes the transport scriptable:
 
     newbasic-dap --port 0
     newbasic-dap: listening on 127.0.0.1:60554

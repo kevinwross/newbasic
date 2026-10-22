@@ -28,6 +28,7 @@ void Debugger::RecordHistory() {
 StopState Debugger::StepInstruction() {
   RecordHistory(); // the state *before* this instruction runs
   const bool more = vm_.Step();
+  vm_.Present(); // a windowed debug session must show output as it is produced
   if (more)
     return StateFor(StopReason::Step);
   if (vm_.TakeTrap()) {
@@ -43,10 +44,14 @@ StopState Debugger::StepLine() {
   const int start_line = CurrentLine();
   for (;;) {
     const StopState state = StepInstruction();
-    if (state.AtEnd())
+    if (state.AtEnd()) {
+      vm_.PresentNow();
       return state;
-    if (CurrentLine() != start_line)
+    }
+    if (CurrentLine() != start_line) {
+      vm_.PresentNow();
       return state;
+    }
   }
 }
 
@@ -58,8 +63,10 @@ StopState Debugger::Continue() {
   resume_line_ = 0;
   for (;;) {
     const StopState state = StepInstruction();
-    if (state.AtEnd())
+    if (state.AtEnd()) {
+      vm_.PresentNow();
       return state;
+    }
     const int line = CurrentLine();
     if (skip_line != 0 && line != skip_line)
       skip_line = 0;
@@ -69,6 +76,7 @@ StopState Debugger::Continue() {
       StopState hit = state;
       hit.reason = StopReason::Breakpoint;
       hit.line = line;
+      vm_.PresentNow();
       return hit;
     }
   }
@@ -80,6 +88,7 @@ StopState Debugger::StepBack() {
   const Vm::Snapshot previous = history_.back();
   history_.pop_back();
   vm_.RestoreState(previous);
+  vm_.PresentNow();
   // Do not immediately re-record the line we just rewound to.
   last_recorded_line_ = CurrentLine();
   return StateFor(StopReason::Step);

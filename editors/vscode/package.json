@@ -57,6 +57,11 @@
           "type": "string",
           "default": "",
           "description": "Path to newbasic-dap.exe. Leave empty to use out/src/newbasic-dap/Release/newbasic-dap.exe in the workspace folder."
+        },
+        "newbasic.showWindow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the program's GUI window during debug sessions. Turn off to pass --nowindow and run with a headless screen."
         }
       }
     }

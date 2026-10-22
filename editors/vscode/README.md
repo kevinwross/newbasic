@@ -20,7 +20,7 @@ No build step: the extension is plain JavaScript.
 
 1. Open this folder (`editors/vscode`) in VS Code.
 2. Press **F5**. A second VS Code window opens with the extension loaded.
-3. In that window, open an `newbasic` project — the newbasic repo itself works — and add a
+3. In that window, open a `newbasic` project — the newbasic repo itself works — and add a
    `.vscode/launch.json`:
 
 ```json
@@ -54,6 +54,21 @@ and use the **Step Back** button to rewind through the recorded history.
 | Setting | Meaning |
 |---|---|
 | `newbasic.adapterPath` | Full path to `newbasic-dap.exe`. Empty means "use the workspace's build output". |
+| `newbasic.showWindow` | Show the program's GUI window during debug sessions (default `true`). Set `false` to pass `--nowindow` and run headless. |
+
+## Program output
+
+By default the debug session opens a separate GUI window and shows the program's text and graphics
+there as execution proceeds. This is the same `Screen` the normal runner uses (D3D11 on Windows,
+SDL2 on Linux), so `PRINT`, `CLS`, `LOCATE`, `SCREEN`, `PSET`, `LINE`, `CIRCLE`, `PAINT` and
+`SCREEN 720` all appear in that window while stepping or continuing.
+
+`PRINT` output is **not** forwarded to VS Code's Debug Console. Set `newbasic.showWindow` to `false`
+to run headless; `INPUT`/`INKEY$` are not usable in that mode. On Linux a window requires SDL2 and a
+display; if either is unavailable the adapter falls back to a headless screen.
+
+Rewinding with `stepBack`/`reverseContinue` restores variables and the program counter, but not the
+screen contents, so the window keeps showing the later frame after a rewind.
 
 ## What it does not do
 
