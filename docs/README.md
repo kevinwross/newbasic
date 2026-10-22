@@ -11,14 +11,13 @@ Each chunk carries a header comment with its source line range. Text is
 curly quotes); read around them.
 
 > **Copyright:** this is Microsoft copyrighted material kept as a *local*
-> reference. `GWBASIC.txt` and this `docs/` tree are **gitignored — do not
-> commit or redistribute**. Cite behavior with line references when useful.
+> reference. GW-Basic was released on GitHub under an MIT license. `
 
 ## Chunk index
 
 | File | `GWBASIC.txt` lines | Contents |
 |---|---|---|
-| `gw-basic/00-front-matter-and-tocs.md` | 1–1077 | Copyright/notice, "Introduction", User's Guide TOC, User's Reference TOC, preface material |
+| `gw-basic/00-front-matter-and-tocs.md` | 1–1077 |  "Introduction", User's Guide TOC, User's Reference TOC, preface material |
 | `gw-basic/01-ch1-welcome.md` | 1078–1207 | User's Guide — Ch. 1: Welcome to GW-BASIC (manual overview) |
 | `gw-basic/02-ch2-getting-started.md` | 1208–1559 | Ch. 2: Getting Started (first programs, direct mode, editor intro) |
 | `gw-basic/03-ch3-reviewing-practicing.md` | 1560–1789 | Ch. 3: Reviewing and Practicing (exercises) |
