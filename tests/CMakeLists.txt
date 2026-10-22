@@ -3,6 +3,7 @@ add_executable(newbasic-tests
   test_line_store.cpp
   test_bas_text.cpp
   test_lexer.cpp
+  test_names.cpp
   test_expressions.cpp
   test_statements.cpp
   test_arrays.cpp

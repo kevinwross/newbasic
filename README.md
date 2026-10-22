@@ -135,6 +135,11 @@ backend is added; and the window backends are not pixel-identical.
 - **Format facts were sourced, not guessed** — token values, the MBF numeric
   encoding, the protected-file transform and the tokenized layout all record
   their provenance under `docs/`.
+- **Keywords are whole words.** `TOTAL`, `FORT`, `PRINTX` and `FNA` are valid variable names now;
+  only an exact reserved word such as `TO`, `PRINT` or `FN` is a keyword. Run-together forms must be
+  spaced: write `FOR I=1 TO 10`, `GOTO 100`, and `IF A THEN 100`, not `FORI=1TO10`, `GOTO100`, or
+  `THEN100`. `FN` remains a function prefix: `FNA` can be a scalar, but `FNA(...)` means a
+  user-defined function call.
 - **Arithmetic uses host floating point** by project decision; only `PRINT`
   display formatting emulates GW-BASIC (7 significant digits for single
   precision, exponent boundaries, cramming at column 80).

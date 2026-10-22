@@ -29,10 +29,9 @@ struct Token {
 
 // Lexer for the GW-BASIC dialect (plan section 2).
 //
-// Keywords are recognized longest-match-first at any position, so keyword
-// runs need no spaces around them: `FORI=1TO10` lexes as FOR, I, =, 1, TO,
-// 10, exactly like the real interpreter. A name that begins with a keyword
-// therefore splits (an identifier cannot contain a reserved word).
+// Keywords are recognized only when the whole scanned name is reserved, so
+// `TOTAL` is a name while `TO` is a keyword. Keyword and operand still need
+// separation: `FOR I=1 TO 10` works; `FORI=1TO10` does not.
 class Lexer {
 public:
   // Tokenizes one physical line (no trailing newline). Always ends with an

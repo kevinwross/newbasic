@@ -1604,13 +1604,22 @@ private:
   // raises "Undefined user function" instead, which newbasic reports at
   // compile time).
   bool CompileDef() {
-    if (!IsKeyword("FN"))
+    // Whole-word lexing makes `FNA` one identifier. Accept both the classic
+    // `DEF FN A(...)` spelling and the compact `DEF FNA(...)` spelling.
+    std::string name;
+    if (IsKeyword("FN")) {
+      Advance();
+      if (Cur().kind != Tok::Ident)
+        return Syntax("Expected a function name after DEF FN");
+      name = "FN" + TypeName(Cur().text);
+      Advance();
+    } else if (Cur().kind == Tok::Ident && Cur().text.size() > 2 &&
+               Cur().text.compare(0, 2, "FN") == 0) {
+      name = TypeName(Cur().text);
+      Advance();
+    } else {
       return Syntax("Expected FN after DEF");
-    Advance();
-    if (Cur().kind != Tok::Ident)
-      return Syntax("Expected a function name after DEF FN");
-    const std::string name = "FN" + TypeName(Cur().text);
-    Advance();
+    }
     std::vector<std::string> params;
     if (TakeOp("(")) {
       if (!IsOp(")")) {
@@ -2419,7 +2428,39 @@ private:
     }
     if (Cur().kind == Tok::Ident) {
       const std::string name = TypeName(Cur().text);
+      // `FNA` is one identifier now. A matching DEF FN is a user-function call;
+      // the FN prefix keeps its function-call meaning when followed by `(`.
+      // Without parentheses, FNA can still be an ordinary scalar name.
+      const bool fn_prefix = name.size() > 2 && name.compare(0, 2, "FN") == 0;
+      const int user_index = fn_prefix ? FindUserFunc(name) : -1;
       Advance();
+      if (user_index >= 0) {
+        int argc = 0;
+        if (TakeOp("(")) {
+          if (!IsOp(")")) {
+            do {
+              if (!ParseExpression())
+                return false;
+              ++argc;
+            } while (TakeOp(","));
+          }
+          if (!ExpectOp(")"))
+            return false;
+        }
+        const std::size_t want =
+            out_->user_funcs_[static_cast<std::size_t>(user_index)].params.size();
+        if (static_cast<std::size_t>(argc) != want) {
+          return Syntax(name + " takes " + std::to_string(want) + " argument(s)");
+        }
+        Instr in;
+        in.op = Op::CallUser;
+        in.a = user_index;
+        in.b = argc;
+        out_->instrs_.push_back(in);
+        return true;
+      }
+      if (fn_prefix && IsOp("("))
+        return Error(kErrUndefinedUserFunction, ErrorMessage(kErrUndefinedUserFunction));
       if (IsOp("(")) {
         Advance();
         int count = 0;

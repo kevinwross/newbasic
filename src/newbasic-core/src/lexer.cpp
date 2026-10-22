@@ -37,8 +37,6 @@ const char* const kKeywordList[] = {
     "WINDOW", "WRITE", "XOR",
 };
 
-constexpr int kMaxKeywordLen = 9; // "RANDOMIZE"
-
 bool IsNameStart(char c) {
   return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
@@ -59,17 +57,6 @@ char UpperChar(char c) {
   return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
 }
 
-// Longest keyword match at `pos` (zero length means no match).
-std::size_t MatchKeyword(const std::string& line, std::size_t pos) {
-  const std::size_t max_len = std::min<std::size_t>(kMaxKeywordLen, line.size() - pos);
-  for (std::size_t len = max_len; len >= 1; --len) {
-    std::string candidate = Lexer::Upper(line.substr(pos, len));
-    if (Lexer::IsKeyword(candidate))
-      return len;
-  }
-  return 0;
-}
-
 } // namespace
 
 std::string Lexer::Upper(const std::string& text) {
@@ -87,6 +74,9 @@ const char* Lexer::KeywordAt(std::size_t index) {
   return index < KeywordCount() ? kKeywordList[index] : nullptr;
 }
 
+// A keyword is only a keyword when the whole name is reserved: `TOTAL` is a
+// variable, while `TO` is the keyword. This deliberately drops GW-BASIC's
+// keyword-first tokenization of run-together forms such as `GOTO100`.
 bool Lexer::IsKeyword(const std::string& upper) {
   const auto* begin = std::begin(kKeywordList);
   const auto* end = std::end(kKeywordList);
@@ -286,36 +276,22 @@ bool Lexer::Tokenize(const std::string& line, std::vector<Token>* out, std::stri
       continue;
     }
 
-    // Keyword (longest match) or identifier.
+    // Whole-word keyword or identifier. Keywords are recognised only when the
+    // entire name is reserved; `TOTAL`, `FORT`, `PRINTX` and `FNA` are names.
     if (IsNameStart(c)) {
-      const std::size_t kw_len = MatchKeyword(line, i);
-      if (kw_len > 0) {
-        Token token;
-        token.kind = Tok::Keyword;
-        token.text = Upper(line.substr(i, kw_len));
-        token.pos = static_cast<int>(i);
-        token.space_before = space;
-        space = false;
-        i += kw_len;
-        out->push_back(std::move(token));
-        continue;
-      }
       Token token;
-      token.kind = Tok::Ident;
       token.pos = static_cast<int>(i);
       token.space_before = space;
       space = false;
       const std::size_t name_begin = i;
       while (i < line.size() && IsNameChar(line[i]))
         ++i;
-      // A keyword can follow name characters (e.g. `XFOR` is name X then FOR
-      // only if the name scan stops); GW-BASIC stops the name at the first
-      // character that starts a keyword run.
       std::string name = Upper(line.substr(name_begin, i - name_begin));
       if (i < line.size() && IsTypeSuffix(line[i])) {
         name += line[i];
         ++i;
       }
+      token.kind = Lexer::IsKeyword(name) ? Tok::Keyword : Tok::Ident;
       token.text = std::move(name);
       out->push_back(std::move(token));
       continue;

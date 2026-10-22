@@ -153,25 +153,26 @@ TEST_CASE("Lexer: statement keywords the compiler relies on are reserved", "[lex
   }
 }
 
-TEST_CASE("Lexer: keyword runs split the way GW-BASIC tokenizes them", "[lexer][robust]") {
-  // No-space forms must still lex as keyword + operand.
+TEST_CASE("Lexer: keywords are whole words, not prefixes", "[lexer][robust]") {
+  // Names that start with a keyword are ordinary identifiers now.
   const std::vector<newbasic::Token> fori = lwtest::TokenizeLine("FORI=1TO10");
-  REQUIRE(fori.size() >= 6);
-  CHECK(fori[0].text == "FOR");
-  CHECK(fori[1].text == "I");
-  CHECK(fori[4].text == "TO");
+  REQUIRE(fori.size() >= 4);
+  CHECK(fori[0].text == "FORI");
+  CHECK(fori[3].text == "TO10");
 
-  // OUTPUT lexes as OUT + PUT (the OPEN parser accepts the split).
+  // OUTPUT is one name; the OPEN parser accepts it as a word.
   const std::vector<newbasic::Token> output = lwtest::TokenizeLine("OUTPUT AS #1");
   REQUIRE(output.size() >= 2);
-  CHECK(output[0].text == "OUT");
-  CHECK(output[1].text == "PUT");
+  CHECK(output[0].text == "OUTPUT");
 
-  // A name that starts with FN is the DEF FN form.
+  // FNA is one name. The classic spaced `FN A` remains a keyword plus name.
   const std::vector<newbasic::Token> fn = lwtest::TokenizeLine("FNA(1)");
   REQUIRE(fn.size() >= 2);
-  CHECK(fn[0].text == "FN");
-  CHECK(fn[1].text == "A");
+  CHECK(fn[0].text == "FNA");
+  const std::vector<newbasic::Token> spaced_fn = lwtest::TokenizeLine("FN A(1)");
+  REQUIRE(spaced_fn.size() >= 2);
+  CHECK(spaced_fn[0].text == "FN");
+  CHECK(spaced_fn[1].text == "A");
 }
 
 TEST_CASE("Front end: arbitrary input never crashes or hangs", "[robust]") {

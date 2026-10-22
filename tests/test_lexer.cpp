@@ -22,23 +22,31 @@ std::vector<Token> Lex(const std::string& line) {
 
 } // namespace
 
-TEST_CASE("Lexer: keywords are matched longest-first without spaces", "[lexer]") {
-  const std::vector<Token> tokens = Lex("FORI=1TO10");
-  REQUIRE(tokens.size() == 7);
-  CHECK(tokens[0].kind == Tok::Keyword);
-  CHECK(tokens[0].text == "FOR");
-  CHECK(tokens[1].kind == Tok::Ident);
-  CHECK(tokens[1].text == "I");
-  CHECK(tokens[2].kind == Tok::Op);
-  CHECK(tokens[2].text == "=");
-  CHECK(tokens[3].kind == Tok::Number);
-  CHECK(tokens[4].kind == Tok::Keyword);
-  CHECK(tokens[4].text == "TO");
-  CHECK(tokens[5].kind == Tok::Number);
-  CHECK(tokens[6].kind == Tok::EndOfLine);
+TEST_CASE("Lexer: keywords are whole words", "[lexer]") {
+  const std::vector<Token> spaced = Lex("FOR I=1 TO 10");
+  REQUIRE(spaced.size() == 7);
+  CHECK(spaced[0].kind == Tok::Keyword);
+  CHECK(spaced[0].text == "FOR");
+  CHECK(spaced[1].kind == Tok::Ident);
+  CHECK(spaced[1].text == "I");
+  CHECK(spaced[4].kind == Tok::Keyword);
+  CHECK(spaced[4].text == "TO");
+
+  // Run-together keywords are names now; callers must write `FOR I = 1 TO 10`.
+  const std::vector<Token> glued = Lex("FORI=1TO10");
+  REQUIRE(glued.size() == 5);
+  CHECK(glued[0].kind == Tok::Ident);
+  CHECK(glued[0].text == "FORI");
+  CHECK(glued[3].kind == Tok::Ident);
+  CHECK(glued[3].text == "TO10");
+
+  CHECK(Lex("TOTAL=1")[0].kind == Tok::Ident);
+  CHECK(Lex("TOTAL=1")[0].text == "TOTAL");
+  CHECK(Lex("PRINTX=1")[0].kind == Tok::Ident);
+  CHECK(Lex("FNA(1)")[0].kind == Tok::Ident);
 }
 
-TEST_CASE("Lexer: identifiers keep type suffixes and split at keywords", "[lexer]") {
+TEST_CASE("Lexer: identifiers keep type suffixes", "[lexer]") {
   const std::vector<Token> tokens = Lex("A$=B%+C#");
   REQUIRE(tokens.size() == 6);
   CHECK(tokens[0].text == "A$");
@@ -46,14 +54,12 @@ TEST_CASE("Lexer: identifiers keep type suffixes and split at keywords", "[lexer
   CHECK(tokens[2].text == "B%");
   CHECK(tokens[3].text == "+");
   CHECK(tokens[4].text == "C#");
-  // A keyword abutting a name splits the name (GW-BASIC behaviour).
-  const std::vector<Token> split = Lex("SCORE=1");
-  CHECK(split[0].text == "SCORE");
-  // Keywords win at the start of a run; an existing name run is not split
-  // (GW-BASIC scans the keyword first, then the whole name).
-  const std::vector<Token> keyword_split = Lex("XPRINT=1");
-  CHECK(keyword_split[0].kind == Tok::Ident);
-  CHECK(keyword_split[0].text == "XPRINT");
+  const std::vector<Token> name = Lex("SCORE=1");
+  CHECK(name[0].kind == Tok::Ident);
+  CHECK(name[0].text == "SCORE");
+  const std::vector<Token> prefixed = Lex("XPRINT=1");
+  CHECK(prefixed[0].kind == Tok::Ident);
+  CHECK(prefixed[0].text == "XPRINT");
 }
 
 TEST_CASE("Lexer: numeric literal kinds", "[lexer]") {

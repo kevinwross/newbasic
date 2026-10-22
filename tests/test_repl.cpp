@@ -224,14 +224,14 @@ TEST_CASE("REPL: Ok marks readiness, not every line", "[repl]") {
 }
 
 TEST_CASE("REPL: a reserved word used as a name says which word", "[repl]") {
-  // FN is reserved for DEF FN, so FN$ cannot name an array. The failure should name the
+  // PRINT is reserved, so PRINT cannot name an array. The failure should name the
   // collision instead of being a bare syntax error, which is what cost real time once.
   newbasic::screen::HeadlessScreen screen;
   newbasic::ScriptedHost host;
   newbasic::Repl repl(screen, &host);
-  repl.Process("10 DIM FN$(3)");
+  repl.Process("10 DIM PRINT(3)");
   const newbasic::RunResult result = repl.Process("RUN"); // compilation happens here
   CHECK(result.status == newbasic::RunResult::Status::Error);
-  CHECK(result.message.find("FN") != std::string::npos);
+  CHECK(result.message.find("PRINT") != std::string::npos);
   CHECK(result.message.find("reserved") != std::string::npos);
 }

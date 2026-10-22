@@ -429,11 +429,12 @@ in the dialect's spirit to leave broken.
   for a scalar, `Op::ReadArray` for an element), the subscript expressions are already on the
   stack, and the machine pops them and takes the next DATA item in order. Mixed lists, string
   arrays, computed subscripts, Out of DATA and subscript out of range are all tested.
-- **Done: a reserved word used as a name says which word.** `DIM FN$(3)` now reports that `FN` is
-  a reserved word rather than a bare syntax error, at the three places a name is parsed.
+- **Done: a reserved word used as a name says which word.** `DIM PRINT(3)` now reports that `PRINT`
+  is a reserved word rather than a bare syntax error, at the three places a name is parsed. Keywords
+  are whole words: `TOTAL` and `FNA` are names, while exact `TO`/`FN` remain reserved.
 - **`DIM` lists work; my note here was wrong.** `DIM A(10), B(10)` compiles and both arrays take
-  writes. The line that misled me began with `FN$`, which is reserved, so it failed for the reason
-  above and I blamed the list.
+  writes. The line that misled me began with `FN$`, which was reserved under the old prefix rule;
+  whole-word lexing now treats `FN$` as a name, but `FN$(...)` keeps its user-function meaning.
 
 Two smaller notes from the same program, worth a look when the above are done:
 
