@@ -127,6 +127,16 @@ See `docs/portability.md` for the host mapping and documented divergences:
 translated on POSIX; audio is silent-but-correctly-timed unless a platform audio
 backend is added; and the window backends are not pixel-identical.
 
+## Debugging in VS Code
+
+Step-by-step editor setup and verification, written for another agent:
+
+- Linux: [debug-on-linux.md](debug-on-linux.md)
+- Windows: [debug-on-windows.md](debug-on-windows.md)
+
+Both use the same platform-neutral extension and locate the platform's
+`newbasic-dap` build automatically.
+
 ## Notes
 
 - **Reference material.** GW-BASIC is MIT-licensed following Microsoft's

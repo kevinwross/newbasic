@@ -1,13 +1,20 @@
 {
   "name": "newbasic-debug",
   "displayName": "newbasic debugger",
-  "description": "Debug GW-BASIC programs with the newbasic interpreter.",
+  "description": "Debug GW-BASIC programs with the newbasic interpreter on Windows, Linux and macOS.",
   "version": "0.1.0",
   "publisher": "newbasic",
-  "engines": { "vscode": "^1.60.0" },
-  "categories": ["Debuggers"],
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
   "main": "./extension.js",
-  "activationEvents": ["onDebug", "onDebugResolve:newbasic"],
+  "activationEvents": [
+    "onDebug",
+    "onDebugResolve:newbasic"
+  ],
   "contributes": {
     "debuggers": [
       {
@@ -47,6 +54,18 @@
               "program": "${file}"
             }
           }
+        ],
+        "languages": [
+          "basic",
+          "vb"
+        ],
+        "breakpoints": [
+          {
+            "language": "basic"
+          },
+          {
+            "language": "vb"
+          }
         ]
       }
     ],
@@ -56,7 +75,7 @@
         "newbasic.adapterPath": {
           "type": "string",
           "default": "",
-          "description": "Path to newbasic-dap.exe. Leave empty to use out/src/newbasic-dap/Release/newbasic-dap.exe in the workspace folder."
+          "description": "Path to the newbasic-dap executable (newbasic-dap.exe on Windows). Leave empty to search build-sdl, build, then the Visual Studio out/ trees in the workspace folder."
         },
         "newbasic.showWindow": {
           "type": "boolean",

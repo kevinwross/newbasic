@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "newbasic",
+      "request": "launch",
+      "name": "Run this program",
+      "program": "${file}"
+    }
+  ]
+}
