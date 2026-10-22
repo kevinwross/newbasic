@@ -58,21 +58,21 @@ foreach ($file in $letters) {
 
 $sorted = $entries | Sort-Object { $_.Heading.ToLowerInvariant() }
 $index = [System.Text.StringBuilder]::new()
-[void]$index.AppendLine('| Entry | Type | Status | Location |')
-[void]$index.AppendLine('|---|---|---|---|')
+[void]$index.AppendLine('| Entry | Type | Status |')
+[void]$index.AppendLine('|---|---|---|')
 foreach ($entry in $sorted) {
-    $link = "[$($entry.File)]($($entry.File)#$($entry.Slug))"
-    [void]$index.AppendLine("| $($entry.Heading) | $($entry.Type) | $($entry.Status) | $link |")
+    $link = "[$($entry.Heading)]($($entry.File)#$($entry.Slug))"
+    [void]$index.AppendLine("| $link | $($entry.Type) | $($entry.Status) |")
 }
 
 $unsupported = $entries |
     Where-Object { $_.Status -match '^Not supported' } |
     Sort-Object { $_.Heading.ToLowerInvariant() }
 $unsupportedList = [System.Text.StringBuilder]::new()
-[void]$unsupportedList.AppendLine('| Entry | Location |')
-[void]$unsupportedList.AppendLine('|---|---|')
+[void]$unsupportedList.AppendLine('| Entry |')
+[void]$unsupportedList.AppendLine('|---|')
 foreach ($entry in $unsupported) {
-    [void]$unsupportedList.AppendLine("| $($entry.Heading) | [$($entry.File)]($($entry.File)#$($entry.Slug)) |")
+    [void]$unsupportedList.AppendLine("| [$($entry.Heading)]($($entry.File)#$($entry.Slug)) |")
 }
 
 $readmePath = Join-Path $ref 'README.md'
