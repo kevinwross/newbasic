@@ -15,7 +15,7 @@ DAP conversation with `newbasic-dap`.
 
 | Area | Support |
 |---|---|
-| Breakpoints | Line breakpoints, and conditional ones whose condition is a BASIC expression evaluated in the stopped context with the VM state saved and restored around it |
+| Breakpoints | Line breakpoints, and conditional ones whose condition is a BASIC expression evaluated in the stopped context with the VM state saved and restored around it. Breakpoints and conditions are cleared on launch; `setBreakpoints` requests for a different source are ignored, so stale editor breakpoints cannot follow the debugger into another program |
 | Stepping | `next`, `stepIn`, `stepOver` (step to the next source line), plus instruction-level stepping in the library |
 | Pause | `pause` interrupts a running `continue` at the next instruction; a reader thread sets a flag that the debugger checks between instructions |
 | Time travel | `stepBack` and `reverseContinue` rewind through snapshots recorded at line boundaries in a bounded ring (default 500 entries). Snapshots are opt-in with `--history`; without it the capability is not advertised. |
