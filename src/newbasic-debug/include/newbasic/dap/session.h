@@ -39,6 +39,14 @@ public:
     std::condition_variable queue_cv;
     std::deque<Frame> queue;
     bool eof = false;
+    // The main thread owns all DAP output, but the reader may answer a simple
+    // threads request while the VM is running; the mutex keeps frames whole.
+    std::atomic<bool> running{false};
+    std::mutex write_mutex;
+    auto WriteMessage = [&](const Json& message) {
+      std::lock_guard<std::mutex> lock(write_mutex);
+      WriteFrame(out, message.Dump());
+    };
     std::thread reader([&] {
       for (;;) {
         Frame frame = ReadFrame(in);
@@ -56,6 +64,32 @@ public:
             if (command != nullptr && command->IsString() &&
                 command->AsString() == "pause") {
               pause_requested_.store(true);
+            } else if (command != nullptr && command->IsString() &&
+                       command->AsString() == "threads" && running.load()) {
+              // VS Code asks for threads immediately after the continued event.
+              // The main thread is already inside Continue, so answer this
+              // stateless request here; otherwise session setup waits for the
+              // program to stop and the Pause button never appears.
+              const Json* request_seq = request.Find("seq");
+              Json response = Json::Object();
+              response.Set("seq", Json::Number(handler_.NextSeq()));
+              response.Set("type", Json::Str("response"));
+              response.Set("request_seq",
+                           Json::Number(request_seq != nullptr && request_seq->IsNumber()
+                                            ? request_seq->AsNumber()
+                                            : 0));
+              response.Set("success", Json::Bool(true));
+              response.Set("command", Json::Str("threads"));
+              Json body = Json::Object();
+              Json threads = Json::Array();
+              Json thread = Json::Object();
+              thread.Set("id", Json::Number(1));
+              thread.Set("name", Json::Str("main"));
+              threads.Push(std::move(thread));
+              body.Set("threads", std::move(threads));
+              response.Set("body", std::move(body));
+              WriteMessage(response);
+              continue;
             }
           }
         }
@@ -89,28 +123,32 @@ public:
       if (!frame.ok) {
         // The framing is broken, so the stream position is unknown: report
         // and stop rather than emit garbage forever.
-        WriteFrame(out, ErrorResponse("", "framing error: " + frame.error).Dump());
+        WriteMessage(ErrorResponse("", "framing error: " + frame.error));
         break;
       }
       Json request;
       std::string error;
       if (!Json::Parse(frame.body, &request, &error)) {
         // Framing is intact, so the session can continue after reporting.
-        WriteFrame(out, ErrorResponse("", "malformed request: " + error).Dump());
+        WriteMessage(ErrorResponse("", "malformed request: " + error));
         continue;
       }
       std::vector<Json> outgoing;
       const Handler::RunAction action = handler_.Handle(request, &outgoing, false);
+      if (action != Handler::RunAction::None)
+        running.store(true);
       for (const Json& message : outgoing) {
-        WriteFrame(out, message.Dump());
+        WriteMessage(message);
       }
       if (action != Handler::RunAction::None) {
         // The response and continued event are on the wire before this blocks;
-        // the reader thread can now raise pause while the VM runs.
+        // the reader thread can now raise pause or answer threads while the VM
+        // runs.
         std::vector<Json> after;
         handler_.RunActionNow(action, &after);
+        running.store(false);
         for (const Json& message : after) {
-          WriteFrame(out, message.Dump());
+          WriteMessage(message);
         }
       }
       ++handled;

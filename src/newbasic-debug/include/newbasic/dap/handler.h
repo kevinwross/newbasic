@@ -37,6 +37,10 @@ public:
 
   void SetPauseFlag(std::atomic<bool>* flag) { debugger_.SetPauseFlag(flag); }
 
+  // Protocol message sequence numbers are shared with the reader thread, which
+  // answers the simple `threads` request directly while the VM is running.
+  int NextSeq() { return seq_++; }
+
   // Handles one request; appends responses/events to `outgoing`. When
   // run_immediately is false, a run/step action is returned to the caller
   // instead of being executed here.
@@ -483,7 +487,7 @@ private:
 
   Vm& vm_;
   debug::Debugger& debugger_;
-  double seq_ = 1;
+  std::atomic<int> seq_{1};
   std::vector<int> file_line_to_program_line_;
   std::map<int, int> program_line_to_file_line_;
   std::string source_path_;

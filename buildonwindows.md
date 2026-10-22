@@ -855,7 +855,7 @@ Measured on 2026-10-21 on the machine described in section 3.
 |---|---|---|
 | Configure | `cmake -S . -B build-vs2026 -G "Visual Studio 18 2026" -A x64` | exit 0; MSVC 19.51.36260.0; Windows SDK 10.0.26100.0; 3.9 s |
 | Clean build | `cmake --build build-vs2026 --config Release --parallel` | exit 0 from an empty build directory; all targets linked |
-| CTest | `ctest --test-dir build-vs2026 --build-config Release --timeout 180 --output-on-failure` | 7/7 passed, 0 failed, 3.24 s |
+| CTest | `ctest --test-dir build-vs2026 --build-config Release --timeout 180 --output-on-failure` | 7/7 passed, 0 failed, 3.32 s |
 | Catch2 suite | `build-vs2026\tests\Release\newbasic-tests.exe` | 31,216 assertions in 377 test cases, all passed |
 | Headless CLI | `newbasic.exe --gpu-shot build-vs2026\hello.ppm --cli fixtures\m0\hello.bas` | exit 0; `P6`, 768,015 bytes |
 | Benchmark | `newbasic.exe --bench` | all four cases completed |
