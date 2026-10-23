@@ -246,15 +246,16 @@
 2767 CIRCLE (compassCenterX,compassCenterY),centerRadius,4,0,fullCircle,circleAspect
 2768 CIRCLE (compassCenterX,compassCenterY),8,1,0,fullCircle,circleAspect
 2769 FOR I=1 TO 8
-2770 armLength=54:targetColor=9
+2770 armLength=54
 2771 IF I MOD 2=1 THEN armLength=72
-2772 IF I=course THEN targetColor=1
+2772 targetColor=7
 2773 targetX=compassCenterX+compassX(I)*armLength
 2774 targetY=compassCenterY+compassY(I)*armLength
-2775 CIRCLE (targetX,targetY),8,targetColor,0,fullCircle,circleAspect
-2776 LINE (targetX-3,targetY)-(targetX+3,targetY),7
-2777 LINE (targetX,targetY-3)-(targetX,targetY+3),7
-2778 NEXT I
+2775 CIRCLE (targetX,targetY),10,targetColor,0,fullCircle,circleAspect
+2776 CIRCLE (targetX,targetY),9,targetColor,0,fullCircle,circleAspect
+2777 LINE (targetX-3,targetY)-(targetX+3,targetY),7
+2778 LINE (targetX,targetY-3)-(targetX,targetY+3),7
+2779 NEXT I
 2783 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
 2784 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
 2785 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
@@ -352,7 +353,7 @@
 3223 IF I MOD 2=1 THEN armLength=72
 3224 targetX=compassCenterX+compassX(I)*armLength
 3225 targetY=compassCenterY+compassY(I)*armLength
-3226 IF ABS(pointerX-targetX)<=16 AND ABS(pointerY-targetY)<=16 THEN course=I:statusMessage$="COURSE SET":RETURN
+3226 IF ABS(pointerX-targetX)<=18 AND ABS(pointerY-targetY)<=18 THEN course=I:statusMessage$="COURSE SET":RETURN
 3227 NEXT I
 3235 RETURN
 3260 IF pointerX>=944 AND pointerX<=1002 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
