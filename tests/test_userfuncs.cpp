@@ -82,3 +82,10 @@ TEST_CASE("ENVIRON statement remains deliberately refused", "[env]") {
   CHECK(lwtest::RunErrorCode("10 ENVIRON \"PATH=C:\\TEMP\"\n") ==
         newbasic::kErrAdvancedFeature);
 }
+
+TEST_CASE("ENVIRON$ rejects index zero and indexes above 255", "[env]") {
+  CHECK(lwtest::RunErrorCode("10 PRINT ENVIRON$(0)\n") ==
+        newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 PRINT ENVIRON$(256)\n") ==
+        newbasic::kErrIllegalFunctionCall);
+}

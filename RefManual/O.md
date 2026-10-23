@@ -114,6 +114,23 @@ CAUGHT 11
 AFTER
 ```
 
+#### Example 2 — Disable trapping inside the handler
+
+```basic
+10 ON ERROR GOTO 100
+20 ERROR 5
+30 END
+100 PRINT "CAUGHT"; ERR
+110 ON ERROR GOTO 0
+120 ERROR 7
+```
+
+`ON ERROR GOTO 0` disables trapping. The second `ERROR` is therefore not caught; the program stops with error 7 after printing:
+
+```text
+CAUGHT 5
+```
+
 <a id="on-expression-gosub-statement"></a>
 ## ON expression GOSUB Statement
 

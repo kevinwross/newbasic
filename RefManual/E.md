@@ -111,7 +111,9 @@ ENVIRON$(number)
 
 The name form returns the variable’s value, or an empty string when it is not defined. Names are compared case-insensitively: `PATH`, `Path`, and `path` all find the same entry. The returned value is the text after the first `=`; an empty value is returned as an empty string.
 
-The number form returns the selected entry as `NAME=value`, using the uppercase name. Entries are sorted by uppercase name, which makes the numbered form deterministic across hosts. A number outside `1`–`255` raises **Illegal function call**; a number beyond the available entries returns an empty string.
+The number form returns the selected entry as `NAME=value`, using the uppercase name. Entries are sorted by uppercase name, which makes the numbered form deterministic across hosts. A number outside `1`–`255` raises **Illegal function call**; `0` is not a valid index. A number beyond the available entries returns an empty string.
+
+Because every numbered entry is returned as `NAME=value`, an empty result means there is no entry at that position, not merely that the value is empty. This makes the number form safe for walking the environment.
 
 `ENVIRON$` is read-only. Newbasic deliberately refuses the `ENVIRON` statement so a program cannot change the environment inherited by `SHELL` or other child processes. Values may contain host-specific paths and may reveal sensitive configuration; print them only when intended.
 
@@ -126,14 +128,21 @@ The number form returns the selected entry as `NAME=value`, using the uppercase 
 40 END
 ```
 
-#### Example 2 — Numbered snapshot
+#### Example 2 — Walk the environment until an empty entry
 
 ```basic
-10 FOR I=1 TO 3
-20 PRINT ENVIRON$(I)
-30 NEXT I
-40 END
+10 FOR I=1 TO 255
+20 E$=ENVIRON$(I)
+30 IF E$="" THEN 100
+40 PRINT E$
+50 NEXT I
+60 PRINT "INDEX 255 REACHED"
+70 END
+100 PRINT "END OF ENVIRONMENT"
+110 END
 ```
+
+The loop stops at the first missing entry. If all 255 positions contain entries, it exits normally at line 60. `ENVIRON$(0)` is invalid and raises **Illegal function call**.
 
 <a id="eof-function"></a>
 ## EOF Function
