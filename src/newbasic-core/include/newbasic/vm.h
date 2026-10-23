@@ -160,10 +160,6 @@ enum class Op : std::uint8_t {
   Pcopy,       // PCOPY source, destination: copies a graphics page
   ViewPrint,   // pops bottom, top (1-based; both 0 restores the whole screen)
   Width,       // pops the column count
-  KeySet,      // pops value, key number (KEY n, "string")
-  KeyOn,       // show the function-key bar on the last line
-  KeyOff,      // clear the bar and give the last line back
-  KeyList,     // list the key assignments
   Field,       // FIELD #n: pop file number; name = "var:width,..." bindings
   LSet,        // LSET/RSET: pop value; name = variable; a = 1 for RSET
   GetRecord,   // GET #n[, rec]: a = 1 when a record number was given
@@ -180,8 +176,6 @@ enum class Op : std::uint8_t {
   LoadProgram, // pops a path: load it, replace the program, clear variables
   Chain,       // CHAIN: pop path (and optional line); keep COMMON variables
   Common,      // COMMON var[, var]: names that survive CHAIN
-  OnKey,       // ON KEY(n) GOSUB: a = handler pc, b = key number (1-based)
-  KeyControl,  // KEY(n) ON/OFF/STOP: a = key number, b = 1 on, 0 off, 2 stop
   Fail,        // report a specific error: a = error code, name = message
   Locate,      // pops column then row (both 1-based)
   Color,       // pops background then foreground (-1 = leave unchanged)
@@ -677,11 +671,6 @@ private:
   double window_y2_ = 0.0;
   // Maps a world coordinate to a canvas pixel; the identity when no WINDOW is set.
   void MapGraphicsPoint(double x, double y, int* sx, int* sy) const;
-  // KEY: function-key macros (1-10 and 15-20, as the reference allows) and whether
-  // the bar is showing on the last screen line.
-  std::array<std::string, 20> key_values_{};
-  bool key_bar_ = false;
-  void DrawKeyBar();
   // TRON state: printing a line number when execution enters a new line.
   bool trace_ = false;
   int traced_line_ = -1;
@@ -690,13 +679,6 @@ private:
   class LineStore* store_ = nullptr;
   // COMMON: scalar variables preserved across CHAIN.
   std::set<std::string> common_vars_;
-  // KEY(n) trapping (M11). Key numbers are 1..10; state is 0 off, 1 on, 2 stop.
-  // Handler slots start at -1: 0 would be a real instruction index.
-  std::array<int, 10> on_key_pc_{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-  std::array<int, 10> key_state_{};
-  // A key consumed to fire a trap, handed back to INKEY$ so the character is not
-  // lost.
-  wchar_t pending_key_ = 0;
   RunResult last_;
 };
 

@@ -80,7 +80,7 @@ MEDIUM
 
 **Type:** Function  
 **Status:** Supported  
-**See also:** `INPUT$`, `KEY`, `KEY(n)`
+**See also:** `INPUT$`
 
 ### Purpose
 
@@ -98,7 +98,7 @@ None.
 
 ### Comments
 
-`INKEY$` does not wait. It returns at most one character per call. Newbasic maps character keys and the arrow-key extended codes; function-key macros are not delivered by the current input backends. A null result means no key is waiting.
+`INKEY$` does not wait. It returns at most one character per call. Newbasic maps character keys and the arrow-key extended codes; function keys are not delivered by the current input backends. A null result means no key is waiting.
 
 ### Examples
 

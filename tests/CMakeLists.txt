@@ -27,12 +27,10 @@ add_executable(newbasic-tests
   test_coverage.cpp
   test_using.cpp
   test_text_window.cpp
-  test_key.cpp
   test_field_conv.cpp
   test_random_files.cpp
   test_program_control.cpp
   test_chaining.cpp
-  test_key_trap.cpp
   test_inventory.cpp
   test_renum.cpp
   test_printer.cpp

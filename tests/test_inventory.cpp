@@ -23,7 +23,6 @@ const char* const kImplemented[] = {
     "DELETE",
     "FIELD",
     "GET",
-    "KEY",
     "LOAD",
     "LOC",
     "LOF",
@@ -62,8 +61,9 @@ const char* const kImplemented[] = {
 // Statements with no implementation: they report Advanced Feature. This list must
 // match kUnimplementedStatements in frontend.cpp.
 const char* const kStubs[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KILL", "MKDIR",  "MOTOR",
-    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR",  "VARPTR", "WAIT",
+    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",  "MKDIR",
+    "MOTOR", "NAME", "OUT", "PEN", "POKE", "RMDIR", "STICK", "STRIG", "USR", "VARPTR",
+    "WAIT",
 };
 
 } // namespace
@@ -84,6 +84,18 @@ TEST_CASE("Inventory: unimplemented statements report Advanced Feature", "[inven
     INFO("keyword: " << keyword << " code: " << code);
     CHECK(code == newbasic::kErrAdvancedFeature);
   }
+}
+
+TEST_CASE("Inventory: the removed KEY family refuses every form", "[inventory][key]") {
+  CHECK(lwtest::RunErrorCode("10 KEY 1,\"HELP\"\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY ON\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY OFF\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY LIST\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY(1) ON\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY(1) OFF\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 KEY(1) STOP\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 ON KEY(1) GOSUB 100\n100 RETURN\n") ==
+        newbasic::kErrAdvancedFeature);
 }
 
 TEST_CASE("Inventory: refusals carry their documented error, not Advanced Feature", "[inventory]") {

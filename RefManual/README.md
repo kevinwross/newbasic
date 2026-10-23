@@ -103,9 +103,8 @@ The manual is a reference, not a tutorial. For worked programs, see `samples/` a
 | [INT Function](I.md#int-function) | Function | Supported |
 | [IOCTL Statement](I.md#ioctl-statement) | Statement | Not supported in newbasic |
 | [IOCTL$ Function](I.md#ioctl-function) | Function | Not supported in newbasic |
-| [KEY Statement](K.md#key-statement) | Statement | Partial |
-| [KEY(n) Statement](K.md#keyn-statement) | Statement | Partial |
-| [KILL Command](K.md#kill-command) | Command | Direct mode only |
+| [KEY Statement](K.md#key-statement) | Statement | Not supported in newbasic |
+| [KEY(n) Statement](K.md#keyn-statement) | Statement | Not supported in newbasic |
 | [LEFT$ Function](L.md#left-function) | Function | Supported |
 | [LEN Function](L.md#len-function) | Function | Supported |
 | [LET Statement](L.md#let-statement) | Statement | Supported |
@@ -139,7 +138,7 @@ The manual is a reference, not a tutorial. For worked programs, see `samples/` a
 | [ON ERROR GOTO Statement](O.md#on-error-goto-statement) | Statement | Supported |
 | [ON expression GOSUB Statement](O.md#on-expression-gosub-statement) | Statement | Supported |
 | [ON expression GOTO Statement](O.md#on-expression-goto-statement) | Statement | Supported |
-| [ON KEY(n) Statement](O.md#on-keyn-statement) | Statement | Partial |
+| [ON KEY(n) Statement](O.md#on-keyn-statement) | Statement | Not supported in newbasic |
 | [ON PEN Statement](O.md#on-pen-statement) | Statement | Not supported in newbasic |
 | [ON PLAY(n) Statement](O.md#on-playn-statement) | Statement | Not supported in newbasic |
 | [ON STRIG(n) Statement](O.md#on-strign-statement) | Statement | Not supported in newbasic |
@@ -244,10 +243,13 @@ The full reasons are in each letter file. This list is for quick lookup.
 | [INP Function](I.md#inp-function) |
 | [IOCTL Statement](I.md#ioctl-statement) |
 | [IOCTL$ Function](I.md#ioctl-function) |
+| [KEY Statement](K.md#key-statement) |
+| [KEY(n) Statement](K.md#keyn-statement) |
 | [LOCK Statement](L.md#lock-statement) |
 | [LPOS Function](L.md#lpos-function) |
 | [MOTOR Statement](M.md#motor-statement) |
 | [ON COM(n) Statement](O.md#on-comn-statement) |
+| [ON KEY(n) Statement](O.md#on-keyn-statement) |
 | [ON PEN Statement](O.md#on-pen-statement) |
 | [ON PLAY(n) Statement](O.md#on-playn-statement) |
 | [ON STRIG(n) Statement](O.md#on-strign-statement) |

@@ -4,8 +4,8 @@
 ## KEY Statement
 
 **Type:** Statement  
-**Status:** Partial  
-**See also:** `KEY(n)`, `INKEY$`
+**Status:** Not supported in newbasic  
+**See also:** `INKEY$`
 
 ### Purpose
 
@@ -20,39 +20,27 @@ KEY OFF
 KEY LIST
 ```
 
-### Arguments
+### Newbasic status
 
-| Argument | Required | Description |
-|---|---|---|
-| `n` | Yes (assignment form) | Key number `1`–`10` or `15`–`20`. |
-| `string` | Yes (assignment form) | Label text; truncated to 15 characters. An empty string clears the label. |
+The entire `KEY` family is deliberately not supported. Any form reports **Advanced Feature**:
 
-### Comments
+- `KEY n, string`
+- `KEY ON`
+- `KEY OFF`
+- `KEY LIST`
 
-The assignment is stored and displayed by `KEY ON` / `KEY LIST`, but the current input backends do **not** turn F1–F10 into macro input. Pressing a function key does not type the assigned string, and `INKEY$` does not return it. `KEY ON` puts the first ten labels on the last screen line; `KEY OFF` restores that line to the text window.
-
-### Examples
-
-#### Example 1 — Label the function keys
-
-```basic
-10 KEY 1, "HELP"
-20 KEY 2, "EXIT"
-30 KEY ON
-40 KEY LIST
-50 END
-```
+Newbasic does not display a function-key bar, does not install default soft-key labels, and does not turn a function key into text input. Keyboard polling is available through `INKEY$`; see that entry for the supported alternative.
 
 <a id="keyn-statement"></a>
 ## KEY(n) Statement
 
 **Type:** Statement  
-**Status:** Partial  
-**See also:** `ON KEY(n)`, `KEY`, `INKEY$`
+**Status:** Not supported in newbasic  
+**See also:** `INKEY$`
 
 ### Purpose
 
-Enables, disables, or stops trapping for a key.
+Enables, disables, or stops trapping for a function key.
 
 ### Syntax
 
@@ -62,57 +50,8 @@ KEY(n) OFF
 KEY(n) STOP
 ```
 
-### Arguments
+### Newbasic status
 
-| Argument | Required | Description |
-|---|---|---|
-| `n` | Yes | Key number `1`–`10`. |
+Not supported. The function-key trap machinery has been removed from the VM. Any `KEY(n)` form reports **Advanced Feature**.
 
-### Comments
-
-`KEY(n)` works with `ON KEY(n) GOSUB`. Newbasic’s input model delivers characters rather than function-key scan codes, so any pending key fires the lowest armed trap; the handler can read the character with `INKEY$`. It is not a true per-function-key trap.
-
-### Examples
-
-#### Example 1 — Trap the next key
-
-```basic
-10 ON KEY(1) GOSUB 100
-20 KEY(1) ON
-30 PRINT "WAITING"
-40 FOR I=1 TO 100: NEXT I
-50 END
-100 K$=INKEY$: PRINT "KEY="; K$: RETURN
-```
-
-<a id="kill-command"></a>
-## KILL Command
-
-**Type:** Command  
-**Status:** Direct mode only
-
-### Purpose
-
-Deletes a file.
-
-### Syntax
-
-```basic
-KILL filename
-```
-
-### Arguments
-
-| Argument | Required | Description |
-|---|---|---|
-| `filename` | Yes | File to delete. Wildcards are not supported. |
-
-### Comments
-
-`KILL` is a direct-mode command and is deliberately refused inside a program. It cannot delete a file that is currently open. Use `NAME` to rename files or `FILES` to inspect the directory.
-
-### Examples
-
-```text
-KILL "OLD.DAT"
-```
+Use `INKEY$` for non-blocking keyboard polling. Newbasic does not provide per-function-key event traps.

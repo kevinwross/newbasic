@@ -23,8 +23,9 @@ namespace {
 // exist only as direct-mode commands (FILES, KILL, MKDIR, CHDIR, RMDIR) stay,
 // because they are not available inside a program.
 const char* const kUnimplementedStatements[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KILL", "MKDIR",  "MOTOR",
-    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR",  "VARPTR", "WAIT",
+    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP", "IOCTL", "KEY", "KILL", "MKDIR",
+    "MOTOR", "NAME", "OUT", "PEN", "POKE", "RMDIR", "STICK", "STRIG", "USR", "VARPTR",
+    "WAIT",
 };
 
 // Tab/SPC are only meaningful inside PRINT, so they are handled there.
@@ -532,54 +533,6 @@ private:
     if (keyword == "REM") {
       Advance();
       SkipToLineEnd();
-      return true;
-    }
-    if (keyword == "KEY") {
-      Advance();
-      if (TakeKeyword("ON")) {
-        Emit(Op::KeyOn);
-        return true;
-      }
-      if (TakeKeyword("OFF")) {
-        Emit(Op::KeyOff);
-        return true;
-      }
-      if (TakeKeyword("LIST")) {
-        Emit(Op::KeyList);
-        return true;
-      }
-      if (IsOp("(")) {
-        // KEY(n) ON/OFF/STOP: arm or disarm the trapping of function key n.
-        Advance();
-        if (Cur().kind != Tok::Number)
-          return Syntax("Expected a key number after KEY(");
-        const int key = static_cast<int>(std::lround(Cur().number.AsNumber()));
-        Advance();
-        if (!ExpectOp(")"))
-          return false;
-        int action = 1;
-        if (TakeKeyword("OFF")) {
-          action = 0;
-        } else if (TakeKeyword("STOP")) {
-          action = 2;
-        } else if (!TakeKeyword("ON")) {
-          return Syntax("Expected ON, OFF or STOP after KEY(n)");
-        }
-        Instr in;
-        in.op = Op::KeyControl;
-        in.a = key;
-        in.b = action;
-        out_->instrs_.push_back(in);
-        return true;
-      }
-      // KEY n, string
-      if (!ParseExpression())
-        return false;
-      if (!TakeOp(","))
-        return Syntax("Expected ',' after the key number");
-      if (!ParseExpression())
-        return false;
-      Emit(Op::KeySet);
       return true;
     }
     if (keyword == "FIELD") {
@@ -2065,27 +2018,10 @@ private:
 
   bool CompileOn() {
     if (IsKeyword("KEY")) {
-      // ON KEY(n) GOSUB line
+      // ON KEY(n) belonged to the removed KEY family. Refuse it explicitly so
+      // the diagnostic names the construct instead of reporting a syntax error.
       Advance();
-      if (!ExpectOp("("))
-        return false;
-      if (Cur().kind != Tok::Number)
-        return Syntax("Expected a key number after ON KEY(");
-      const int key = static_cast<int>(std::lround(Cur().number.AsNumber()));
-      Advance();
-      if (!ExpectOp(")"))
-        return false;
-      if (!TakeKeyword("GOSUB"))
-        return Syntax("Expected GOSUB after ON KEY(n)");
-      if (Cur().kind != Tok::Number)
-        return Syntax("Expected a line number");
-      const int target = static_cast<int>(std::lround(Cur().number.AsNumber()));
-      Advance();
-      // The line operand is filled in by the fixup; the key number travels in b.
-      const int index = EmitPlaceholder(Op::OnKey);
-      out_->instrs_[static_cast<std::size_t>(index)].b = key;
-      AddLineFixup(index, target);
-      return true;
+      return UnsupportedStatement("ON KEY");
     }
     if (IsKeyword("COM") || IsKeyword("STRIG") || IsKeyword("PLAY") || IsKeyword("PEN")) {
       // There is no COM port, joystick, note queue or light pen to trap here.

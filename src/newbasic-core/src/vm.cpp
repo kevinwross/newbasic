@@ -651,24 +651,6 @@ std::string FormatWrite(const Value& v) {
 // the first six characters of its value, ten keys at width 80 and five at width
 // 40, as the reference describes. The reference does not specify the spacing, so
 // each key is given eight columns.
-void Vm::DrawKeyBar() {
-  if (!key_bar_)
-    return;
-  const int row = screen_.Height() - 1;
-  for (int col = 0; col < screen_.Width(); ++col)
-    screen_.PutCharAt(row, col, L' ');
-  const int per_key = 8;
-  const int visible = std::min(10, screen_.Width() / per_key);
-  for (int i = 0; i < visible; ++i) {
-    const std::string& value = key_values_[static_cast<std::size_t>(i)];
-    const std::string label = std::to_string(i + 1) + value.substr(0, 6);
-    for (std::size_t c = 0; c < label.size() && static_cast<int>(c) < per_key; ++c) {
-      screen_.PutCharAt(row, i * per_key + static_cast<int>(c),
-                        static_cast<wchar_t>(static_cast<unsigned char>(label[c])));
-    }
-  }
-}
-
 bool Vm::EmitValue(const Value& v) {
   if (using_active_) {
     // PRINT USING: format the value against the next field of the format string,
@@ -1411,14 +1393,6 @@ bool Vm::CallFunction(Func f, int argc) {
     return true;
   case Func::Inkey: {
     wchar_t key = 0;
-    // A key consumed to fire a KEY(n) trap is handed back here first, so the handler
-    // can read the character without it being lost.
-    if (pending_key_ != 0) {
-      key = pending_key_;
-      pending_key_ = 0;
-      Push(Value::Str(screen::EncodeCp437(std::wstring(1, key))));
-      return true;
-    }
     if (screen_.TryGetKey(&key))
       Push(Value::Str(screen::EncodeCp437(std::wstring(1, key))));
     else
@@ -2299,71 +2273,6 @@ bool Vm::StepImpl() {
       return Fail(kErrIllegalFunctionCall);
     screen_.SetGridSize(width, screen_.Height());
     break;
-  }
-  case Op::KeySet: {
-    // KEY n, "string": n is 1-10 or 15-20; the value is truncated to 15
-    // characters, and an empty value disables the key.
-    const Value value = Pop();
-    const Value number = Pop();
-    const int n = static_cast<int>(std::lround(number.AsNumber()));
-    if (!((n >= 1 && n <= 10) || (n >= 15 && n <= 20)))
-      return Fail(kErrIllegalFunctionCall);
-    if (!value.IsString())
-      return Fail(kErrTypeMismatch);
-    std::string text = value.AsString();
-    if (text.size() > 15)
-      text.resize(15);
-    key_values_[static_cast<std::size_t>(n - 1)] = text;
-    if (key_bar_)
-      DrawKeyBar();
-    return true;
-  }
-  case Op::KeyOn:
-    // The bar occupies the last screen line, which then belongs to the display
-    // rather than to the program.
-    key_bar_ = true;
-    screen_.SetTextWindow(0, screen_.Height() - 2);
-    DrawKeyBar();
-    return true;
-  case Op::KeyOff: {
-    key_bar_ = false;
-    for (int col = 0; col < screen_.Width(); ++col)
-      screen_.PutCharAt(screen_.Height() - 1, col, L' ');
-    screen_.SetTextWindow(0, screen_.Height() - 1); // the line is available again
-    return true;
-  }
-  case Op::KeyList: {
-    for (std::size_t i = 0; i < 10; ++i) {
-      const std::string line = "F" + std::to_string(i + 1) + " " + key_values_[i];
-      screen_.WriteAtCursor(screen::DecodeCp437(line));
-      screen_.NewLine();
-    }
-    at_line_start_ = true;
-    pending_sep_ = Sep::None;
-    return true;
-  }
-  case Op::OnKey: {
-    // ON KEY(n) GOSUB line: remember the handler (a) for key n (b).
-    if (in.b < 1 || in.b > 10)
-      return Fail(kErrIllegalFunctionCall);
-    on_key_pc_[static_cast<std::size_t>(in.b - 1)] = in.a;
-    return true;
-  }
-  case Op::KeyControl: {
-    // KEY(n) ON/OFF/STOP
-    if (in.a < 1 || in.a > 10)
-      return Fail(kErrIllegalFunctionCall);
-    const std::size_t index = static_cast<std::size_t>(in.a - 1);
-    if (in.b == 1) {
-      if (on_key_pc_[index] < 0)
-        return Fail(kErrIllegalFunctionCall); // no handler yet
-      key_state_[index] = 1;
-    } else if (in.b == 2) {
-      key_state_[index] = 2; // STOP: stay armed but do not fire
-    } else {
-      key_state_[index] = 0;
-    }
-    return true;
   }
   case Op::SaveProgram: {
     if (store_ == nullptr)
@@ -3271,28 +3180,6 @@ RunResult Vm::Run() {
         in_event_ = true;
         gosub_stack_.push_back(pc_);
         pc_ = timer_handler_pc_;
-      }
-    }
-    // KEY(n) ON: fire the handler when a key is pending. Our input model delivers
-    // characters rather than scan codes, so any pending key triggers the lowest
-    // armed trap; the character is kept in pending_key_ and handed back to INKEY$.
-    if (!in_event_ && main_step_done_) {
-      int armed = -1;
-      for (std::size_t index = 0; index < key_state_.size(); ++index) {
-        if (key_state_[index] == 1 && on_key_pc_[index] >= 0) {
-          armed = static_cast<int>(index);
-          break;
-        }
-      }
-      if (armed >= 0) {
-        wchar_t key = 0;
-        if (screen_.TryGetKey(&key)) {
-          pending_key_ = key;
-          main_step_done_ = false;
-          in_event_ = true;
-          gosub_stack_.push_back(pc_);
-          pc_ = on_key_pc_[static_cast<std::size_t>(armed)];
-        }
       }
     }
     // A break reaches us two ways: the console control handler sets the flag, and the

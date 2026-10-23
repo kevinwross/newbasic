@@ -71,9 +71,10 @@ CRLF) survive checkout.
 - Backspace and DEL (0x7F) both edit input; POSIX also normalizes DEL to
   `CHR$(8)` so programs that test `INKEY$ = CHR$(8)` (including the accounting
   sample's custom field editor) work as they do on Windows.
-- Arrow/function-key sequences are consumed rather than inserted into line
-  input. Mapping them to `INKEY$` codes is not implemented; the original
-  backend also left this for the interpreter's key-mapping milestone.
+- Arrow-key sequences are consumed rather than inserted into line input.
+  Function keys are not exposed to `INKEY$`; the GW-BASIC `KEY` family is
+  deliberately unsupported. `INKEY$` remains available for character and arrow
+  polling.
 - `SIGWINCH` re-reads the terminal size and clamps the grid, mirroring the
   Win32 "console too small" behaviour.
 - If stdout/stdin is not a terminal, the POSIX console backend declines to

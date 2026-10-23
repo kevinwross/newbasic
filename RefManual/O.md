@@ -247,12 +247,12 @@ TWO
 ## ON KEY(n) Statement
 
 **Type:** Statement  
-**Status:** Partial  
-**See also:** `KEY(n)`, `INKEY$`
+**Status:** Not supported in newbasic  
+**See also:** `INKEY$`
 
 ### Purpose
 
-Names a subroutine to run when a key event is trapped.
+Names a subroutine to run when a function-key event is trapped.
 
 ### Syntax
 
@@ -260,29 +260,11 @@ Names a subroutine to run when a key event is trapped.
 ON KEY(n) GOSUB line
 ```
 
-### Arguments
+### Newbasic status
 
-| Argument | Required | Description |
-|---|---|---|
-| `n` | Yes | Key number `1`–`10`. |
-| `line` | Yes | Handler line, ending in `RETURN`. |
+Not supported. The `KEY(n)` trap machinery and `ON KEY(n)` dispatch have been removed; any form reports **Advanced Feature**. Newbasic does not distinguish function keys at the input layer.
 
-### Comments
-
-The trap fires only after `KEY(n) ON`. Newbasic’s input model delivers characters rather than function-key scan codes, so any pending character key can fire the lowest armed trap. The handler can read the character with `INKEY$`. This is not a true per-function-key trap.
-
-### Examples
-
-#### Example 1 — Trap a character
-
-```basic
-10 ON KEY(1) GOSUB 100
-20 KEY(1) ON
-30 PRINT "WAITING"
-40 FOR I=1 TO 100: NEXT I
-50 END
-100 K$=INKEY$: PRINT "KEY="; K$: RETURN
-```
+Use `INKEY$` for non-blocking keyboard polling. If a program needs a key-driven action, poll `INKEY$` in a loop and dispatch on the returned character.
 
 <a id="on-pen-statement"></a>
 ## ON PEN Statement

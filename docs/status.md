@@ -5,6 +5,10 @@
 > `docs/portability.md`. On Linux the full default suite passes, the hidden
 > audio timing check passes silently, and the SDL2 window backend passes the
 > GPU check headlessly with `SDL_VIDEODRIVER=dummy`.
+>
+> **Historical note.** The `KEY`/`KEY(n)`/`ON KEY(n)` family described below
+> was subsequently removed; those forms now report Advanced Feature. `INKEY$`
+> remains supported.
 
 **Everything is in git; nothing lives only on the old machine.** Clone, build, run the
 tests, and you are exactly where the previous session stopped.
