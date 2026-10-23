@@ -2260,17 +2260,17 @@ bool Vm::StepImpl() {
     return true;
   }
   case Op::Cls: {
-    // CLS [n]: 0 clears the screen, 1 the graphics viewport (none exists here, so
-    // nothing is cleared), 2 only the text window. With an active VIEW PRINT,
-    // CLS clears that window and homes the cursor to its top, matching the
-    // reference's statement that CLS operates within the text window.
+    // CLS [n]: 0 clears the text screen and the whole graphics canvas and resets
+    // the text attribute, 1 clears only the active graphics viewport, 2 only the
+    // text window. CLS 1 keeps a graphics VIEW and its coordinate system intact.
     const Value mode_value = Pop();
     const int mode = static_cast<int>(std::lround(mode_value.AsNumber()));
     if (mode == 2) {
       screen_.ClearTextWindow();
     } else if (mode == 1) {
-      screen_.ClearGraphics(); // CLS 1: the graphics viewport
+      screen_.ClearGraphicsViewport();
     } else {
+      screen_.SetColor(7, 0);
       const bool full_window =
           screen_.TextWindowTop() == 0 &&
           screen_.TextWindowBottom() == screen_.Height() - 1;

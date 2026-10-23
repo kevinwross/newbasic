@@ -589,6 +589,66 @@ TEST_CASE("Graphics: VIEW fills and borders the viewport", "[graphics]") {
   CHECK(screen.Graphics().Pixel(5, 5) == 0);   // outside untouched
 }
 
+TEST_CASE("Graphics: CLS clears the whole canvas but preserves the VIEW mapping", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 PSET (10,10),2"); // outside the viewport
+  repl.Process("30 VIEW (50,50)-(150,120)");
+  repl.Process("40 PSET (5,5),3"); // canvas (55,55)
+  repl.Process("50 CLS");
+  repl.Process("60 PSET (0,0),1"); // mapping still starts at the viewport origin
+  repl.Process("70 VIEW");
+  repl.Process("RUN");
+  CHECK(screen.Graphics().Pixel(10, 10) == 0);   // whole canvas cleared
+  CHECK(screen.Graphics().Pixel(55, 55) == 0);   // inside cleared
+  CHECK(screen.Graphics().Pixel(50, 50) == 1);   // viewport mapping preserved during CLS
+}
+
+TEST_CASE("Graphics: CLS 0 clears the whole graphics canvas", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 PSET (10,10),2");
+  repl.Process("30 VIEW (50,50)-(150,120)");
+  repl.Process("40 PSET (5,5),3");
+  repl.Process("50 CLS 0");
+  repl.Process("60 VIEW");
+  repl.Process("RUN");
+  CHECK(screen.Graphics().Pixel(10, 10) == 0);
+  CHECK(screen.Graphics().Pixel(55, 55) == 0);
+}
+
+TEST_CASE("Graphics: CLS 1 clears only the active graphics viewport", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 PSET (10,10),2");
+  repl.Process("30 VIEW (50,50)-(150,120)");
+  repl.Process("40 PSET (5,5),3");
+  repl.Process("50 CLS 1");
+  repl.Process("60 VIEW");
+  repl.Process("RUN");
+  CHECK(screen.Graphics().Pixel(10, 10) == 2);
+  CHECK(screen.Graphics().Pixel(55, 55) == 0);
+}
+
+TEST_CASE("Graphics: CLS 1 uses the VIEW fill colour", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 VIEW (50,50)-(150,120),3,4");
+  repl.Process("30 CLS 1");
+  repl.Process("40 VIEW");
+  repl.Process("RUN");
+  CHECK(screen.Graphics().Pixel(55, 55) == 3); // viewport fill colour
+  CHECK(screen.Graphics().Pixel(10, 10) == 0); // outside untouched
+}
+
 TEST_CASE("Graphics: VIEW with no arguments restores the whole canvas", "[graphics]") {
   newbasic::screen::HeadlessScreen screen;
   newbasic::ScriptedHost host;

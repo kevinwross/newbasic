@@ -390,13 +390,17 @@ CLS [n]
 
 | Argument | Required | Description |
 |---|---|---|
-| `n` | No | `0` clears the whole screen when no text window is active, otherwise the active text window; `1` clears the graphics viewport; `2` clears only the text window. Default is `0`. |
+| `n` | No | `0` clears the text area and the whole graphics canvas; `1` clears only the graphics viewport; `2` clears only the text window. Default is `0`. |
 
 ### Comments
 
-In text mode `CLS` fills the active text area with spaces and homes the cursor to its top-left. In graphics mode it clears the graphics canvas and the active text area. `CLS 2` clears only the text window.
+In text mode `CLS` fills the active text area with spaces, resets the text attribute to the default white-on-black, and homes the cursor to its top-left. `CLS 2` clears only the text window.
 
-When `VIEW PRINT` is active, `CLS` and `CLS 0` clear only that window and leave rows outside it untouched. The cursor moves to the window’s first row, so subsequent printing stays inside the window instead of starting at screen row 1.
+`CLS` and `CLS 0` clear the whole graphics canvas even when a `VIEW` is active. A graphics `VIEW` remains active after the clear, so subsequent drawing is still clipped to the viewport and uses viewport-relative coordinates.
+
+`CLS 1` clears only the active graphics viewport; pixels outside it are untouched. The viewport is filled with its `VIEW` fill colour when one was specified, otherwise with the current background attribute. The viewport remains active and its coordinate mapping is unchanged. With no graphics viewport, `CLS 1` clears the whole graphics canvas.
+
+When `VIEW PRINT` is active, the text side of `CLS` and `CLS 0` clears only that window and leaves rows outside it untouched. The cursor moves to the window’s first row, so subsequent printing stays inside the window instead of starting at screen row 1.
 
 ### Examples
 
@@ -407,6 +411,20 @@ When `VIEW PRINT` is active, `CLS` and `CLS 0` clear only that window and leave 
 20 PRINT "CLEAR"
 30 END
 ```
+
+#### Example 2 — Clear only the graphics viewport
+
+```basic
+10 SCREEN 1
+20 PSET (10,10),2
+30 VIEW (50,50)-(150,120)
+40 PSET (5,5),3
+50 CLS 1
+60 VIEW
+70 END
+```
+
+The pixel at (10,10) survives; the viewport interior is cleared. After `CLS`, drawing is still relative to the viewport until `VIEW` resets it.
 
 <a id="color-statement"></a>
 ## COLOR Statement

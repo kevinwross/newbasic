@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "newbasic/errors.h"
+#include "newbasic/repl.h"
 #include "test_helpers.h"
 
 using lwtest::CompileCode;
@@ -141,6 +142,19 @@ TEST_CASE("Statements: CLS, LOCATE and COLOR", "[stmt][screen]") {
   CHECK(screen.ColorBg() == 1);
   CHECK(screen.AttrFg(screen.CellAttrAt(0, 0)) == 14);
   CHECK(screen.AttrBg(screen.CellAttrAt(0, 0)) == 1);
+}
+
+TEST_CASE("Statements: CLS resets the text attribute", "[stmt][screen]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 COLOR 14,1");
+  repl.Process("20 CLS");
+  repl.Process("30 PRINT \"X\"");
+  repl.Process("RUN");
+  CHECK(screen.ColorFg() == 7);
+  CHECK(screen.ColorBg() == 0);
+  CHECK(screen.CellAttrAt(0, 0) == newbasic::screen::Screen::MakeAttr(7, 0));
 }
 
 TEST_CASE("Statements: compile-time errors", "[stmt][errors]") {

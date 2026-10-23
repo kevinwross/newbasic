@@ -154,7 +154,7 @@ VIEW
 
 ### Comments
 
-With no arguments, `VIEW` restores the full screen. Drawing is clipped to the viewport and coordinates are relative to its upper-left corner. A `VIEW` does not clear existing pixels.
+With no arguments, `VIEW` restores the full screen. Drawing is clipped to the viewport and coordinates are relative to its upper-left corner. A `VIEW` does not clear existing pixels. While a viewport is active, `CLS 1` clears only its interior, keeps the viewport and coordinate mapping in place, and uses the fill colour when one was supplied; `CLS` and `CLS 0` clear the whole graphics canvas.
 
 ### Examples
 

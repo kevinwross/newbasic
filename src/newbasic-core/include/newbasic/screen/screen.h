@@ -95,6 +95,20 @@ public:
     canvas_.Clear(colour);
     MarkDirty();
   }
+  // CLS while a graphics VIEW is active: clear the viewport interior, using the
+  // viewport fill colour when VIEW supplied one and the current background
+  // attribute (0) otherwise. Pixels outside the viewport are untouched.
+  void ClearGraphicsViewport() {
+    if (!viewport_active_) {
+      ClearGraphics(0);
+      return;
+    }
+    const std::uint8_t colour =
+        static_cast<std::uint8_t>(view_fill_ >= 0 ? view_fill_ : 0);
+    canvas_.FillBox(view_x_, view_y_, view_x_ + view_width_ - 1,
+                    view_y_ + view_height_ - 1, colour);
+    MarkDirty();
+  }
   // PALETTE (M12 phase 3): maps a colour attribute to a CGA colour index. The
   // reference allows 0..63, whose upper blocks are intensity variants; the palette
   // here is the 16 colours, so an entry stores colour % 16 (documented divergence).
@@ -179,6 +193,7 @@ public:
     view_y_ = top;
     view_width_ = right - left + 1;
     view_height_ = bottom - top + 1;
+    view_fill_ = fill;
     canvas_.SetClip(left, top, right, bottom);
     if (fill >= 0) {
       canvas_.FillBox(left, top, right, bottom, static_cast<std::uint8_t>(fill));
@@ -194,6 +209,7 @@ public:
     view_y_ = 0;
     view_width_ = canvas_.Width();
     view_height_ = canvas_.Height();
+    view_fill_ = -1;
     canvas_.ClearClip();
     MarkDirty();
   }
@@ -494,6 +510,7 @@ private:
   int view_y_ = 0;
   int view_width_ = kCols;
   int view_height_ = kRows;
+  int view_fill_ = -1;
   std::array<std::uint8_t, 16> palette_{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
   // What each attribute actually displays as: the CGA colour for the compatible modes,
   // a real RGB ramp for SCREEN 720.
