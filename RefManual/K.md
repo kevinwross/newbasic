@@ -55,3 +55,35 @@ KEY(n) STOP
 Not supported. The function-key trap machinery has been removed from the VM. Any `KEY(n)` form reports **Advanced Feature**.
 
 Use `INKEY$` for non-blocking keyboard polling. Newbasic does not provide per-function-key event traps.
+
+<a id="kill-command"></a>
+## KILL Command
+
+**Type:** Command  
+**Status:** Direct mode only  
+
+### Purpose
+
+Deletes a file.
+
+### Syntax
+
+```basic
+KILL filename
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `filename` | Yes | File to delete. |
+
+### Comments
+
+Implemented as a direct-mode command, not a program statement. `KILL` removes files only; a directory raises **File not found**, as does a missing file. Path separators are translated on POSIX.
+
+### Examples
+
+```text
+KILL "DATA.TMP"
+```
