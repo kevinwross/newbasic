@@ -18,6 +18,11 @@ public:
   virtual std::string DateString() { return "01-01-1980"; }
   // Local time as HH:MM:SS (TIME$).
   virtual std::string TimeString() { return "00:00:00"; }
+  // Environment snapshot for ENVIRON$. Names are returned as the host spells
+  // them; the VM normalises them to uppercase for lookup.
+  virtual std::vector<std::pair<std::string, std::string>> EnvironmentSnapshot() {
+    return {};
+  }
   // Runs a SHELL command line through the operating system's command
   // interpreter (an empty command starts an interactive session). Returns
   // the exit code, or -1 when the interpreter could not be started.
@@ -46,6 +51,7 @@ public:
   double SecondsSinceMidnight() override;
   std::string DateString() override;
   std::string TimeString() override;
+  std::vector<std::pair<std::string, std::string>> EnvironmentSnapshot() override;
   int RunShell(const std::string& command) override;
   bool CanRunInteractiveShell() const override;
   void PlayTone(int frequency_hz, int duration_ms) override;
@@ -61,6 +67,7 @@ public:
   double timer = 0.0;
   std::string date = "01-01-1980";
   std::string time = "00:00:00";
+  std::vector<std::pair<std::string, std::string>> environment;
 
   std::string DateString() override { return date; }
   std::string TimeString() override { return time; }
@@ -88,6 +95,9 @@ public:
   // Scripted clock: every read advances `timer` by `timer_step`, so timer
   // event tests are deterministic.
   double timer_step = 0.0;
+  std::vector<std::pair<std::string, std::string>> EnvironmentSnapshot() override {
+    return environment;
+  }
   double ReadClock() {
     const double value = timer;
     timer += timer_step;

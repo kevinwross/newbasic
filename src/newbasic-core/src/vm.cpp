@@ -74,6 +74,14 @@ std::string Trim(const std::string& text) {
   return text.substr(begin, end - begin);
 }
 
+std::string UpperAscii(std::string text) {
+  for (char& c : text) {
+    if (c >= 'a' && c <= 'z')
+      c = static_cast<char>(c - 'a' + 'A');
+  }
+  return text;
+}
+
 // Splits INPUT data on commas outside quotes; quotes are removed.
 std::vector<std::string> ParseInputFields(const std::string& line) {
   std::vector<std::string> fields;
@@ -167,6 +175,8 @@ const char* FuncName(Func f) {
     return "LOC";
   case Func::Date:
     return "DATE$";
+  case Func::Environ:
+    return "ENVIRON$";
   case Func::Exp:
     return "EXP";
   case Func::Fix:
@@ -256,6 +266,7 @@ bool FuncIsString(Func f) {
   switch (f) {
   case Func::Chr:
   case Func::Date:
+  case Func::Environ:
   case Func::Hex:
   case Func::Inkey:
   case Func::Left:
@@ -1354,6 +1365,47 @@ bool Vm::CallFunction(Func f, int argc) {
   case Func::Date:
     Push(Value::Str(host_->DateString()));
     return true;
+  case Func::Environ: {
+    if (args.size() != 1)
+      return Fail(kErrSyntax);
+    const auto environment = host_->EnvironmentSnapshot();
+    if (args[0].IsString()) {
+      const std::string wanted = UpperAscii(args[0].AsString());
+      bool found = false;
+      std::string value;
+      for (const auto& entry : environment) {
+        if (UpperAscii(entry.first) != wanted)
+          continue;
+        if (entry.first == wanted) {
+          Push(Value::Str(entry.second));
+          return true;
+        }
+        if (!found) {
+          value = entry.second;
+          found = true;
+        }
+      }
+      Push(Value::Str(found ? value : std::string()));
+      return true;
+    }
+    if (!numeric(0, &a))
+      return false;
+    const long index = std::lround(a);
+    if (index < 1 || index > 255)
+      return Fail(kErrIllegalFunctionCall);
+    std::vector<std::pair<std::string, std::string>> sorted;
+    sorted.reserve(environment.size());
+    for (const auto& entry : environment)
+      sorted.emplace_back(UpperAscii(entry.first), entry.second);
+    std::sort(sorted.begin(), sorted.end());
+    if (static_cast<std::size_t>(index) > sorted.size()) {
+      Push(Value::Str(std::string()));
+      return true;
+    }
+    const auto& entry = sorted[static_cast<std::size_t>(index - 1)];
+    Push(Value::Str(entry.first + "=" + entry.second));
+    return true;
+  }
   case Func::Time:
     Push(Value::Str(host_->TimeString()));
     return true;

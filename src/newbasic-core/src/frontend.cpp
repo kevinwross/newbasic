@@ -47,6 +47,7 @@ const FuncEntry kFuncTable[] = {
     {"CVI", Func::Cvi},
     {"CVS", Func::Cvs},
     {"DATE$", Func::Date},
+    {"ENVIRON$", Func::Environ},
     {"EXP", Func::Exp},
     {"FIX", Func::Fix},
     {"HEX$", Func::Hex},

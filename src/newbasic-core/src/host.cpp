@@ -10,6 +10,10 @@
 
 #include "newbasic/host_path.h"
 
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
+
 namespace newbasic {
 namespace {
 
@@ -72,6 +76,23 @@ std::string SystemHost::TimeString() {
   char buf[32];
   std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", local.tm_hour, local.tm_min, local.tm_sec);
   return buf;
+}
+
+std::vector<std::pair<std::string, std::string>> SystemHost::EnvironmentSnapshot() {
+  std::vector<std::pair<std::string, std::string>> result;
+#if defined(_WIN32)
+  char** cursor = _environ;
+#else
+  char** cursor = environ;
+#endif
+  for (; cursor != nullptr && *cursor != nullptr; ++cursor) {
+    const std::string entry(*cursor);
+    const std::size_t equals = entry.find('=');
+    if (equals == std::string::npos || equals == 0)
+      continue;
+    result.emplace_back(entry.substr(0, equals), entry.substr(equals + 1));
+  }
+  return result;
 }
 
 void SystemHost::WriteToPrinter(const std::string& text) {

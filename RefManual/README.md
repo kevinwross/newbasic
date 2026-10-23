@@ -74,7 +74,7 @@ The manual is a reference, not a tutorial. For worked programs, see `samples/` a
 | [EDIT Command](E.md#edit-command) | Command | Not supported in newbasic |
 | [END Statement](E.md#end-statement) | Statement | Supported |
 | [ENVIRON Statement](E.md#environ-statement) | Statement | Not supported in newbasic |
-| [ENVIRON$ Function](E.md#environ-function) | Function | Not supported in newbasic |
+| [ENVIRON$ Function](E.md#environ-function) | Function | Supported |
 | [EOF Function](E.md#eof-function) | Function | Supported |
 | [ERASE Statement](E.md#erase-statement) | Statement | Supported |
 | [ERDEV Variable](E.md#erdev-variable) | Variable | Not supported in newbasic |
@@ -237,7 +237,6 @@ The full reasons are in each letter file. This list is for quick lookup.
 | [DEF USR Statement](D.md#def-usr-statement) |
 | [EDIT Command](E.md#edit-command) |
 | [ENVIRON Statement](E.md#environ-statement) |
-| [ENVIRON$ Function](E.md#environ-function) |
 | [ERDEV Variable](E.md#erdev-variable) |
 | [ERDEV$ Variable](E.md#erdev-variable-2) |
 | [EXTERR Function](E.md#exterr-function) |

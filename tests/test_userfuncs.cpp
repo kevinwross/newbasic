@@ -57,3 +57,28 @@ TEST_CASE("DEF FN: composition, arguments and redefinition", "[fn]") {
   // Redefining replaces the earlier definition.
   CHECK(Row0("10 DEF FNA(X)=X+1\n20 DEF FNA(X)=X+100\n30 PRINT FNA(1)\n") == " 101");
 }
+
+TEST_CASE("ENVIRON$: case-insensitive lookup and numbered snapshot", "[fn][env]") {
+  newbasic::ScriptedHost host;
+  host.environment = {{"Path", "C:\\Windows"},
+                      {"ProgramFiles", "C:\\Program Files"},
+                      {"B", "2"},
+                      {"A", "1"}};
+
+  const std::vector<std::string> rows = lwtest::RunRowsWithInput(
+      "10 PRINT ENVIRON$(\"PATH\")\n"
+      "20 PRINT ENVIRON$(\"programfiles\")\n"
+      "30 PRINT ENVIRON$(\"MISSING\")\n"
+      "40 PRINT ENVIRON$(1); \"|\"; ENVIRON$(2)\n",
+      {}, &host);
+  REQUIRE(rows.size() >= 4);
+  CHECK(rows[0] == "C:\\Windows");
+  CHECK(rows[1] == "C:\\Program Files");
+  CHECK(rows[2].empty());
+  CHECK(rows[3] == "A=1|B=2");
+}
+
+TEST_CASE("ENVIRON statement remains deliberately refused", "[env]") {
+  CHECK(lwtest::RunErrorCode("10 ENVIRON \"PATH=C:\\TEMP\"\n") ==
+        newbasic::kErrAdvancedFeature);
+}

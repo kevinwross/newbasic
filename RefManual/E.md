@@ -80,17 +80,18 @@ ENVIRON string$
 
 ### Newbasic status
 
-Not implemented. Newbasic does not expose a process-environment API.
+Newbasic deliberately refuses this statement so a BASIC program cannot modify the host’s system environment variables. Use the read-only `ENVIRON$` function instead.
 
 <a id="environ-function"></a>
 ## ENVIRON$ Function
 
 **Type:** Function  
-**Status:** Not supported in newbasic
+**Status:** Supported  
+**See also:** `ENVIRON`, `SHELL`
 
 ### Purpose
 
-Reads an environment variable.
+Reads a host environment variable without modifying the environment.
 
 ### Syntax
 
@@ -99,9 +100,40 @@ ENVIRON$(name$)
 ENVIRON$(number)
 ```
 
-### Newbasic status
+### Arguments
 
-Not implemented; there is no environment-variable model.
+| Argument | Required | Description |
+|---|---|---|
+| `name$` | Yes (name form) | Environment variable name. Matching is case-insensitive and names are normalized to uppercase. |
+| `number` | Yes (number form) | 1-based position in the sorted environment snapshot, from 1 to 255. |
+
+### Comments
+
+The name form returns the variable’s value, or an empty string when it is not defined. Names are compared case-insensitively: `PATH`, `Path`, and `path` all find the same entry. The returned value is the text after the first `=`; an empty value is returned as an empty string.
+
+The number form returns the selected entry as `NAME=value`, using the uppercase name. Entries are sorted by uppercase name, which makes the numbered form deterministic across hosts. A number outside `1`–`255` raises **Illegal function call**; a number beyond the available entries returns an empty string.
+
+`ENVIRON$` is read-only. Newbasic deliberately refuses the `ENVIRON` statement so a program cannot change the environment inherited by `SHELL` or other child processes. Values may contain host-specific paths and may reveal sensitive configuration; print them only when intended.
+
+### Examples
+
+#### Example 1 — Read a variable case-insensitively
+
+```basic
+10 PRINT ENVIRON$("PATH")
+20 PRINT ENVIRON$("Path")
+30 PRINT ENVIRON$("NO_SUCH_VARIABLE")
+40 END
+```
+
+#### Example 2 — Numbered snapshot
+
+```basic
+10 FOR I=1 TO 3
+20 PRINT ENVIRON$(I)
+30 NEXT I
+40 END
+```
 
 <a id="eof-function"></a>
 ## EOF Function

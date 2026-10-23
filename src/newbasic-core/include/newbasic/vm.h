@@ -36,6 +36,7 @@ enum class Func : std::int32_t {
   Cvi,
   Cvs,
   Date,
+  Environ,
   Eof,
   Err,
   Erl,
