@@ -4,12 +4,11 @@
 40 SCREEN 720
 50 DIM galaxyMap(8,8),baseRows(8,8),baseCols(8,8)
 60 DIM klingonRows(200),klingonCols(200),klingonHull(200),starRows(200),starCols(200),systemHealth(8),systemName$(8)
-70 DIM courseRows(8),courseCols(8),commandLabel$(7),directionLabel$(8),compassX(8),compassY(8)
+70 DIM courseRows(8),courseCols(8),commandLabel$(7),compassX(8),compassY(8)
 80 courseRows(1)=0:courseCols(1)=1:courseRows(2)=-1:courseCols(2)=1:courseRows(3)=-1:courseCols(3)=0:courseRows(4)=-1:courseCols(4)=-1
 90 courseRows(5)=0:courseCols(5)=-1:courseRows(6)=1:courseCols(6)=-1:courseRows(7)=1:courseCols(7)=0:courseRows(8)=1:courseCols(8)=1
 100 commandLabel$(0)="NAV":commandLabel$(1)="SCAN":commandLabel$(2)="PHASERS":commandLabel$(3)="TORPEDO"
 110 commandLabel$(4)="SHIELDS":commandLabel$(5)="DAMAGE":commandLabel$(6)="COMPUTER":commandLabel$(7)="HELP"
-120 directionLabel$(1)="E":directionLabel$(2)="NE":directionLabel$(3)="N":directionLabel$(4)="NW":directionLabel$(5)="W":directionLabel$(6)="SW":directionLabel$(7)="S":directionLabel$(8)="SE"
 125 compassX(1)=1:compassY(1)=0:compassX(2)=.7071:compassY(2)=-.7071:compassX(3)=0:compassY(3)=-1:compassX(4)=-.7071:compassY(4)=-.7071
 128 compassX(5)=-1:compassY(5)=0:compassX(6)=-.7071:compassY(6)=.7071:compassX(7)=0:compassY(7)=1:compassX(8)=.7071:compassY(8)=.7071
 126 systemName$(1)="WARP":systemName$(2)="IMPULSE":systemName$(3)="PHASERS":systemName$(4)="TORP"
@@ -203,10 +202,10 @@
 2620 LINE (930,300)-(1262,630),9,B
 2630 IF consoleMode$="COMMAND" THEN GOSUB 2700
 2640 IF consoleMode$="NAV" THEN GOSUB 2720
-2650 IF consoleMode$="PHA" THEN GOSUB 2760
-2660 IF consoleMode$="TOR" THEN GOSUB 2790
-2670 IF consoleMode$="SHE" THEN GOSUB 2820
-2680 IF consoleMode$="HELP" THEN GOSUB 2850
+2650 IF consoleMode$="PHA" THEN GOSUB 2790
+2660 IF consoleMode$="TOR" THEN GOSUB 2810
+2670 IF consoleMode$="SHE" THEN GOSUB 2830
+2680 IF consoleMode$="HELP" THEN GOSUB 2860
 2682 IF consoleMode$="DAM" THEN GOSUB 2560
 2690 RETURN
 
@@ -215,54 +214,73 @@
 2715 LOCATE 23,117:PRINT "OR USE N S P T E D C ?"
 2718 RETURN
 
-2720 LOCATE 21,117:PRINT "NAVIGATION"
-2730 LOCATE 22,117:PRINT "COURSE";course;"  WARP";warpFactor
-2740 compassCenterX=1096:compassCenterY=438:compassRadius=70
-2741 CIRCLE (compassCenterX,compassCenterY),compassRadius,4
-2742 CIRCLE (compassCenterX,compassCenterY),compassRadius-3,9
-2743 FOR I=1 TO 8
-2744 nextRow=compassCenterX+compassRadius*compassX(I):nextCol=compassCenterY+compassRadius*compassY(I)
-2745 LINE (compassCenterX,compassCenterY)-(nextRow,nextCol),9
-2746 buttonX=nextRow-23:buttonY=nextCol-12:buttonWidth=46:buttonHeight=24:buttonLabel$=directionLabel$(I):buttonColor=8
-2747 IF course=I THEN buttonColor=1
-2748 GOSUB 7200
-2749 NEXT I
-2750 CIRCLE (compassCenterX,compassCenterY),20,4
-2751 buttonX=944:buttonY=540:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
-2752 buttonX=1010:buttonY=540:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
-2754 buttonX=944:buttonY=580:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
-2756 LOCATE 40,117:PRINT "CLICK A COMPASS POINT"
-2758 RETURN
-
-2760 LOCATE 21,117:PRINT "PHASERS"
-2770 LOCATE 22,117:PRINT "POWER";phaserPower
-2772 buttonX=944:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
-2774 buttonX=1010:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
-2776 buttonX=944:buttonY=450:buttonWidth=280:buttonHeight=34:buttonLabel$="FIRE PHASERS":buttonColor=2:GOSUB 7200
-2778 RETURN
-
-2790 LOCATE 21,117:PRINT "TORPEDO"
-2800 LOCATE 22,117:PRINT "TARGET";targetIndex
-2802 buttonX=944:buttonY=400:buttonWidth=280:buttonHeight=34:buttonLabel$="FIRE TORPEDO":buttonColor=2:GOSUB 7200
-2805 LOCATE 28,117:PRINT "CLICK A KLINGON TO LOCK"
+2720 LOCATE 20,117:PRINT "COMPASS NAVIGATION"
+2730 LOCATE 21,117:PRINT "COURSE";course;"  WARP";warpFactor
+2740 compassCenterX=1096:compassCenterY=440:compassRadius=78
+2741 CIRCLE (compassCenterX,compassCenterY),compassRadius,9
+2742 FOR tickAngle=0 TO 359 STEP 15
+2743 radians=tickAngle*3.14159265/180
+2744 tickInner=72:tickColor=9
+2745 IF tickAngle MOD 45=0 THEN tickInner=64:tickColor=4
+2746 LINE (compassCenterX+COS(radians)*tickInner,compassCenterY+SIN(radians)*tickInner)-(compassCenterX+COS(radians)*compassRadius,compassCenterY+SIN(radians)*compassRadius),tickColor
+2747 NEXT tickAngle
+2748 FOR I=1 TO 8
+2750 armLength=52:armHalfWidth=10:armColor=5
+2752 IF I MOD 2=1 THEN armLength=70:armHalfWidth=15:armColor=4
+2754 IF I=course THEN armColor=1
+2756 armTipX=compassCenterX+compassX(I)*armLength
+2757 armTipY=compassCenterY+compassY(I)*armLength
+2758 perpX=-compassY(I):perpY=compassX(I)
+2759 baseOneX=compassCenterX+perpX*armHalfWidth
+2760 baseOneY=compassCenterY+perpY*armHalfWidth
+2761 baseTwoX=compassCenterX-perpX*armHalfWidth
+2762 baseTwoY=compassCenterY-perpY*armHalfWidth
+2763 LINE (baseOneX,baseOneY)-(baseTwoX,baseTwoY),armColor
+2764 LINE (baseOneX,baseOneY)-(armTipX,armTipY),armColor
+2765 LINE (baseTwoX,baseTwoY)-(armTipX,armTipY),armColor
+2766 PAINT (compassCenterX+(armTipX-compassCenterX)*.35,compassCenterY+(armTipY-compassCenterY)*.35),armColor,armColor
+2767 NEXT I
+2773 CIRCLE (compassCenterX,compassCenterY),12,4
+2774 CIRCLE (compassCenterX,compassCenterY),5,1
+2775 LOCATE 22,136:PRINT "N"
+2776 LOCATE 34,136:PRINT "S"
+2777 LOCATE 28,148:PRINT "E"
+2778 LOCATE 28,125:PRINT "W"
+2779 LOCATE 24,145:PRINT "NE"
+2780 LOCATE 24,128:PRINT "NW"
+2781 LOCATE 32,145:PRINT "SE"
+2782 LOCATE 32,128:PRINT "SW"
+2783 LINE (compassCenterX,compassCenterY)-(compassCenterX+compassX(course)*compassRadius,compassCenterY+compassY(course)*compassRadius),1
+2784 CIRCLE (compassCenterX+compassX(course)*compassRadius,compassCenterY+compassY(course)*compassRadius),5,1
+2785 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
+2786 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
+2787 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
+2788 RETURN
+2790 LOCATE 21,117:PRINT "PHASERS"
+2800 LOCATE 22,117:PRINT "POWER";phaserPower
+2802 buttonX=944:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
+2804 buttonX=1010:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
+2806 buttonX=944:buttonY=450:buttonWidth=280:buttonHeight=34:buttonLabel$="FIRE PHASERS":buttonColor=2:GOSUB 7200
 2808 RETURN
-
-2820 LOCATE 21,117:PRINT "SHIELDS"
-2830 LOCATE 22,117:PRINT "TRANSFER";transferAmount
-2832 buttonX=944:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
-2834 buttonX=1010:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
-2836 buttonX=944:buttonY=450:buttonWidth=280:buttonHeight=34:buttonLabel$="APPLY":buttonColor=4:GOSUB 7200
-2837 buttonX=944:buttonY=486:buttonWidth=130:buttonHeight=30:buttonLabel$="TO SHIELDS":buttonColor=4:GOSUB 7200
-2838 buttonX=1084:buttonY=486:buttonWidth=130:buttonHeight=30:buttonLabel$="TO ENERGY":buttonColor=4:GOSUB 7200
-2839 LOCATE 34,117
-2840 IF shieldDirection=1 THEN PRINT "TO SHIELDS"
-2841 IF shieldDirection=-1 THEN PRINT "TO ENERGY"
-2842 RETURN
-
-2850 LOCATE 21,117:PRINT "HELP"
-2860 LOCATE 22,117:PRINT "CLICK OR KEY TO CLOSE"
-2870 RETURN
-
+2810 LOCATE 21,117:PRINT "TORPEDO"
+2820 LOCATE 22,117:PRINT "TARGET";targetIndex
+2822 buttonX=944:buttonY=400:buttonWidth=280:buttonHeight=34:buttonLabel$="FIRE TORPEDO":buttonColor=2:GOSUB 7200
+2825 LOCATE 28,117:PRINT "CLICK A KLINGON TO LOCK"
+2828 RETURN
+2830 LOCATE 21,117:PRINT "SHIELDS"
+2840 LOCATE 22,117:PRINT "TRANSFER";transferAmount
+2842 buttonX=944:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
+2844 buttonX=1010:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
+2846 buttonX=944:buttonY=450:buttonWidth=280:buttonHeight=34:buttonLabel$="APPLY":buttonColor=4:GOSUB 7200
+2847 buttonX=944:buttonY=486:buttonWidth=130:buttonHeight=30:buttonLabel$="TO SHIELDS":buttonColor=4:GOSUB 7200
+2848 buttonX=1084:buttonY=486:buttonWidth=130:buttonHeight=30:buttonLabel$="TO ENERGY":buttonColor=4:GOSUB 7200
+2849 LOCATE 34,117
+2850 IF shieldDirection=1 THEN PRINT "TO SHIELDS"
+2851 IF shieldDirection=-1 THEN PRINT "TO ENERGY"
+2852 RETURN
+2860 LOCATE 21,117:PRINT "HELP"
+2870 LOCATE 22,117:PRINT "CLICK OR KEY TO CLOSE"
+2880 RETURN
 2890 REM ---- COMMAND BUTTONS ----
 2900 LINE (16,648)-(1264,712),8,BF
 2910 LINE (16,648)-(1264,712),4,B
@@ -325,14 +343,25 @@
 
 3200 REM NAV CONTEXT CLICKS
 3210 IF pointerX>=56 AND pointerX<=456 AND pointerY>=104 AND pointerY<=504 THEN GOSUB 3600:RETURN
-3220 compassCenterX=1096:compassCenterY=438:compassRadius=70
-3222 FOR I=1 TO 8
-3224 nextRow=compassCenterX+compassRadius*compassX(I):nextCol=compassCenterY+compassRadius*compassY(I)
-3226 IF ABS(pointerX-nextRow)<=26 AND ABS(pointerY-nextCol)<=18 THEN course=I:statusMessage$="COURSE SET":RETURN
-3228 NEXT I
-3260 IF pointerX>=944 AND pointerX<=1002 AND pointerY>=540 AND pointerY<=570 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
-3270 IF pointerX>=1010 AND pointerX<=1068 AND pointerY>=540 AND pointerY<=570 THEN warpFactor=warpFactor+1:IF warpFactor>8 THEN warpFactor=8
-3280 IF pointerX>=944 AND pointerX<=1224 AND pointerY>=580 AND pointerY<=614 THEN GOSUB 6000:RETURN
+3220 compassCenterX=1096:compassCenterY=440
+3221 deltaX=pointerX-compassCenterX:deltaY=pointerY-compassCenterY
+3222 distanceSq=deltaX*deltaX+deltaY*deltaY
+3223 IF distanceSq>10000 THEN 3260
+3224 IF distanceSq<400 THEN 3260
+3225 absX=ABS(deltaX):absY=ABS(deltaY)
+3226 IF absX>absY*2.4 AND deltaX>0 THEN course=1
+3227 IF absX>absY*2.4 AND deltaX<0 THEN course=5
+3228 IF absY>absX*2.4 AND deltaY<0 THEN course=3
+3229 IF absY>absX*2.4 AND deltaY>0 THEN course=7
+3230 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX>0 AND deltaY<0 THEN course=2
+3231 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX<0 AND deltaY<0 THEN course=4
+3232 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX<0 AND deltaY>0 THEN course=6
+3233 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX>0 AND deltaY>0 THEN course=8
+3234 statusMessage$="COURSE SET"
+3235 RETURN
+3260 IF pointerX>=944 AND pointerX<=1002 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
+3270 IF pointerX>=1010 AND pointerX<=1068 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor+1:IF warpFactor>8 THEN warpFactor=8
+3280 IF pointerX>=944 AND pointerX<=1224 AND pointerY>=590 AND pointerY<=624 THEN GOSUB 6000:RETURN
 3290 RETURN
 
 3300 REM PHASER CONTEXT CLICKS
