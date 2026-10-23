@@ -116,7 +116,8 @@ None.
 ## INP Function
 
 **Type:** Function  
-**Status:** Not supported in newbasic
+**Status:** Not supported in newbasic  
+**See also:** `INKEY$`, `KEY`
 
 ### Purpose
 
@@ -131,6 +132,21 @@ INP(port)
 ### Newbasic status
 
 Recognised and refused with **Advanced Feature**. Newbasic has no x86 I/O-port model.
+
+### Portability note
+
+GW-BASIC programs commonly used `INP(1)` or `INP(71)` to test whether a key was waiting. Those port addresses do not exist in newbasic, so the technique cannot be ported.
+
+Use `INKEY$` instead. It returns one pending character, or an empty string when no key is waiting, without blocking:
+
+```basic
+10 K$=INKEY$
+20 IF K$="" THEN 10
+30 PRINT "KEY: "; K$
+40 END
+```
+
+`INKEY$` is the portable replacement for keyboard-status polling. It does not provide the old function-key macros; see the `KEY` entry.
 
 <a id="input-statement"></a>
 ## INPUT Statement
