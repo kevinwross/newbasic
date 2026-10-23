@@ -256,10 +256,13 @@
 2777 LINE (targetX-3,targetY)-(targetX+3,targetY),7
 2778 LINE (targetX,targetY-3)-(targetX,targetY+3),7
 2779 NEXT I
-2783 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
-2784 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
-2785 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
-2788 RETURN
+2783 warpTrackLeft=944:warpTrackRight=1224:warpTrackY=550:warpTrackWidth=280
+2784 LINE (warpTrackLeft,warpTrackY)-(warpTrackRight,warpTrackY),9
+2785 FOR tickValue=0 TO 10 STEP 2
+2786 tickX=warpTrackLeft+tickValue/10*warpTrackWidth:LINE (tickX,warpTrackY-7)-(tickX,warpTrackY+7),9:NEXT tickValue
+2787 warpMarkerX=warpTrackLeft+(warpFactor/10)*warpTrackWidth:LINE (warpTrackLeft,warpTrackY-3)-(warpMarkerX,warpTrackY+3),4,BF:CIRCLE (warpMarkerX,warpTrackY),7,7,0,fullCircle,circleAspect
+2788 LOCATE 36,117:PRINT "0";:LOCATE 36,135:PRINT "5";:LOCATE 36,153:PRINT "10"
+2789 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200:RETURN
 2790 LOCATE 21,117:PRINT "PHASERS"
 2800 LOCATE 22,117:PRINT "POWER";phaserPower
 2802 buttonX=944:buttonY=400:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
@@ -356,8 +359,7 @@
 3226 IF ABS(pointerX-targetX)<=18 AND ABS(pointerY-targetY)<=18 THEN course=I:statusMessage$="COURSE SET":RETURN
 3227 NEXT I
 3235 RETURN
-3260 IF pointerX>=944 AND pointerX<=1002 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
-3270 IF pointerX>=1010 AND pointerX<=1068 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor+1:IF warpFactor>8 THEN warpFactor=8
+3260 IF pointerY>=542 AND pointerY<=558 AND pointerX>=944 AND pointerX<=1224 THEN warpFactor=(pointerX-944)/280*10:warpFactor=INT(warpFactor*10+0.5)/10:IF warpFactor<0 THEN warpFactor=0:IF warpFactor>10 THEN warpFactor=10:statusMessage$="WARP "+STR$(warpFactor):RETURN
 3280 IF pointerX>=944 AND pointerX<=1224 AND pointerY>=590 AND pointerY<=624 THEN GOSUB 6000:RETURN
 3290 RETURN
 
@@ -447,8 +449,8 @@
 4180 IF keyCode=82 OR keyCode=114 THEN GOSUB 1000:consoleMode$="COMMAND":statusMessage$="NEW MISSION"
 4185 RETURN
 4200 IF keyCode>=49 AND keyCode<=56 THEN course=keyCode-48:statusMessage$="COURSE SET":RETURN
-4210 IF keyCode=43 THEN warpFactor=warpFactor+1:IF warpFactor>8 THEN warpFactor=8
-4220 IF keyCode=45 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
+4210 IF keyCode=43 THEN warpFactor=warpFactor+.5:IF warpFactor>10 THEN warpFactor=10
+4220 IF keyCode=45 THEN warpFactor=warpFactor-.5:IF warpFactor<0 THEN warpFactor=0
 4230 IF keyCode=13 THEN GOSUB 6000
 4235 RETURN
 4240 IF keyCode=43 THEN phaserPower=phaserPower+100:IF phaserPower>1000 THEN phaserPower=1000
@@ -463,12 +465,13 @@
 4305 RETURN
 
 6000 REM ---- NAVIGATE ----
-6010 IF warpFactor<1 THEN warpFactor=1
-6020 IF warpFactor>8 THEN warpFactor=8
-6030 energyCost=warpFactor*50
+6010 IF warpFactor<0 THEN warpFactor=0
+6020 IF warpFactor>10 THEN warpFactor=10
+6025 moveSteps=INT(warpFactor*.8+.5):IF moveSteps<1 THEN statusMessage$="WARP TOO LOW TO MOVE":RETURN
+6030 energyCost=INT(warpFactor*50+.5)
 6040 IF shipEnergy<energyCost THEN statusMessage$="INSUFFICIENT ENERGY":RETURN
 6050 shipEnergy=shipEnergy-energyCost
-6060 FOR stepIndex=1 TO warpFactor
+6060 FOR stepIndex=1 TO moveSteps
 6070 nextRow=sectorRow+courseRows(course):nextCol=sectorCol+courseCols(course)
 6080 IF nextRow<1 THEN quadRow=quadRow-1:nextRow=8
 6090 IF nextRow>8 THEN quadRow=quadRow+1:nextRow=1
@@ -576,7 +579,7 @@
 8020 LINE (260,150)-(1020,570),4,B
 8030 LOCATE 12,38:PRINT "STAR TREK NG - HELP"
 8040 LOCATE 15,30:PRINT "MOUSE: CLICK A COMMAND BUTTON ALONG THE BOTTOM"
-8050 LOCATE 17,30:PRINT "NAV: PICK A DIRECTION OR CLICK THE SCANNER, THEN ENGAGE"
+8050 LOCATE 17,30:PRINT "NAV: CLICK A COMPASS TARGET, SET WARP, THEN ENGAGE"
 8060 LOCATE 19,30:PRINT "PHASERS: SET POWER, THEN FIRE"
 8070 LOCATE 21,30:PRINT "TORPEDO: LOCK A KLINGON ON THE SCANNER, THEN FIRE"
 8080 LOCATE 23,30:PRINT "SHIELDS: SET TRANSFER, THEN APPLY"
