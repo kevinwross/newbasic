@@ -286,6 +286,65 @@ TEST_CASE("Graphics: PALETTE rejects out-of-range values", "[graphics]") {
         newbasic::kErrIllegalFunctionCall);
 }
 
+TEST_CASE("Graphics: PALETTE USING fills from an integer array", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 DIM P%(15)");
+  repl.Process("30 FOR I=0 TO 15: P%(I)=I: NEXT I");
+  repl.Process("40 PALETTE USING P%(0)");
+  repl.Process("RUN");
+  CHECK(screen.Palette()[0] == 0);
+  CHECK(screen.Palette()[1] == 1);
+  CHECK(screen.Palette()[2] == 2);
+  CHECK(screen.Palette()[7] == 7);
+}
+
+TEST_CASE("Graphics: PALETTE USING skips -1 and honours the start index", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 1");
+  repl.Process("20 DIM P%(20)");
+  repl.Process("30 FOR I=0 TO 20: P%(I)=1: NEXT I");
+  repl.Process("40 P%(5)=9: P%(6)=10: P%(7)=-1");
+  repl.Process("50 PALETTE USING P%(5)");
+  repl.Process("RUN");
+  CHECK(screen.Palette()[0] == 9);
+  CHECK(screen.Palette()[1] == 10);
+  // -1 means "leave this entry unchanged", so entry 2 keeps the SCREEN 1 default.
+  CHECK(screen.Palette()[2] == 4);
+  CHECK(screen.Palette()[3] == 1);
+}
+
+TEST_CASE("Graphics: PALETTE USING rejects bad arrays and values", "[graphics]") {
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DIM P%(3)\n30 PALETTE USING P%(0)\n") ==
+        newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DIM P(15)\n30 PALETTE USING P(0)\n") ==
+        newbasic::kErrIllegalFunctionCall);
+  CHECK(lwtest::RunErrorCode("10 SCREEN 1\n20 DIM P%(15)\n30 P%(0)=64\n"
+                             "40 PALETTE USING P%(0)\n") ==
+        newbasic::kErrIllegalFunctionCall);
+}
+
+TEST_CASE("Graphics: PALETTE USING supports the 256-colour mode", "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 720");
+  repl.Process("20 DIM P%(255)");
+  repl.Process("30 P%(0)=63");
+  repl.Process("40 PALETTE USING P%");
+  repl.Process("RUN");
+  const auto& palette = screen.PaletteRgb();
+  CHECK(palette[0][0] == 255);
+  CHECK(palette[0][1] == 0);
+  CHECK(palette[0][2] == 0);
+  CHECK(palette[1][0] == 0);
+  CHECK(palette[255][0] == 0);
+}
+
 TEST_CASE("Graphics: PSET STEP is relative to the last point", "[graphics]") {
   newbasic::screen::HeadlessScreen screen;
   newbasic::ScriptedHost host;

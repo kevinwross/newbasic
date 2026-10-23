@@ -2097,6 +2097,33 @@ bool Vm::StepImpl() {
   }
   case Op::Palette: {
     // PALETTE attribute, colour; no arguments restores the default palette.
+    if (in.a == 2) {
+      // PALETTE USING integer-array[(index)]: copy enough entries to cover
+      // the current mode's palette. -1 leaves the corresponding entry alone.
+      ArrayValue* array = FindArray(in.name);
+      if (array == nullptr || array->kind != Value::Kind::Int)
+        return Fail(kErrIllegalFunctionCall);
+      int start = array->base;
+      if (in.b != 0) {
+        const Value index_value = Pop();
+        start = static_cast<int>(std::lround(index_value.AsNumber()));
+      }
+      const int offset = start - array->base;
+      const int count = screen_.MaxColour() + 1;
+      if (offset < 0 || static_cast<std::size_t>(offset + count) > array->data.size())
+        return Fail(kErrIllegalFunctionCall);
+      const int max_colour = screen_.IsTrueColourMode() ? 0x3FFFFF : 63;
+      for (int i = 0; i < count; ++i) {
+        const int colour =
+            static_cast<int>(std::lround(array->data[static_cast<std::size_t>(offset + i)].AsNumber()));
+        if (colour == -1)
+          continue;
+        if (colour < 0 || colour > max_colour)
+          return Fail(kErrIllegalFunctionCall);
+        screen_.SetPaletteEntry(i, colour);
+      }
+      return true;
+    }
     if (in.a == 0) {
       screen_.ResetPalette();
       return true;

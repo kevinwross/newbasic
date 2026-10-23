@@ -149,7 +149,7 @@ The manual is a reference, not a tutorial. For worked programs, see `samples/` a
 | [OUT Statement](O.md#out-statement) | Statement | Not supported in newbasic |
 | [PAINT Statement](P.md#paint-statement) | Statement | Supported |
 | [PALETTE Statement](P.md#palette-statement) | Statement | Supported |
-| [PALETTE USING Statement](P.md#palette-using-statement) | Statement | Not supported in newbasic |
+| [PALETTE USING Statement](P.md#palette-using-statement) | Statement | Supported |
 | [PCOPY Command](P.md#pcopy-command) | Command | Supported |
 | [PEEK Function](P.md#peek-function) | Function | Not supported in newbasic |
 | [PEN Function](P.md#pen-function) | Function | Not supported in newbasic |
@@ -255,7 +255,6 @@ The full reasons are in each letter file. This list is for quick lookup.
 | [ON STRIG(n) Statement](O.md#on-strign-statement) |
 | [OPEN "COM" Statement](O.md#open-com-statement) |
 | [OUT Statement](O.md#out-statement) |
-| [PALETTE USING Statement](P.md#palette-using-statement) |
 | [PEEK Function](P.md#peek-function) |
 | [PEN Function](P.md#pen-function) |
 | [PEN Statement](P.md#pen-statement) |

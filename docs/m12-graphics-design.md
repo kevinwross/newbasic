@@ -53,7 +53,7 @@ uploads the canvas as an `R8` texture and applies the 16-colour palette in the s
 | `CIRCLE (x,y),r[,c[,start,end[,aspect]]]` | Midpoint circle with arcs and aspect; the fiddliest geometry |
 | `PAINT (x,y)[,fill[,border]]` | Flood fill, optionally bounded by a colour |
 | `DRAW "macro"` | A macro language (`U/D/L/R/E/F/G/H`, `M`, `B`, `N`, colour/scale prefixes); a parser plus the same line routine |
-| `POINT (x,y)`, `PMAP`, `VIEW`, `WINDOW`, `PALETTE`, `PCOPY` | Coordinates, clipping and palette |
+| `POINT (x,y)`, `PMAP`, `VIEW`, `WINDOW`, `PALETTE`, `PALETTE USING`, `PCOPY` | Coordinates, clipping and palette |
 | `GET`/`PUT` (graphics) | Bit-block transfer, which collides with the *record* `GET`/`PUT` from M9 — the parser already distinguishes them by the `#n` form, so this is the trickiest grammar change |
 | `CLS n` | `n=1` clears the graphics viewport, which is why `CLS 1` is a no-op today |
 

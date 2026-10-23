@@ -1023,11 +1023,28 @@ private:
       return true;
     }
     if (keyword == "PALETTE") {
-      // PALETTE [attribute, colour]: no arguments restores the default palette.
+      // PALETTE [attribute, colour] or PALETTE USING integer-array[(index)].
+      // No arguments restores the default palette.
       Advance();
       Instr in;
       in.op = Op::Palette;
       in.a = 0;
+      if (TakeKeyword("USING")) {
+        if (Cur().kind != Tok::Ident)
+          return Syntax("Expected an integer array after PALETTE USING");
+        in.a = 2;
+        in.name = TypeName(Cur().text);
+        Advance();
+        if (TakeOp("(")) {
+          if (!ParseExpression()) // first element to use
+            return false;
+          if (!ExpectOp(")"))
+            return false;
+          in.b = 1;
+        }
+        out_->instrs_.push_back(in);
+        return true;
+      }
       if (!AtListEnd() && !IsOp(":")) {
         if (!ParseExpression()) // attribute
           return false;

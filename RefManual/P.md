@@ -83,21 +83,73 @@ With no arguments, `PALETTE` restores the current mode’s default palette. In `
 ## PALETTE USING Statement
 
 **Type:** Statement  
-**Status:** Not supported in newbasic
+**Status:** Supported  
+**See also:** `PALETTE`, `SCREEN`, `COLOR`
 
 ### Purpose
 
-Sets many palette entries from an array in one operation.
+Sets many palette entries from an integer array in one operation.
 
 ### Syntax
 
 ```basic
-PALETTE USING array(subscript)
+PALETTE USING integer-array[(first index)]
 ```
 
-### Newbasic status
+### Arguments
 
-Not implemented. Use repeated `PALETTE attribute, colour` statements instead.
+| Argument | Required | Description |
+|---|---|---|
+| `integer-array` | Yes | An integer array holding palette colour numbers. |
+| `first index` | No | First array element to read. Defaults to the array’s base index. |
+
+### Comments
+
+Entries are copied starting at palette attribute `0`. The number of entries is the current mode’s palette size: 16 for the compatible graphics modes, or 256 for `SCREEN 13` and `SCREEN 720`.
+
+An array value of `-1` leaves the corresponding palette entry unchanged. Other negative values are invalid. In the 16-colour modes, colours must be in the range `0`–`63`; in the 256-colour modes they must be in `0`–`0x3FFFFF`.
+
+The array must be large enough to supply every palette entry from the chosen starting index. A non-integer array, a short array, or an out-of-range value raises **Illegal function call**.
+
+`PALETTE USING` changes the same mapping as `PALETTE`; the existing screen pixels update immediately. `PALETTE` with no arguments still restores the mode’s default palette.
+
+### Examples
+
+#### Example 1 — Install a full 16-entry palette
+
+```basic
+10 SCREEN 1
+20 DIM P%(15)
+30 FOR I=0 TO 15: P%(I)=I: NEXT I
+40 PALETTE USING P%(0)
+50 PSET (10,10), 7
+60 END
+```
+
+#### Example 2 — Leave some entries unchanged
+
+```basic
+10 SCREEN 1
+20 DIM P%(15)
+30 FOR I=0 TO 15: P%(I)=-1: NEXT I
+40 P%(1)=5
+50 P%(2)=9
+60 PALETTE USING P%(0)
+70 PSET (10,10), 1
+80 END
+```
+
+#### Example 3 — Start at a later array element
+
+```basic
+10 SCREEN 1
+20 DIM P%(20)
+30 FOR I=0 TO 20: P%(I)=1: NEXT I
+40 P%(5)=9
+50 P%(6)=10
+60 PALETTE USING P%(5)
+70 END
+```
 
 <a id="pcopy-command"></a>
 ## PCOPY Command
