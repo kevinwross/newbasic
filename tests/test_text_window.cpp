@@ -54,6 +54,21 @@ TEST_CASE("Window: CLS 2 clears only the window, CLS 0 clears everything", "[win
     CHECK(row.empty());
 }
 
+TEST_CASE("Window: CLS clears the active window and homes to its top", "[window]") {
+  const std::vector<std::string> rows = lwtest::RunRows("10 VIEW PRINT 5 TO 8\n"
+                                                        "20 CLS\n"
+                                                        "30 FOR I=1 TO 10\n"
+                                                        "40 PRINT I\n"
+                                                        "50 NEXT\n");
+  REQUIRE(rows.size() == 25);
+  for (int row = 0; row < 4; ++row)
+    CHECK(rows[static_cast<std::size_t>(row)].empty());
+  CHECK(rows[4] == " 8");
+  CHECK(rows[5] == " 9");
+  CHECK(rows[6] == " 10");
+  CHECK(rows[7].empty());
+}
+
 TEST_CASE("Window: VIEW PRINT without arguments restores the whole screen", "[window]") {
   const std::vector<std::string> rows = lwtest::RunRows("10 VIEW PRINT 5 TO 8\n"
                                                         "20 VIEW PRINT\n"

@@ -390,11 +390,13 @@ CLS [n]
 
 | Argument | Required | Description |
 |---|---|---|
-| `n` | No | `0` clears the whole screen; `1` clears the graphics viewport; `2` clears only the text window. Default is `0`. |
+| `n` | No | `0` clears the whole screen when no text window is active, otherwise the active text window; `1` clears the graphics viewport; `2` clears only the text window. Default is `0`. |
 
 ### Comments
 
-In text mode `CLS` fills the text grid with spaces and homes the cursor. In graphics mode it clears the graphics canvas and the text overlay. `CLS 2` clears only the text window.
+In text mode `CLS` fills the active text area with spaces and homes the cursor to its top-left. In graphics mode it clears the graphics canvas and the active text area. `CLS 2` clears only the text window.
+
+When `VIEW PRINT` is active, `CLS` and `CLS 0` clear only that window and leave rows outside it untouched. The cursor moves to the window’s first row, so subsequent printing stays inside the window instead of starting at screen row 1.
 
 ### Examples
 

@@ -2261,7 +2261,9 @@ bool Vm::StepImpl() {
   }
   case Op::Cls: {
     // CLS [n]: 0 clears the screen, 1 the graphics viewport (none exists here, so
-    // nothing is cleared), 2 only the text window.
+    // nothing is cleared), 2 only the text window. With an active VIEW PRINT,
+    // CLS clears that window and homes the cursor to its top, matching the
+    // reference's statement that CLS operates within the text window.
     const Value mode_value = Pop();
     const int mode = static_cast<int>(std::lround(mode_value.AsNumber()));
     if (mode == 2) {
@@ -2269,9 +2271,13 @@ bool Vm::StepImpl() {
     } else if (mode == 1) {
       screen_.ClearGraphics(); // CLS 1: the graphics viewport
     } else {
-      // CLS 0 (and bare CLS) clears the text screen; in a graphics mode the canvas
-      // goes too, which is what the reference describes for "text and graphics".
-      screen_.Clear();
+      const bool full_window =
+          screen_.TextWindowTop() == 0 &&
+          screen_.TextWindowBottom() == screen_.Height() - 1;
+      if (full_window)
+        screen_.Clear();
+      else
+        screen_.ClearTextWindow();
       if (screen_.GraphicsMode() != screen::Screen::kTextMode)
         screen_.ClearGraphics();
     }
