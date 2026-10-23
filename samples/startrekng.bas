@@ -216,45 +216,52 @@
 
 2720 LOCATE 20,117:PRINT "COMPASS NAVIGATION"
 2730 LOCATE 21,117:PRINT "COURSE";course;"  WARP";warpFactor
-2740 compassCenterX=1096:compassCenterY=440:compassRadius=78
-2741 CIRCLE (compassCenterX,compassCenterY),compassRadius,9
-2742 FOR tickAngle=0 TO 359 STEP 15
-2743 radians=tickAngle*3.14159265/180
-2744 tickInner=72:tickColor=9
-2745 IF tickAngle MOD 45=0 THEN tickInner=64:tickColor=4
-2746 LINE (compassCenterX+COS(radians)*tickInner,compassCenterY+SIN(radians)*tickInner)-(compassCenterX+COS(radians)*compassRadius,compassCenterY+SIN(radians)*compassRadius),tickColor
-2747 NEXT tickAngle
-2748 FOR I=1 TO 8
-2750 armLength=52:armHalfWidth=10:armColor=5
-2752 IF I MOD 2=1 THEN armLength=70:armHalfWidth=15:armColor=4
-2754 IF I=course THEN armColor=1
-2756 armTipX=compassCenterX+compassX(I)*armLength
-2757 armTipY=compassCenterY+compassY(I)*armLength
-2758 perpX=-compassY(I):perpY=compassX(I)
-2759 baseOneX=compassCenterX+perpX*armHalfWidth
-2760 baseOneY=compassCenterY+perpY*armHalfWidth
-2761 baseTwoX=compassCenterX-perpX*armHalfWidth
-2762 baseTwoY=compassCenterY-perpY*armHalfWidth
-2763 LINE (baseOneX,baseOneY)-(baseTwoX,baseTwoY),armColor
-2764 LINE (baseOneX,baseOneY)-(armTipX,armTipY),armColor
-2765 LINE (baseTwoX,baseTwoY)-(armTipX,armTipY),armColor
-2766 PAINT (compassCenterX+(armTipX-compassCenterX)*.35,compassCenterY+(armTipY-compassCenterY)*.35),armColor,armColor
-2767 NEXT I
-2773 CIRCLE (compassCenterX,compassCenterY),12,4
-2774 CIRCLE (compassCenterX,compassCenterY),5,1
-2775 LOCATE 22,136:PRINT "N"
-2776 LOCATE 34,136:PRINT "S"
-2777 LOCATE 28,148:PRINT "E"
-2778 LOCATE 28,125:PRINT "W"
-2779 LOCATE 24,145:PRINT "NE"
-2780 LOCATE 24,128:PRINT "NW"
-2781 LOCATE 32,145:PRINT "SE"
-2782 LOCATE 32,128:PRINT "SW"
-2783 LINE (compassCenterX,compassCenterY)-(compassCenterX+compassX(course)*compassRadius,compassCenterY+compassY(course)*compassRadius),1
-2784 CIRCLE (compassCenterX+compassX(course)*compassRadius,compassCenterY+compassY(course)*compassRadius),5,1
-2785 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
-2786 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
-2787 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
+2740 compassCenterX=1096:compassCenterY=440:compassRadius=78:centerRadius=16
+2741 CIRCLE (compassCenterX,compassCenterY),centerRadius,9
+2742 CIRCLE (compassCenterX,compassCenterY),compassRadius,9
+2743 baseAngle=16*3.14159265/180:baseCos=COS(baseAngle):baseSin=SIN(baseAngle)
+2744 FOR tickAngle=0 TO 359 STEP 15
+2745 radians=tickAngle*3.14159265/180
+2746 tickInner=72:tickColor=9
+2747 IF tickAngle MOD 45=0 THEN tickInner=64:tickColor=4
+2748 LINE (compassCenterX+COS(radians)*tickInner,compassCenterY+SIN(radians)*tickInner)-(compassCenterX+COS(radians)*compassRadius,compassCenterY+SIN(radians)*compassRadius),tickColor
+2749 NEXT tickAngle
+2750 FOR I=1 TO 8
+2751 armLength=54:armColor=5
+2752 IF I MOD 2=1 THEN armLength=72:armColor=4
+2753 IF I=course THEN armColor=1
+2754 armTipX=compassCenterX+compassX(I)*armLength
+2755 armTipY=compassCenterY+compassY(I)*armLength
+2756 baseOneX=compassCenterX+(compassX(I)*baseCos-compassY(I)*baseSin)*centerRadius
+2757 baseOneY=compassCenterY+(compassX(I)*baseSin+compassY(I)*baseCos)*centerRadius
+2758 baseTwoX=compassCenterX+(compassX(I)*baseCos+compassY(I)*baseSin)*centerRadius
+2759 baseTwoY=compassCenterY+(-compassX(I)*baseSin+compassY(I)*baseCos)*centerRadius
+2760 LINE (baseOneX,baseOneY)-(baseTwoX,baseTwoY),armColor
+2761 LINE (baseOneX,baseOneY)-(armTipX,armTipY),armColor
+2762 LINE (baseTwoX,baseTwoY)-(armTipX,armTipY),armColor
+2763 PAINT (compassCenterX+compassX(I)*(centerRadius+(armLength-centerRadius)*.45),compassCenterY+compassY(I)*(centerRadius+(armLength-centerRadius)*.45)),armColor,armColor
+2764 NEXT I
+2765 CIRCLE (compassCenterX,compassCenterY),centerRadius,9
+2766 PAINT (compassCenterX,compassCenterY),0,9
+2767 CIRCLE (compassCenterX,compassCenterY),centerRadius,4
+2768 CIRCLE (compassCenterX,compassCenterY),8,1
+2769 FOR I=1 TO 8
+2770 armLength=54:targetColor=9
+2771 IF I MOD 2=1 THEN armLength=72
+2772 IF I=course THEN targetColor=1
+2773 targetX=compassCenterX+compassX(I)*armLength
+2774 targetY=compassCenterY+compassY(I)*armLength
+2775 CIRCLE (targetX,targetY),8,targetColor
+2776 LINE (targetX-3,targetY)-(targetX+3,targetY),7
+2777 LINE (targetX,targetY-3)-(targetX,targetY+3),7
+2778 NEXT I
+2779 LOCATE 22,136:PRINT "N"
+2780 LOCATE 34,136:PRINT "S"
+2781 LOCATE 28,148:PRINT "E"
+2782 LOCATE 28,125:PRINT "W"
+2783 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
+2784 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
+2785 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
 2788 RETURN
 2790 LOCATE 21,117:PRINT "PHASERS"
 2800 LOCATE 22,117:PRINT "POWER";phaserPower
@@ -344,20 +351,13 @@
 3200 REM NAV CONTEXT CLICKS
 3210 IF pointerX>=56 AND pointerX<=456 AND pointerY>=104 AND pointerY<=504 THEN GOSUB 3600:RETURN
 3220 compassCenterX=1096:compassCenterY=440
-3221 deltaX=pointerX-compassCenterX:deltaY=pointerY-compassCenterY
-3222 distanceSq=deltaX*deltaX+deltaY*deltaY
-3223 IF distanceSq>10000 THEN 3260
-3224 IF distanceSq<400 THEN 3260
-3225 absX=ABS(deltaX):absY=ABS(deltaY)
-3226 IF absX>absY*2.4 AND deltaX>0 THEN course=1
-3227 IF absX>absY*2.4 AND deltaX<0 THEN course=5
-3228 IF absY>absX*2.4 AND deltaY<0 THEN course=3
-3229 IF absY>absX*2.4 AND deltaY>0 THEN course=7
-3230 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX>0 AND deltaY<0 THEN course=2
-3231 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX<0 AND deltaY<0 THEN course=4
-3232 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX<0 AND deltaY>0 THEN course=6
-3233 IF absX<=absY*2.4 AND absY<=absX*2.4 AND deltaX>0 AND deltaY>0 THEN course=8
-3234 statusMessage$="COURSE SET"
+3221 FOR I=1 TO 8
+3222 armLength=54
+3223 IF I MOD 2=1 THEN armLength=72
+3224 targetX=compassCenterX+compassX(I)*armLength
+3225 targetY=compassCenterY+compassY(I)*armLength
+3226 IF ABS(pointerX-targetX)<=16 AND ABS(pointerY-targetY)<=16 THEN course=I:statusMessage$="COURSE SET":RETURN
+3227 NEXT I
 3235 RETURN
 3260 IF pointerX>=944 AND pointerX<=1002 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor-1:IF warpFactor<1 THEN warpFactor=1
 3270 IF pointerX>=1010 AND pointerX<=1068 AND pointerY>=550 AND pointerY<=580 THEN warpFactor=warpFactor+1:IF warpFactor>8 THEN warpFactor=8
