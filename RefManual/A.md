@@ -160,7 +160,7 @@ AUTO [start][, increment]
 
 ### Comments
 
-`AUTO` is a direct-mode command. Type a line after each generated number; press Enter on an empty line to finish. A line that already contains its own line number also ends the sequence. The lines are added to the current program; they are not executed until `RUN`.
+`AUTO` is a direct-mode command. Type a line after each generated number; the number and a trailing space are printed as a prompt, and the text appears on the same line. Press Enter on an empty line to finish. A line that already contains its own line number also ends the sequence. The lines are added to the current program; they are not executed until `RUN`.
 
 ### Examples
 

@@ -28,6 +28,18 @@ std::string AllRows(const newbasic::screen::HeadlessScreen& screen) {
   return all;
 }
 
+// HeadlessScreen deliberately does not echo ReadLine input; the real console
+// does. This variant mirrors the console so prompt-and-input layout is testable.
+class EchoingScreen : public newbasic::screen::HeadlessScreen {
+public:
+  std::wstring ReadLine() override {
+    std::wstring line = newbasic::screen::HeadlessScreen::ReadLine();
+    WriteAtCursor(line);
+    NewLine();
+    return line;
+  }
+};
+
 struct TempFile {
   explicit TempFile(const char* base) : path_(lwtest::TempName(base)) {}
   ~TempFile() { std::remove(path_.c_str()); }
@@ -151,6 +163,19 @@ TEST_CASE("AUTO: numbered entry until an empty line", "[auto]") {
   REQUIRE(rows.size() >= 2);
   CHECK(rows[0] == "10 PRINT \"A\"");
   CHECK(rows[1] == "20 PRINT \"B\"");
+}
+
+TEST_CASE("AUTO: the generated number and typed text share a line", "[auto]") {
+  EchoingScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  screen.ScriptLine(L"PRINT \"A\"");
+  screen.ScriptLine(L""); // ends the sequence
+  repl.Process("AUTO 10,10");
+  const std::vector<std::string> rows = screen.RenderRows();
+  REQUIRE(rows.size() >= 2);
+  CHECK(rows[0] == "10 PRINT \"A\"");
+  CHECK(rows[1] == "20");
 }
 
 TEST_CASE("AUTO: start and increment arguments", "[auto]") {

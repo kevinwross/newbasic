@@ -533,7 +533,9 @@ RunResult Repl::Process(const std::string& line) {
       int next = start;
       bool changed = false;
       for (;;) {
-        PrintLine(std::to_string(next));
+        // The generated number is a prompt, not a completed line: keep the caret
+        // on it so the user's first character appears immediately after the number.
+        screen_.WriteAtCursor(screen::DecodeCp437(std::to_string(next) + " "));
         screen_.PresentNow(); // the prompt must be on screen before blocking
         const std::wstring wide = screen_.ReadLine();
         if (wide.empty())
