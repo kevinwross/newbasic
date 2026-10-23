@@ -216,9 +216,9 @@
 
 2720 LOCATE 20,117:PRINT "COMPASS NAVIGATION"
 2730 LOCATE 21,117:PRINT "COURSE";course;"  WARP";warpFactor
-2740 compassCenterX=1096:compassCenterY=440:compassRadius=78:centerRadius=16
-2741 CIRCLE (compassCenterX,compassCenterY),centerRadius,9
-2742 CIRCLE (compassCenterX,compassCenterY),compassRadius,9
+2740 compassCenterX=1096:compassCenterY=440:compassRadius=78:centerRadius=16:fullCircle=6.283185307:circleAspect=1
+2741 CIRCLE (compassCenterX,compassCenterY),centerRadius,9,0,fullCircle,circleAspect
+2742 CIRCLE (compassCenterX,compassCenterY),compassRadius,9,0,fullCircle,circleAspect
 2743 baseAngle=16*3.14159265/180:baseCos=COS(baseAngle):baseSin=SIN(baseAngle)
 2744 FOR tickAngle=0 TO 359 STEP 15
 2745 radians=tickAngle*3.14159265/180
@@ -241,24 +241,20 @@
 2762 LINE (baseTwoX,baseTwoY)-(armTipX,armTipY),armColor
 2763 PAINT (compassCenterX+compassX(I)*(centerRadius+(armLength-centerRadius)*.45),compassCenterY+compassY(I)*(centerRadius+(armLength-centerRadius)*.45)),armColor,armColor
 2764 NEXT I
-2765 CIRCLE (compassCenterX,compassCenterY),centerRadius,9
+2765 CIRCLE (compassCenterX,compassCenterY),centerRadius,9,0,fullCircle,circleAspect
 2766 PAINT (compassCenterX,compassCenterY),0,9
-2767 CIRCLE (compassCenterX,compassCenterY),centerRadius,4
-2768 CIRCLE (compassCenterX,compassCenterY),8,1
+2767 CIRCLE (compassCenterX,compassCenterY),centerRadius,4,0,fullCircle,circleAspect
+2768 CIRCLE (compassCenterX,compassCenterY),8,1,0,fullCircle,circleAspect
 2769 FOR I=1 TO 8
 2770 armLength=54:targetColor=9
 2771 IF I MOD 2=1 THEN armLength=72
 2772 IF I=course THEN targetColor=1
 2773 targetX=compassCenterX+compassX(I)*armLength
 2774 targetY=compassCenterY+compassY(I)*armLength
-2775 CIRCLE (targetX,targetY),8,targetColor
+2775 CIRCLE (targetX,targetY),8,targetColor,0,fullCircle,circleAspect
 2776 LINE (targetX-3,targetY)-(targetX+3,targetY),7
 2777 LINE (targetX,targetY-3)-(targetX,targetY+3),7
 2778 NEXT I
-2779 LOCATE 22,136:PRINT "N"
-2780 LOCATE 34,136:PRINT "S"
-2781 LOCATE 28,148:PRINT "E"
-2782 LOCATE 28,125:PRINT "W"
 2783 buttonX=944:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="MINUS":buttonColor=4:GOSUB 7200
 2784 buttonX=1010:buttonY=550:buttonWidth=58:buttonHeight=30:buttonLabel$="PLUS":buttonColor=4:GOSUB 7200
 2785 buttonX=944:buttonY=590:buttonWidth=280:buttonHeight=34:buttonLabel$="ENGAGE":buttonColor=4:GOSUB 7200
