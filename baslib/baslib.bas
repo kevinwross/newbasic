@@ -615,8 +615,8 @@
 504464 IF blW% < blHH% THEN blR% = blW% / 2 - 2
 504465 blCx% = blX% + blW% / 2
 504466 blCy% = blY% + blHH% / 2
-504467 CIRCLE (blCx%,blCy%), blR%, blFace%
-504468 CIRCLE (blCx%,blCy%), blR% - 1, blAccent%
+504467 CIRCLE (blCx%,blCy%), blR%, blFace%, 0, 6.2831853, 1
+504468 CIRCLE (blCx%,blCy%), blR% - 1, blAccent%, 0, 6.2831853, 1
 504469 blA# = 3.14159265 * (1 - (blUser#(blH%,2) - blUser#(blH%,3)) / (blUser#(blH%,4) - blUser#(blH%,3) + 0.000001))
 504470 blEx% = blCx% + COS(blA#) * (blR% - 4)
 504471 blEy% = blCy% - SIN(blA#) * (blR% - 4)

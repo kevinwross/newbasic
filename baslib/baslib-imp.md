@@ -943,6 +943,9 @@ Defects found and fixed during manual testing:
    lines `1010`, `2010`, `3010`, and `4010`.
 7. The dial radius was based on the control width, producing an oversized
    circle; it now uses the smaller of width/height and draws a value needle.
+8. `CIRCLE`’s default aspect on `SCREEN 720` is `0.75`, producing an oval dial.
+   The dial now passes an explicit aspect of `1` and has been visually verified
+   as round.
 
 ---
 
