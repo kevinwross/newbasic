@@ -18,14 +18,16 @@ const char* const kKeywordList[] = {
     "ABS",     "AND",          "ASC",       "ATN",       "AUTO",       "BASE",     "BEEP",
     "BLOAD",   "BSAVE",        "CALL",      "CASE",      "CDBL",       "CHAIN",    "CHDIR",
     "CHR$",    "CINT",         "CIRCLE",    "CLEAR",     "CLOSE",      "CLS",      "COLOR",
-    "COM",     "COMMON",       "CONT",      "COS",       "CSNG",       "CSRLIN",   "CVD",
+    "COM",     "COMMON",       "CONST",     "CONT",      "COS",        "CSNG",     "CSRLIN",
+    "CVD",
     "CVI",     "CVS",          "DATA",      "DATE$",     "DEF",        "DEFDBL",   "DEFINT",
     "DEFSNG",  "DEFSTR",       "DELETE",    "DIM",       "DRAW",       "DRAWTEXT", "EDIT",
     "ELSE",    "END",          "ENVIRON",   "ENVIRON$",  "EOF",        "EQV",      "ERASE",
     "ERL",     "ERR",          "ERROR",     "EXP",       "FIELD",      "FILES",    "FIX",
     "FN",      "FOR",          "FRE",       "GET",       "GOSUB",      "GOTO",     "HEX$",
     "IF",      "IMP",          "INKEY$",    "INP",       "INPUT",      "INPUT$",   "INSTR",
-    "INT",     "IOCTL",        "KEY",       "KILL",      "LEFT$",      "LEN",      "LET",
+    "INT",     "IOCTL",        "KEY",       "KILL",      "LABEL",      "LEFT$",    "LEN",
+    "LET",
     "LINE",    "LIST",         "LLIST",     "LOAD",      "LOC",        "LOCATE",   "LOF",
     "LOG",     "LPOS",         "LPRINT",    "LSET",      "MEM",        "MERGE",    "MID$",
     "MKD$",    "MKDIR",        "MKI$",      "MKS$",      "MOD",        "MOTOR",    "MOUSE",
@@ -189,8 +191,8 @@ bool Lexer::Tokenize(const std::string& line, std::vector<Token>* out, std::stri
         if (v > std::numeric_limits<std::int32_t>::max()) {
           return fail("Overflow", start);
         }
-        if (v <= std::numeric_limits<std::int16_t>::max()) {
-          token.number = Value::Int(static_cast<std::int16_t>(v));
+        if (v <= static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max())) {
+          token.number = Value::Int(static_cast<std::int32_t>(v));
         } else {
           token.number = Value::Long(static_cast<std::int32_t>(v));
         }
@@ -252,9 +254,9 @@ bool Lexer::Tokenize(const std::string& line, std::vector<Token>* out, std::stri
       if (suffix == '%') {
         if (has_dot || exponent_kind != 0)
           return fail("Invalid numeric constant", start);
-        if (d > 32767.0 || d < -32768.0)
+        if (d > 2147483647.0 || d < -2147483648.0)
           return fail("Overflow", start);
-        token.number = Value::Int(static_cast<std::int16_t>(d));
+        token.number = Value::Int(static_cast<std::int32_t>(d));
       } else if (suffix == '&') {
         if (has_dot || exponent_kind != 0)
           return fail("Invalid numeric constant", start);
@@ -270,9 +272,9 @@ bool Lexer::Tokenize(const std::string& line, std::vector<Token>* out, std::stri
       } else if (exponent_kind == 2) {
         token.number = Value::Dbl(d);
       } else if (!has_dot && digit_count <= 7) {
-        // Integer literals fit Integer when in range, otherwise Long.
-        if (d <= 32767.0)
-          token.number = Value::Int(static_cast<std::int16_t>(d));
+        // Integer literals use the 32-bit Integer kind when in range.
+        if (d <= 2147483647.0)
+          token.number = Value::Int(static_cast<std::int32_t>(d));
         else
           token.number = Value::Long(static_cast<std::int32_t>(d));
       } else if (digit_count <= 7) {

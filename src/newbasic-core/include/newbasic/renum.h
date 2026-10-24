@@ -11,8 +11,10 @@ class LineStore;
 // and RUN. The reference's defaults are the caller's business (10, first line, 10).
 //
 // References to lines that do not exist are left untouched and reported, as the
-// reference describes ("Undefined line X in Y"). Reordering the program, or a line
-// number above 65529, is Illegal function call.
+// reference describes ("Undefined line X in Y"). LABEL definitions and symbolic
+// GOTO/GOSUB references are left alone; they resolve on the next compile.
+// Reordering the program, or a line number above 2147483647, is Illegal function
+// call.
 struct RenumOutcome {
   bool ok = true;
   int error_code = 0;  // set when !ok

@@ -73,6 +73,7 @@ Calls a subroutine at a specified line.
 
 ```basic
 GOSUB line
+GOSUB label
 GOSUB expression
 ```
 
@@ -81,13 +82,14 @@ GOSUB expression
 | Argument | Required | Description |
 |---|---|---|
 | `line` | Yes | Existing line number where the subroutine begins. |
+| `label` | Yes | Name declared by a `LABEL` statement. |
 | `expression` | Yes | newbasic extension: a numeric expression that evaluates to a line number at run time. |
 
 ### Comments
 
 `GOSUB` pushes a return address; the subroutine must finish with `RETURN`. A `GOSUB` without a matching `RETURN` eventually raises **Return without GOSUB** when the stack is misused. Direct-mode `GOSUB` is not allowed.
 
-A literal target is resolved when the program is compiled. Any other expression is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. This makes computed dispatch possible without `ON ... GOSUB`:
+A literal target is resolved when the program is compiled. A bare identifier is a label; a type-suffixed identifier is a computed line-number expression (`GOSUB T%`), and an unsuffixed computed variable must be parenthesized (`GOSUB (T)`). A computed expression is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. This makes computed dispatch possible without `ON ... GOSUB`:
 
 ```basic
 100 T% = 200
@@ -146,6 +148,7 @@ Branches unconditionally to a line number.
 
 ```basic
 GOTO line
+GOTO label
 GOTO expression
 ```
 
@@ -154,11 +157,12 @@ GOTO expression
 | Argument | Required | Description |
 |---|---|---|
 | `line` | Yes | Existing line number. |
+| `label` | Yes | Name declared by a `LABEL` statement. |
 | `expression` | Yes | newbasic extension: a numeric expression that evaluates to a line number at run time. |
 
 ### Comments
 
-`GOTO` is not allowed in direct mode. A literal target that does not exist raises **Undefined line number** at compile time or load time. A computed target is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. Prefer structured loops where possible, but `GOTO` remains useful for menus and error recovery.
+`GOTO` is not allowed in direct mode. A literal target that does not exist raises **Undefined line number** at compile time or load time. A bare identifier is a label; a type-suffixed identifier is a computed line-number expression (`GOTO T%`), and an unsuffixed computed variable must be parenthesized (`GOTO (T)`). A computed target is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. Prefer structured loops where possible, but `GOTO` remains useful for menus and error recovery.
 
 A literal target followed by an operator is an expression (`GOTO 100 + 100`); a bare literal followed by `:`, `ELSE`, a comment, or the end of the line keeps the ordinary compile-time resolution.
 

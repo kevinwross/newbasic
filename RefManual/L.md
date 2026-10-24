@@ -1,5 +1,80 @@
 # L
 
+<a id="label-statement"></a>
+## LABEL Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `GOTO`, `GOSUB`, `RENUM`
+
+### Purpose
+
+Gives a line a symbolic name that `GOTO`, `GOSUB`, `IF ... THEN`, and
+`ON ... GOTO`/`ON ... GOSUB` can use instead of a number.
+
+### Syntax
+
+```basic
+LABEL name
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | Yes | A label name. Case-insensitive; no type suffix. |
+
+### Comments
+
+Put `LABEL` as the first statement on its line. The label marks that line; the
+statement itself does nothing. Code may follow on the same line after a colon:
+
+```basic
+100 LABEL PaintButton: PRINT "paint": RETURN
+```
+
+A bare identifier in a line-target position is a label. A type-suffixed
+identifier remains a computed line number (`GOSUB T%`), and an unsuffixed
+computed variable must be parenthesized (`GOTO (T)`).
+
+Labels are checked when the program is compiled. Duplicate labels and references
+to undefined labels are errors. `RENUM` moves the `LABEL` line and leaves the
+symbolic references alone, so the next compile resolves them to the new line
+numbers.
+
+### Examples
+
+#### Example 1 — Forward GOSUB
+
+```basic
+10 GOSUB Work
+20 PRINT "BACK"
+30 END
+100 LABEL Work
+110 PRINT "SUB"
+120 RETURN
+```
+
+Output:
+
+```text
+SUB
+BACK
+```
+
+#### Example 2 — RENUM keeps the name
+
+```basic
+10 GOSUB Work
+20 END
+100 LABEL Work
+110 PRINT "STILL WORKS"
+120 RETURN
+```
+
+After `RENUM 1000,,100`, the same program still runs: the call remains
+`GOSUB Work` and the definition moves to line 1000.
+
 <a id="left-function"></a>
 ## LEFT$ Function
 
@@ -339,12 +414,12 @@ LLIST
 ## LOAD Command
 
 **Type:** Command  
-**Status:** Supported  
+**Status:** Supported (text only)  
 **See also:** `SAVE`, `RUN`, `MERGE`
 
 ### Purpose
 
-Loads a BASIC program from disk.
+Loads a plain-text BASIC program from disk.
 
 ### Syntax
 
@@ -356,12 +431,14 @@ LOAD filename [, R]
 
 | Argument | Required | Description |
 |---|---|---|
-| `filename` | Yes | Program file. Text, tokenized, and protected forms are auto-detected. |
+| `filename` | Yes | Plain-text `.BAS` program file. |
 | `R` | No | Run immediately after loading. |
 
 ### Comments
 
-`LOAD` replaces the stored program. It accepts plain text `.BAS` files and newbasic/GW-BASIC tokenized files. Use `MERGE` to add lines without clearing the current program.
+`LOAD` replaces the stored program. Only plain-text `.BAS` files are accepted.
+Tokenized and protected files are rejected with **Bad file mode**. Use `MERGE`
+to add lines without clearing the current program.
 
 ### Examples
 

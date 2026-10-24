@@ -290,7 +290,7 @@ ERL
 
 ### Comments
 
-`ERL` is normally read inside an error handler. It is updated when an error is trapped and remains available until the next error. A direct-mode error has line `0`.
+`ERL` is normally read inside an error handler. It is updated when an error is trapped and remains available until the next error. The value is a signed 32-bit line number; a direct-mode error has line `0`.
 
 ### Examples
 

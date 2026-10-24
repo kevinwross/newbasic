@@ -326,7 +326,7 @@ public:
           return RunAction::None;
         }
         const char suffix = VarTypeSuffix(CanonicalVarName(name));
-        if (suffix == '%' && (number < -32768.0 || number > 32767.0)) {
+        if (suffix == '%' && (number < -2147483648.0 || number > 2147483647.0)) {
           Fail(request, "Integer variable out of range", outgoing);
           return RunAction::None;
         }

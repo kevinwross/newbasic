@@ -2,7 +2,7 @@
 
 namespace newbasic {
 
-Value Value::Int(std::int16_t v) {
+Value Value::Int(std::int32_t v) {
   return Value(Kind::Int, v, {});
 }
 Value Value::Long(std::int32_t v) {

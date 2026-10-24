@@ -65,12 +65,14 @@ TEST_CASE("Lexer: identifiers keep type suffixes", "[lexer]") {
 TEST_CASE("Lexer: numeric literal kinds", "[lexer]") {
   CHECK(Lex("1")[0].number.kind() == newbasic::Value::Kind::Int);
   CHECK(Lex("32767")[0].number.kind() == newbasic::Value::Kind::Int);
-  CHECK(Lex("40000")[0].number.kind() == newbasic::Value::Kind::Long);
+  CHECK(Lex("40000")[0].number.kind() == newbasic::Value::Kind::Int);
   CHECK(Lex("1.5")[0].number.kind() == newbasic::Value::Kind::Sgl);
   CHECK(Lex("12345678")[0].number.kind() == newbasic::Value::Kind::Dbl);
   CHECK(Lex("1E3")[0].number.kind() == newbasic::Value::Kind::Sgl);
   CHECK(Lex("1D3")[0].number.kind() == newbasic::Value::Kind::Dbl);
   CHECK(Lex("5%")[0].number.kind() == newbasic::Value::Kind::Int);
+  CHECK(Lex("40000%")[0].number.kind() == newbasic::Value::Kind::Int);
+  CHECK(Lex("2147483647%")[0].number.AsNumber() == 2147483647.0);
   CHECK(Lex("5!")[0].number.kind() == newbasic::Value::Kind::Sgl);
   CHECK(Lex("5#")[0].number.kind() == newbasic::Value::Kind::Dbl);
   CHECK(Lex("&HFF")[0].number.kind() == newbasic::Value::Kind::Int);

@@ -7,9 +7,8 @@ namespace newbasic {
 class LineStore;
 
 // Program-file I/O, shared by the REPL (direct-mode LOAD/SAVE) and the VM
-// (in-program LOAD/SAVE/CHAIN, M10). Reading auto-detects the format: a leading
-// 0xFF is tokenized, a leading 0xFE is a protected tokenized file, anything else
-// is text (see docs/m4-tokenized-format-notes.md).
+// (in-program LOAD/SAVE/CHAIN). Only plain-text .BAS is supported. A leading
+// 0xFF/0xFE is rejected as an unsupported tokenized/protected file.
 //
 // Both return true on success; on failure they set *error_code to a GW-BASIC error
 // number and *error to a message.

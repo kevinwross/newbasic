@@ -265,7 +265,7 @@ DEFINT letter [- letter] [, letter [- letter] ...]
 
 ### Comments
 
-The declaration applies to variable names that do not already have an explicit type suffix. It is compiled into the program; restate it in a chained program.
+The declaration applies to variable names that do not already have an explicit type suffix. `DEFINT` means signed 32-bit integers (`-2147483648` to `2147483647`) in this fork. It is compiled into the program; restate it in a chained program.
 
 ### Examples
 

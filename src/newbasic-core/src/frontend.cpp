@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -156,12 +157,268 @@ public:
     const char last = name.back();
     if (last == '%' || last == '&' || last == '!' || last == '#' || last == '$')
       return name;
+    const auto alias = const_alias_.find(name);
+    if (alias != const_alias_.end())
+      return alias->second;
     const int index = static_cast<unsigned char>(name[0]) - 'A';
     const char suffix = (index >= 0 && index < 26) ? default_type_[index] : '!';
     return name + suffix;
   }
 
+  static std::string NormalizeLabel(const std::string& name) {
+    std::string out = name;
+    for (char& c : out) {
+      if (c >= 'a' && c <= 'z')
+        c = static_cast<char>(c - 'a' + 'A');
+    }
+    return out;
+  }
+
+  static bool IsLabelName(const std::string& name) {
+    if (name.empty())
+      return false;
+    const char last = name.back();
+    return last != '%' && last != '&' && last != '!' && last != '#' && last != '$';
+  }
+
+  // CONST name = literal. The value is converted to the name's type when the
+  // program is compiled; the VM installs it before the first instruction.
+  bool ParseConstDecl(const std::vector<Token>& tokens, std::size_t index, int line,
+                      bool prescan, std::size_t* next) {
+    if (index + 3 >= tokens.size() || tokens[index].kind != Tok::Keyword ||
+        tokens[index].text != "CONST") {
+      error_->line = line;
+      error_->code = kErrSyntax;
+      error_->message = "Expected CONST name = value";
+      return false;
+    }
+    const Token& name_token = tokens[index + 1];
+    if (name_token.kind != Tok::Ident || name_token.text.empty()) {
+      error_->line = line;
+      error_->column = name_token.pos;
+      error_->code = kErrSyntax;
+      error_->message = "Expected a constant name after CONST";
+      return false;
+    }
+    const Token& eq = tokens[index + 2];
+    if (eq.kind != Tok::Op || eq.text != "=") {
+      error_->line = line;
+      error_->column = eq.pos;
+      error_->code = kErrSyntax;
+      error_->message = "Expected '=' after the constant name";
+      return false;
+    }
+
+    std::size_t value_index = index + 3;
+    bool negative = false;
+    bool had_sign = false;
+    if (tokens[value_index].kind == Tok::Op &&
+        (tokens[value_index].text == "-" || tokens[value_index].text == "+")) {
+      negative = tokens[value_index].text == "-";
+      had_sign = true;
+      ++value_index;
+      if (value_index >= tokens.size()) {
+        error_->line = line;
+        error_->code = kErrSyntax;
+        error_->message = "Expected a constant value";
+        return false;
+      }
+    }
+    const Token& value_token = tokens[value_index];
+    if (value_token.kind == Tok::String && had_sign) {
+      error_->line = line;
+      error_->column = value_token.pos;
+      error_->code = kErrSyntax;
+      error_->message = "A string constant cannot have a sign";
+      return false;
+    }
+    if (value_token.kind != Tok::Number && value_token.kind != Tok::String) {
+      error_->line = line;
+      error_->column = value_token.pos;
+      error_->code = kErrSyntax;
+      error_->message = "CONST requires a literal number or string";
+      return false;
+    }
+    const std::size_t after = value_index + 1;
+    if (after < tokens.size()) {
+      const Token& tail = tokens[after];
+      const bool end = tail.kind == Tok::EndOfLine ||
+                       (tail.kind == Tok::Op &&
+                        (tail.text == ":" || tail.text == "'"));
+      if (!end) {
+        error_->line = line;
+        error_->column = tail.pos;
+        error_->code = kErrSyntax;
+        error_->message = "CONST requires a literal number or string";
+        return false;
+      }
+    }
+
+    const std::string raw = name_token.text;
+    char suffix = raw.back();
+    std::string base = raw;
+    if (suffix == '%' || suffix == '&' || suffix == '!' || suffix == '#' || suffix == '$') {
+      base.pop_back();
+    } else {
+      suffix = '\0';
+    }
+    if (base.empty()) {
+      error_->line = line;
+      error_->column = name_token.pos;
+      error_->code = kErrSyntax;
+      error_->message = "Expected a constant name";
+      return false;
+    }
+
+    Value value;
+    if (suffix == '\0') {
+      if (value_token.kind == Tok::String)
+        suffix = '$';
+      else {
+        switch (value_token.number.kind()) {
+        case Value::Kind::Int:
+          suffix = '%';
+          break;
+        case Value::Kind::Long:
+          suffix = '&';
+          break;
+        case Value::Kind::Dbl:
+          suffix = '#';
+          break;
+        default:
+          suffix = '!';
+          break;
+        }
+      }
+    }
+
+    if (suffix == '$') {
+      if (value_token.kind != Tok::String) {
+        error_->line = line;
+        error_->column = value_token.pos;
+        error_->code = kErrTypeMismatch;
+        error_->message = "Type mismatch";
+        return false;
+      }
+      value = Value::Str(value_token.str);
+    } else {
+      if (value_token.kind == Tok::String) {
+        error_->line = line;
+        error_->column = value_token.pos;
+        error_->code = kErrTypeMismatch;
+        error_->message = "Type mismatch";
+        return false;
+      }
+      double number = value_token.number.AsNumber();
+      if (negative)
+        number = -number;
+      if (suffix == '%' || suffix == '&') {
+        if (number < -2147483648.0 || number > 2147483647.0) {
+          error_->line = line;
+          error_->column = value_token.pos;
+          error_->code = kErrOverflow;
+          error_->message = "Overflow";
+          return false;
+        }
+        const long long rounded = std::llround(number);
+        if (rounded < -2147483648LL || rounded > 2147483647LL) {
+          error_->line = line;
+          error_->column = value_token.pos;
+          error_->code = kErrOverflow;
+          error_->message = "Overflow";
+          return false;
+        }
+        if (suffix == '%')
+          value = Value::Int(static_cast<std::int32_t>(rounded));
+        else
+          value = Value::Long(static_cast<std::int32_t>(rounded));
+      } else if (suffix == '#') {
+        value = Value::Dbl(number);
+      } else {
+        value = Value::Sgl(number);
+      }
+    }
+
+    const std::string canonical = NormalizeLabel(base) + suffix;
+    const auto alias = const_alias_.find(base);
+    if (alias != const_alias_.end()) {
+      if (prescan || alias->second != canonical) {
+        error_->line = line;
+        error_->column = name_token.pos;
+        error_->code = kErrSyntax;
+        error_->message = "Duplicate constant " + base;
+        return false;
+      }
+    } else {
+      const_alias_[base] = canonical;
+      out_->constants_.push_back(ConstDef{canonical, value, line});
+    }
+    const_names_.insert(canonical);
+    if (next != nullptr)
+      *next = after;
+    return true;
+  }
+
+  bool BuildConsts(const LineStore& store) {
+    for (const SourceLine& line : store.Lines()) {
+      std::vector<Token> tokens;
+      std::string error;
+      int pos = 0;
+      if (!Lexer::Tokenize(line.source, &tokens, &error, &pos))
+        continue; // CompileSource reports the lexical error with position
+      if (tokens.empty() || tokens[0].kind != Tok::Keyword || tokens[0].text != "CONST")
+        continue;
+      if (!ParseConstDecl(tokens, 0, line.line_number, true, nullptr))
+        return false;
+    }
+    return true;
+  }
+
+  // Labels are collected before compilation so forward references resolve.
+  // Only a LABEL that is the first statement on a line is pre-scanned; that is
+  // the documented form and keeps the scan independent of the statement parser.
+  bool BuildLabels(const LineStore& store) {
+    for (const SourceLine& line : store.Lines()) {
+      std::vector<Token> tokens;
+      std::string error;
+      int pos = 0;
+      if (!Lexer::Tokenize(line.source, &tokens, &error, &pos))
+        continue; // CompileSource reports the lexical error with position
+      if (tokens.size() < 2 || tokens[0].kind != Tok::Keyword || tokens[0].text != "LABEL")
+        continue;
+      if (tokens[1].kind != Tok::Ident || !IsLabelName(tokens[1].text)) {
+        error_->line = line.line_number;
+        error_->column = tokens[1].pos;
+        error_->code = kErrSyntax;
+        error_->message = "Expected a label name after LABEL";
+        return false;
+      }
+      const std::string name = NormalizeLabel(tokens[1].text);
+      const auto existing = labels_.find(name);
+      if (existing != labels_.end()) {
+        error_->line = line.line_number;
+        error_->column = tokens[1].pos;
+        error_->code = kErrSyntax;
+        error_->message = "Duplicate label " + name;
+        return false;
+      }
+      labels_[name] = line.line_number;
+    }
+    return true;
+  }
+
+  bool RejectConstWrite(const std::string& name) {
+    if (const_names_.count(name) == 0)
+      return false;
+    Error(kErrIllegalFunctionCall, "Cannot assign to constant " + name);
+    return true; // the caller must stop compiling
+  }
+
   bool CompileStore(const LineStore& store) {
+    if (!BuildConsts(store))
+      return false;
+    if (!BuildLabels(store))
+      return false;
     for (const SourceLine& line : store.Lines()) {
       const int begin = Pc();
       line_starts_[line.line_number] = begin;
@@ -325,6 +582,13 @@ private:
     Fixup fixup;
     fixup.instr_index = instr_index;
     fixup.line = line;
+    fixups_.push_back(fixup);
+  }
+
+  void AddLabelFixup(int instr_index, std::string label) {
+    Fixup fixup;
+    fixup.instr_index = instr_index;
+    fixup.label = std::move(label);
     fixups_.push_back(fixup);
   }
 
@@ -525,6 +789,13 @@ private:
       Advance();
       return CompileWend();
     }
+    if (keyword == "CONST") {
+      return CompileConst();
+    }
+    if (keyword == "LABEL") {
+      Advance();
+      return CompileLabel();
+    }
     if (keyword == "GOTO") {
       Advance();
       return CompileGotoTarget();
@@ -591,7 +862,7 @@ private:
       const std::int32_t start = static_cast<std::int32_t>(out_->stack_targets_.size());
       int count = 0;
       do {
-        if (!ParseStackTarget())
+        if (!ParseStackTarget(true)) // STACK POP and TOP both assign
           return false;
         ++count;
       } while (TakeOp(","));
@@ -666,6 +937,8 @@ private:
         int subscripts = 0;
         if (!ParseVariableRef(&name, &array, &subscripts))
           return false;
+        if (RejectConstWrite(name))
+          return false;
         if (array)
           return UnsupportedStatement("FIELD of an array element");
         if (!list.empty())
@@ -685,6 +958,8 @@ private:
       bool array = false;
       int subscripts = 0;
       if (!ParseVariableRef(&name, &array, &subscripts))
+        return false;
+      if (RejectConstWrite(name))
         return false;
       if (array)
         return UnsupportedStatement("LSET/RSET of an array element");
@@ -736,6 +1011,8 @@ private:
             return Syntax("Expected ',' before the GET array");
           std::string array_name;
           if (!ParseArrayName(&array_name))
+            return false;
+          if (RejectConstWrite(array_name))
             return false;
           Instr in;
           in.op = Op::GetImage;
@@ -792,16 +1069,20 @@ private:
       in.a = 0;
       in.b = 0;
       if (Cur().kind == Tok::Number) {
-        const double first = Cur().number.AsNumber();
+        int first = 0;
+        if (!LineNumberFromNumber(Cur().number.AsNumber(), &first))
+          return Error(kErrIllegalFunctionCall, "Line number out of range");
         Advance();
-        in.a = static_cast<int>(first);
+        in.a = first;
       }
       if (TakeOp("-")) {
         in.b = 1; // a range was given; the end defaults to the last line
         if (Cur().kind == Tok::Number) {
-          const double last = Cur().number.AsNumber();
+          int last = 0;
+          if (!LineNumberFromNumber(Cur().number.AsNumber(), &last))
+            return Error(kErrIllegalFunctionCall, "Line number out of range");
           Advance();
-          in.b = static_cast<int>(last);
+          in.b = last;
         }
       } else if (in.a != 0) {
         in.b = in.a; // a single line number means just that line
@@ -814,20 +1095,23 @@ private:
       Advance();
       if (Cur().kind != Tok::Number)
         return Syntax("Expected a line number after DELETE");
-      const double first = Cur().number.AsNumber();
+      int first = 0;
+      if (!LineNumberFromNumber(Cur().number.AsNumber(), &first))
+        return Error(kErrIllegalFunctionCall, "Line number out of range");
       Advance();
-      int last = static_cast<int>(first);
+      int last = first;
       if (TakeOp("-")) {
         if (Cur().kind == Tok::Number) {
-          last = static_cast<int>(Cur().number.AsNumber());
+          if (!LineNumberFromNumber(Cur().number.AsNumber(), &last))
+            return Error(kErrIllegalFunctionCall, "Line number out of range");
           Advance();
         } else {
-          last = 32767; // DELETE first-  removes to the end
+          last = kMaxLineNumber; // DELETE first-  removes to the end
         }
       }
       Instr in;
       in.op = Op::Delete;
-      in.a = static_cast<int>(first);
+      in.a = first;
       in.b = last;
       out_->instrs_.push_back(in);
       return true;
@@ -1569,6 +1853,8 @@ private:
       int subscripts = 0;
       if (!ParseVariableRef(&name, &array, &subscripts))
         return false;
+      if (RejectConstWrite(name))
+        return false;
       Instr in;
       in.op = array ? Op::ReadArray : Op::Read;
       in.name = name;
@@ -1588,7 +1874,9 @@ private:
       return true;
     }
     if (Cur().kind == Tok::Number) {
-      const int target = static_cast<int>(std::lround(Cur().number.AsNumber()));
+      int target = 0;
+      if (!LineNumberFromNumber(Cur().number.AsNumber(), &target))
+        return Error(kErrIllegalFunctionCall, "Line number out of range");
       Advance();
       const int index = EmitPlaceholder(Op::Resume);
       out_->instrs_[static_cast<std::size_t>(index)].b = 2;
@@ -1676,7 +1964,10 @@ private:
     in.op = Op::Restore;
     in.a = 0;
     if (Cur().kind == Tok::Number) {
-      in.a = static_cast<int>(std::lround(Cur().number.AsNumber()));
+      int target = 0;
+      if (!LineNumberFromNumber(Cur().number.AsNumber(), &target))
+        return Error(kErrIllegalFunctionCall, "Line number out of range");
+      in.a = target;
       Advance();
     }
     out_->instrs_.push_back(in);
@@ -1796,6 +2087,8 @@ private:
         return Syntax("Expected an array name");
       }
       const std::string name = TypeName(Cur().text);
+      if (RejectConstWrite(name))
+        return false;
       Advance();
       if (!ExpectOp("("))
         return false;
@@ -1881,10 +2174,12 @@ private:
 
   // STACK POP/TOP target: a scalar, array element, or whole array. ParseVariableRef
   // has already emitted element subscript expressions in target order.
-  bool ParseStackTarget() {
+  bool ParseStackTarget(bool write) {
     if (AtWholeArrayRef()) {
       StackTarget target;
       target.name = TypeName(Cur().text);
+      if (write && RejectConstWrite(target.name))
+        return false;
       target.whole_array = true;
       target.base = base_;
       Advance(); // name
@@ -1897,6 +2192,8 @@ private:
     bool array = false;
     int subscripts = 0;
     if (!ParseVariableRef(&name, &array, &subscripts))
+      return false;
+    if (write && RejectConstWrite(name))
       return false;
     if (array && subscripts == 0)
       return Syntax("Expected a subscript in a STACK target");
@@ -1914,6 +2211,8 @@ private:
     bool array = false;
     int subscripts = 0;
     if (!ParseVariableRef(&name, &array, &subscripts))
+      return false;
+    if (RejectConstWrite(name))
       return false;
     if (!ExpectOp("="))
       return false;
@@ -2007,6 +2306,8 @@ private:
         int subscripts = 0;
         if (!ParseVariableRef(&name, &array, &subscripts))
           return false;
+        if (RejectConstWrite(name))
+          return false;
         if (array)
           return UnsupportedStatement("array INPUT #");
         if (!file_names.empty())
@@ -2048,6 +2349,8 @@ private:
       bool array = false;
       int subscripts = 0;
       if (!ParseVariableRef(&name, &array, &subscripts))
+        return false;
+      if (RejectConstWrite(name))
         return false;
       if (array)
         any_array = true;
@@ -2096,13 +2399,22 @@ private:
     if (!TakeKeyword("THEN"))
       return Syntax("Expected THEN");
     const int false_jump = EmitPlaceholder(Op::JumpIfFalse);
-    if (Cur().kind == Tok::Number) {
-      // `IF expr THEN line` is an implicit GOTO.
+    if (Cur().kind == Tok::Number || IsKnownLabelTarget()) {
+      // `IF expr THEN line` / `IF expr THEN label` is an implicit GOTO.
+      // Only known labels are considered here; `IF ... THEN A = 1` must stay a
+      // statement list, not an implicit jump to a label named A.
       if (direct_)
         return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
-      const int line = static_cast<int>(std::lround(Cur().number.AsNumber()));
-      Advance();
-      AddLineFixup(EmitPlaceholder(Op::Goto), line);
+      if (IsKnownLabelTarget()) {
+        if (!CompileLabelTarget(Op::Goto))
+          return false;
+      } else {
+        int line = 0;
+        if (!LineNumberFromNumber(Cur().number.AsNumber(), &line))
+          return Error(kErrIllegalFunctionCall, "Line number out of range");
+        Advance();
+        AddLineFixup(EmitPlaceholder(Op::Goto), line);
+      }
     } else if (!CompileStatementList(true)) {
       return false;
     }
@@ -2124,7 +2436,9 @@ private:
   bool CompileFor() {
     if (Cur().kind != Tok::Ident)
       return Syntax("Expected a variable after FOR");
-    const std::string name = Cur().text;
+    const std::string name = TypeName(Cur().text);
+    if (RejectConstWrite(name))
+      return false;
     Advance();
     if (IsOp("("))
       return Syntax("Arrays are not supported yet");
@@ -2212,6 +2526,32 @@ private:
     in.a = entry.test_pc;
     out_->instrs_.push_back(in);
     PatchTarget(entry.jump_index, Pc());
+    return true;
+  }
+
+  // ---------------------------------------------------------------- constants
+  bool CompileConst() {
+    std::size_t next = 0;
+    if (!ParseConstDecl(tokens_, static_cast<std::size_t>(pos_), line_, false, &next))
+      return false;
+    pos_ = static_cast<int>(next);
+    Emit(Op::Nop);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- labels
+  bool CompileLabel() {
+    if (direct_)
+      return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    if (Cur().kind != Tok::Ident || !IsLabelName(Cur().text))
+      return Syntax("Expected a label name after LABEL");
+    const std::string name = NormalizeLabel(Cur().text);
+    const auto existing = labels_.find(name);
+    if (existing != labels_.end() && existing->second != line_)
+      return Syntax("Duplicate label " + name);
+    labels_[name] = line_;
+    Emit(Op::Nop);
+    Advance();
     return true;
   }
 
@@ -2339,7 +2679,9 @@ private:
   bool CompileLineTarget(Op op) {
     if (Cur().kind != Tok::Number)
       return Syntax("Expected a line number");
-    const int target_line = static_cast<int>(std::lround(Cur().number.AsNumber()));
+    int target_line = 0;
+    if (!LineNumberFromNumber(Cur().number.AsNumber(), &target_line))
+      return Error(kErrIllegalFunctionCall, "Line number out of range");
     Advance();
     if (direct_)
       return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
@@ -2358,11 +2700,33 @@ private:
            (next.kind == Tok::Keyword && next.text == "ELSE");
   }
 
-  // GOTO target: a literal line keeps the old compile-time fixup; any other
-  // expression is evaluated at run time and resolved through the line table.
+  bool IsLabelTarget() const {
+    // A bare identifier in a line-target position is a label. Type-suffixed
+    // identifiers (T%, T&, ...) remain computed line-number expressions; use
+    // parentheses for an unsuffixed computed variable, e.g. GOTO (T).
+    return Cur().kind == Tok::Ident && IsLabelName(Cur().text);
+  }
+
+  bool IsKnownLabelTarget() const {
+    return IsLabelTarget() &&
+           labels_.find(NormalizeLabel(Cur().text)) != labels_.end();
+  }
+
+  bool CompileLabelTarget(Op op) {
+    if (direct_)
+      return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    const std::string name = NormalizeLabel(Cur().text);
+    Advance();
+    AddLabelFixup(EmitPlaceholder(op), name);
+    return true;
+  }
+
+  // GOTO target: a known label, a literal line, or a numeric expression.
   bool CompileGotoTarget() {
     if (direct_)
       return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    if (IsLabelTarget())
+      return CompileLabelTarget(Op::Goto);
     if (Cur().kind == Tok::Number && NextIsStatementEnd())
       return CompileLineTarget(Op::Goto);
     if (!ParseExpression())
@@ -2371,11 +2735,12 @@ private:
     return true;
   }
 
-  // GOSUB target: a literal line keeps the old compile-time fixup; any other
-  // expression is evaluated at run time and resolved through the line table.
+  // GOSUB target: a known label, a literal line, or a numeric expression.
   bool CompileGosubTarget() {
     if (direct_)
       return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    if (IsLabelTarget())
+      return CompileLabelTarget(Op::Gosub);
     if (Cur().kind == Tok::Number && NextIsStatementEnd())
       return CompileLineTarget(Op::Gosub);
     if (!ParseExpression())
@@ -2413,9 +2778,13 @@ private:
         return false;
       if (!TakeKeyword("GOSUB"))
         return Syntax("Expected GOSUB after ON TIMER(n)");
+      if (IsLabelTarget())
+        return CompileLabelTarget(Op::OnTimer);
       if (Cur().kind != Tok::Number)
-        return Syntax("Expected a line number");
-      const int target = static_cast<int>(std::lround(Cur().number.AsNumber()));
+        return Syntax("Expected a line number or label");
+      int target = 0;
+      if (!LineNumberFromNumber(Cur().number.AsNumber(), &target))
+        return Error(kErrIllegalFunctionCall, "Line number out of range");
       Advance();
       AddLineFixup(EmitPlaceholder(Op::OnTimer), target);
       return true;
@@ -2424,9 +2793,13 @@ private:
       Advance();
       if (!TakeKeyword("GOTO"))
         return Syntax("Expected GOTO after ON ERROR");
+      if (IsLabelTarget())
+        return CompileLabelTarget(Op::OnError);
       if (Cur().kind != Tok::Number)
-        return Syntax("Expected a line number");
-      const int target = static_cast<int>(std::lround(Cur().number.AsNumber()));
+        return Syntax("Expected a line number or label");
+      int target = 0;
+      if (!LineNumberFromNumber(Cur().number.AsNumber(), &target))
+        return Error(kErrIllegalFunctionCall, "Line number out of range");
       Advance();
       if (target == 0) {
         Instr in;
@@ -2461,16 +2834,23 @@ private:
     out_->instrs_.push_back(in);
     int slot = 0;
     do {
-      if (Cur().kind != Tok::Number)
-        return Syntax("Expected a line number");
-      const int target_line = static_cast<int>(std::lround(Cur().number.AsNumber()));
-      Advance();
       out_->jump_tables_[static_cast<std::size_t>(table_index)].push_back(-1);
       Fixup fixup;
       fixup.instr_index = -1;
       fixup.table = table_index;
       fixup.slot = slot;
-      fixup.line = target_line;
+      if (IsLabelTarget()) {
+        fixup.label = NormalizeLabel(Cur().text);
+        Advance();
+      } else {
+        if (Cur().kind != Tok::Number)
+          return Syntax("Expected a line number or label");
+        int target_line = 0;
+        if (!LineNumberFromNumber(Cur().number.AsNumber(), &target_line))
+          return Error(kErrIllegalFunctionCall, "Line number out of range");
+        Advance();
+        fixup.line = target_line;
+      }
       fixups_.push_back(fixup);
       ++slot;
     } while (TakeOp(","));
@@ -2571,6 +2951,8 @@ private:
     if (!ExpectOp(","))
       return false;
     if (!ParseVariableRef(&second, &second_array, &second_subscripts))
+      return false;
+    if (RejectConstWrite(first) || RejectConstWrite(second))
       return false;
     // Array elements push their subscript expressions as they are parsed, the second side's last,
     // so the machine pops the second list before the first and the counts travel with the
@@ -2908,8 +3290,19 @@ private:
     }
     Emit(Op::End); // implicit END when execution falls off the program
     for (const Fixup& fixup : fixups_) {
+      int line = fixup.line;
+      if (!fixup.label.empty()) {
+        const auto label = labels_.find(fixup.label);
+        if (label == labels_.end()) {
+          error_->line = line_;
+          error_->code = kErrUndefinedLineNumber;
+          error_->message = "Undefined label " + fixup.label;
+          return false;
+        }
+        line = label->second;
+      }
       int target = -1;
-      const auto it = line_starts_.find(fixup.line);
+      const auto it = line_starts_.find(line);
       if (it != line_starts_.end())
         target = it->second;
       if (fixup.instr_index >= 0) {
@@ -2937,6 +3330,7 @@ private:
     int table = 0;
     int slot = 0;
     int line = 0;
+    std::string label; // when non-empty, resolve through labels_ at Finish
   };
 
   Program* out_;
@@ -2956,14 +3350,18 @@ private:
   std::vector<Fixup> fixups_;
   std::vector<LineSpan> line_spans_;
   std::map<int, int> line_starts_;
+  std::map<std::string, int> labels_; // normalized label -> source line
+  std::set<std::string> const_names_;             // canonical CONST names
+  std::map<std::string, std::string> const_alias_; // base name -> canonical name
 };
 
 } // namespace
 
 bool IsIllegalDirect(const std::string& keyword) {
   static const char* const kIllegalDirect[] = {
-      "CASE", "DATA", "DEF",    "DIM",    "DELETE", "ERASE", "FOR",   "GOSUB",
-      "GOTO", "NEXT", "RESUME", "RETURN", "SELECT", "WEND",  "WHILE",
+      "CASE", "CONST", "DATA",   "DEF",    "DIM",    "DELETE", "ERASE", "FOR",
+      "GOSUB", "GOTO", "LABEL",  "NEXT",   "RESUME", "RETURN", "SELECT", "WEND",
+      "WHILE",
   };
   return InList(kIllegalDirect, sizeof(kIllegalDirect) / sizeof(kIllegalDirect[0]), keyword);
 }
@@ -2975,6 +3373,7 @@ bool Compile(const LineStore& store, Program* out, CompileError* error) {
   out->data_items_.clear();
   out->line_data_index_.clear();
   out->user_funcs_.clear();
+  out->constants_.clear();
   out->statement_pcs_.clear();
   Compiler compiler(out, error, false);
   if (!compiler.CompileStore(store))
@@ -2990,6 +3389,7 @@ bool CompileDirect(const std::string& text, Program* out, CompileError* error) {
   out->data_items_.clear();
   out->line_data_index_.clear();
   out->user_funcs_.clear();
+  out->constants_.clear();
   out->statement_pcs_.clear();
   Compiler compiler(out, error, true);
   if (!compiler.CompileDirectSource(text))

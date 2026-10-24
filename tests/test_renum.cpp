@@ -129,6 +129,52 @@ TEST_CASE("RENUM: an undefined reference is reported and left unchanged", "[renu
   CHECK(rows[0] == "100 GOTO 999");
 }
 
+TEST_CASE("RENUM: 32-bit line numbers and references", "[renum]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 GOTO 20");
+  repl.Process("20 PRINT \"HIGH\"");
+  repl.Process("30 END");
+  const newbasic::RunResult result = repl.Process("RENUM 2000000000,,10");
+  CHECK(result.status == newbasic::RunResult::Status::Done);
+  const std::vector<std::string> rows = ListProgram(&repl, &screen);
+  REQUIRE(rows.size() >= 3);
+  CHECK(rows[0] == "2000000000 GOTO 2000000010");
+  CHECK(rows[1] == "2000000010 PRINT \"HIGH\"");
+  CHECK(rows[2] == "2000000020 END");
+  screen.Clear();
+  CHECK(repl.Process("RUN").status == newbasic::RunResult::Status::Done);
+  CHECK(screen.RenderRows()[0] == "HIGH");
+}
+
+TEST_CASE("RENUM: the 32-bit line ceiling", "[renum]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 END");
+  CHECK(repl.Process("RENUM 2147483647,,10").status == newbasic::RunResult::Status::Done);
+  CHECK(repl.Store().Lines()[0].line_number == newbasic::kMaxLineNumber);
+
+  repl.Process("10 END");
+  repl.Process("20 END");
+  const newbasic::RunResult overflow = repl.Process("RENUM 2147483640,,10");
+  CHECK(overflow.status == newbasic::RunResult::Status::Error);
+  CHECK(overflow.code == newbasic::kErrIllegalFunctionCall);
+  CHECK(overflow.message.find("2147483647") != std::string::npos);
+
+  const newbasic::RunResult too_large = repl.Process("RENUM 2147483648");
+  CHECK(too_large.status == newbasic::RunResult::Status::Error);
+  CHECK(too_large.code == newbasic::kErrIllegalFunctionCall);
+}
+
+TEST_CASE("ERL: reports a 32-bit line number", "[renum][errors]") {
+  CHECK(lwtest::Row0("10 ON ERROR GOTO 2000000001\n"
+                     "2000000000 ERROR 5\n"
+                     "2000000001 PRINT ERL\n"
+                     "2100000000 END\n") == " 2000000000");
+}
+
 TEST_CASE("MERGE: lines from a file replace matching line numbers", "[renum]") {
   TempFile file("newbasic_merge.bas");
   file.Write("20 PRINT \"MERGED\"\n40 PRINT \"NEW\"\n");

@@ -83,7 +83,7 @@ std::string FormatNumber(const Value& v) {
   switch (v.kind()) {
   case Value::Kind::Int: {
     // The sign prefix is separate, so print the magnitude (avoids "--5").
-    const int n = static_cast<int>(v.AsNumber());
+    const long long n = static_cast<long long>(v.AsNumber());
     return SignPrefix(n < 0) + std::to_string(n < 0 ? -n : n);
   }
   case Value::Kind::Long: {

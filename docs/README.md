@@ -52,7 +52,7 @@ curly quotes); read around them.
 | `INKEY$` key/arrow code values (key mapping) | `14` (App. H), `19` (INKEYS) |
 | Numeric literal syntax, type suffixes `%!#&$`, operator precedence | `06` (Ch. 6), `08` (App. B) |
 | File I/O: OPEN modes, `INPUT#`/`PRINT#`/`LINE INPUT#`, GET/PUT, LOF/EOF/LOC | `21` (OPEN), `19` (GET/INPUT#), `20` (LINE INPUT#, LOAD, LIST), `24` (WRITE#) |
-| `SAVE`/`LOAD` (tokenized format context), BSAVE/BLOAD | `22` (SAVE), `20` (LOAD), `17` (BSAVE/BLOAD) |
+| `SAVE`/`LOAD` (text `.BAS` only; tokenized removed), BSAVE/BLOAD | `22` (SAVE), `20` (LOAD), `17` (BSAVE/BLOAD) |
 | `SHELL` | `23` |
 | Screen ops: CLS, COLOR, LOCATE, SCREEN, VIEW/VIEW PRINT | `17` (CLS, COLOR), `19` (LOCATE), `23` (SCREEN), `24` (VIEW) |
 | Control flow: IF/FOR...NEXT/GOSUB/WHILE...WEND/ON ERROR | `19` (IF, GOSUB), `18` (FOR... NEXT), `24` (WHILE...WEND), `20` (ON ERROR GOTO), `22` (RESUME) |

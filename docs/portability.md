@@ -1,8 +1,9 @@
 # Platform notes
 
-`newbasic` keeps the GW-BASIC dialect, the tokenized/protected `.BAS` formats and
-the golden fixtures identical on Windows and Linux. Only the host-facing pieces
-differ. This page records the mapping and the known divergences.
+`newbasic` keeps the GW-BASIC dialect, the plain-text `.BAS` program format, and
+the golden fixtures identical on Windows and Linux. Tokenized/protected program
+files are no longer supported. Only the host-facing pieces differ. This page
+records the mapping and the known divergences.
 
 ## Host services
 

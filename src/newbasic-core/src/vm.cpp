@@ -81,7 +81,7 @@ bool IsIntegral(Value::Kind k) {
 Value MakeNum(Value::Kind kind, double v) {
   switch (kind) {
   case Value::Kind::Int:
-    return Value::Int(static_cast<std::int16_t>(v));
+    return Value::Int(static_cast<std::int32_t>(v));
   case Value::Kind::Long:
     return Value::Long(static_cast<std::int32_t>(v));
   case Value::Kind::Dbl:
@@ -483,6 +483,7 @@ bool Vm::LeavesSelect(int target_pc) const {
 void Vm::Load(Program program) {
   CloseAllFiles();
   program_ = std::move(program);
+  InitConstants();
   pc_ = 0;
   stack_.clear();
   for_stack_.clear();
@@ -510,7 +511,19 @@ void Vm::ClearState() {
   view_stack_.clear();
   func_stack_.clear();
   data_index_ = 0;
+  const_names_.clear();
+  InitConstants();
   ResetPrintState();
+}
+
+bool Vm::InitConstants() {
+  const_names_.clear();
+  for (const ConstDef& def : program_.constants_) {
+    const std::string key = CanonicalVarName(def.name);
+    vars_[key] = def.value;
+    const_names_.insert(key);
+  }
+  return true;
 }
 
 void Vm::Reset() {
@@ -592,6 +605,8 @@ std::optional<Value> Vm::GetVar(const std::string& name) const {
 
 void Vm::SetVar(const std::string& name, const Value& value) {
   const std::string key = CanonicalVarName(name);
+  if (const_names_.count(key) != 0)
+    return; // debugger writes cannot change a CONST
   Value converted;
   if (ConvertForName(key, value, &converted))
     vars_[key] = converted;
@@ -610,9 +625,9 @@ bool Vm::ConvertForName(const std::string& name, const Value& v, Value* out) {
   const double d = v.AsNumber();
   switch (suffix) {
   case '%':
-    if (d < -32768.0 || d > 32767.0)
+    if (d < -2147483648.0 || d > 2147483647.0)
       return Fail(kErrOverflow);
-    *out = Value::Int(static_cast<std::int16_t>(RoundToInt(d)));
+    *out = Value::Int(static_cast<std::int32_t>(RoundToInt(d)));
     return true;
   case '&':
     if (d < -2147483648.0 || d > 2147483647.0)
@@ -631,6 +646,8 @@ bool Vm::ConvertForName(const std::string& name, const Value& v, Value* out) {
 
 bool Vm::StoreVariable(const std::string& name, const Value& v) {
   const std::string key = CanonicalVarName(name);
+  if (const_names_.count(key) != 0)
+    return Fail(kErrIllegalFunctionCall, "Cannot assign to constant " + key);
   Value converted;
   if (!ConvertForName(key, v, &converted))
     return false;
@@ -835,12 +852,35 @@ bool Vm::DoForNext(const Instr& in) {
   const ForFrame frame = for_stack_[index];
   const Value current = LoadVariable(frame.name);
   const double next = current.AsNumber() + frame.step;
+  const bool again =
+      (frame.step >= 0.0 && next <= frame.end) || (frame.step < 0.0 && next >= frame.end);
+
+  if (!again) {
+    // The loop ends here. If incrementing the counter pushed it outside the
+    // 32-bit range, leave the last in-range value; this is not an overflow
+    // because the loop itself is finished.
+    Value last = current;
+    if (current.kind() == Value::Kind::Int && next >= -2147483648.0 &&
+        next <= 2147483647.0)
+      last = Value::Int(static_cast<std::int32_t>(next));
+    else if (current.kind() == Value::Kind::Long && next >= -2147483648.0 &&
+             next <= 2147483647.0)
+      last = Value::Long(static_cast<std::int32_t>(next));
+    else if (current.kind() == Value::Kind::Dbl)
+      last = Value::Dbl(next);
+    else if (current.kind() == Value::Kind::Sgl)
+      last = Value::Sgl(next);
+    vars_[frame.name] = last;
+    for_stack_.resize(index);
+    return true;
+  }
+
   Value stored;
   switch (current.kind()) {
   case Value::Kind::Int:
-    if (next < -32768.0 || next > 32767.0)
+    if (next < -2147483648.0 || next > 2147483647.0)
       return Fail(kErrOverflow);
-    stored = Value::Int(static_cast<std::int16_t>(next));
+    stored = Value::Int(static_cast<std::int32_t>(next));
     break;
   case Value::Kind::Long:
     if (next < -2147483648.0 || next > 2147483647.0)
@@ -855,13 +895,7 @@ bool Vm::DoForNext(const Instr& in) {
     break;
   }
   vars_[frame.name] = stored;
-  const bool again =
-      (frame.step >= 0.0 && next <= frame.end) || (frame.step < 0.0 && next >= frame.end);
-  if (again) {
-    pc_ = frame.body_pc;
-  } else {
-    for_stack_.resize(index);
-  }
+  pc_ = frame.body_pc;
   return true;
 }
 
@@ -1047,9 +1081,9 @@ bool Vm::CallFunction(Func f, int argc) {
   case Func::Cint:
     if (!numeric(0, &a))
       return false;
-    if (a < -32768.0 || a > 32767.0)
+    if (a < -2147483648.0 || a > 2147483647.0)
       return Fail(kErrOverflow);
-    Push(Value::Int(static_cast<std::int16_t>(RoundToInt(a))));
+    Push(Value::Int(static_cast<std::int32_t>(RoundToInt(a))));
     return true;
   case Func::Csng:
     if (!numeric(0, &a))
@@ -1114,9 +1148,9 @@ bool Vm::CallFunction(Func f, int argc) {
       mouse_y_ = click.y;
     }
     if (which == 0)
-      Push(Value::Int(static_cast<std::int16_t>(button)));
+      Push(Value::Int(static_cast<std::int32_t>(button)));
     else
-      Push(Value::Int(static_cast<std::int16_t>(which == 1 ? mouse_x_ : mouse_y_)));
+      Push(Value::Int(static_cast<std::int32_t>(which == 1 ? mouse_x_ : mouse_y_)));
     return true;
   }
   case Func::TextWidth:
@@ -1138,36 +1172,36 @@ bool Vm::CallFunction(Func f, int argc) {
     return true;
   }
   case Func::MousePosX:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.MousePositionX())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.MousePositionX())));
     return true;
   case Func::MousePosY:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.MousePositionY())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.MousePositionY())));
     return true;
   case Func::MouseButtons:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.MouseButtons())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.MouseButtons())));
     return true;
   case Func::MouseWheel:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.TakeMouseWheel())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.TakeMouseWheel())));
     return true;
   case Func::ScreenWidth:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.Graphics().Width())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.Graphics().Width())));
     return true;
   case Func::ScreenHeight:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.Graphics().Height())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.Graphics().Height())));
     return true;
   case Func::ViewX1:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.ViewX())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.ViewX())));
     return true;
   case Func::ViewY1:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.ViewY())));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.ViewY())));
     return true;
   case Func::ViewX2:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
+    Push(Value::Int(static_cast<std::int32_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
                                                   ? -1
                                                   : screen_.ViewX() + screen_.ViewWidth() - 1)));
     return true;
   case Func::ViewY2:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
+    Push(Value::Int(static_cast<std::int32_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
                                                   ? -1
                                                   : screen_.ViewY() + screen_.ViewHeight() - 1)));
     return true;
@@ -1196,7 +1230,7 @@ bool Vm::CallFunction(Func f, int argc) {
       Push(Value::Int(-1));
       return true;
     }
-    Push(Value::Int(static_cast<std::int16_t>(point_canvas.Pixel(px, py))));
+    Push(Value::Int(static_cast<std::int32_t>(point_canvas.Pixel(px, py))));
     return true;
   }
   case Func::Pmap: {
@@ -1277,7 +1311,10 @@ bool Vm::CallFunction(Func f, int argc) {
       if (!numeric(0, &a))
         return false;
       if (f == Func::Mki) {
-        Push(Value::Str(MkiFromInt(static_cast<std::int16_t>(std::lround(a)))));
+        const double rounded = RoundToInt(a);
+        if (rounded < -32768.0 || rounded > 32767.0)
+          return Fail(kErrOverflow);
+        Push(Value::Str(MkiFromInt(static_cast<std::int16_t>(rounded))));
       } else if (f == Func::Mks) {
         Push(Value::Str(MksFromSingle(a)));
       } else {
@@ -1313,14 +1350,14 @@ bool Vm::CallFunction(Func f, int argc) {
   case Func::Len:
     if (!text(0, &s))
       return false;
-    Push(Value::Int(static_cast<std::int16_t>(s.size())));
+    Push(Value::Int(static_cast<std::int32_t>(s.size())));
     return true;
   case Func::Asc:
     if (!text(0, &s))
       return false;
     if (s.empty())
       return Fail(kErrIllegalFunctionCall);
-    Push(Value::Int(static_cast<std::int16_t>(static_cast<unsigned char>(s[0]))));
+    Push(Value::Int(static_cast<std::int32_t>(static_cast<unsigned char>(s[0]))));
     return true;
   case Func::Val: {
     if (!text(0, &s))
@@ -1460,7 +1497,7 @@ bool Vm::CallFunction(Func f, int argc) {
       return true;
     }
     const std::size_t found = haystack.find(needle, static_cast<std::size_t>(start - 1));
-    Push(Value::Int(found == std::string::npos ? 0 : static_cast<std::int16_t>(found + 1)));
+    Push(Value::Int(found == std::string::npos ? 0 : static_cast<std::int32_t>(found + 1)));
     return true;
   }
   case Func::Timer:
@@ -1478,10 +1515,10 @@ bool Vm::CallFunction(Func f, int argc) {
     return true;
   }
   case Func::Err:
-    Push(Value::Int(static_cast<std::int16_t>(last_error_code_)));
+    Push(Value::Int(static_cast<std::int32_t>(last_error_code_)));
     return true;
   case Func::Erl:
-    Push(Value::Int(static_cast<std::int16_t>(last_error_line_)));
+    Push(Value::Long(static_cast<std::int32_t>(last_error_line_)));
     return true;
   case Func::Date:
     Push(Value::Str(host_->DateString()));
@@ -1539,10 +1576,10 @@ bool Vm::CallFunction(Func f, int argc) {
     return true;
   }
   case Func::Pos:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.CursorCol() + 1)));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.CursorCol() + 1)));
     return true;
   case Func::Csrlin:
-    Push(Value::Int(static_cast<std::int16_t>(screen_.CursorRow() + 1)));
+    Push(Value::Int(static_cast<std::int32_t>(screen_.CursorRow() + 1)));
     return true;
   default:
     return Fail(kErrIllegalFunctionCall);
@@ -1597,6 +1634,9 @@ bool Vm::StepImpl() {
       upper_bounds[i] = static_cast<int>(RoundToInt(number));
     }
     const std::string key = CanonicalVarName(in.name);
+    if (const_names_.count(key) != 0)
+      return Fail(kErrIllegalFunctionCall, "Cannot use constant " + in.name +
+                                              " as an array");
     if (arrays_.count(key) != 0)
       return Fail(kErrDuplicateDefinition);
     if (EnsureArray(key, upper_bounds, in.b) == nullptr)
@@ -1605,6 +1645,9 @@ bool Vm::StepImpl() {
   }
   case Op::ArrayLoad:
   case Op::ArrayStore: {
+    if (in.op == Op::ArrayStore &&
+        const_names_.count(CanonicalVarName(in.name)) != 0)
+      return Fail(kErrIllegalFunctionCall, "Cannot assign to constant " + in.name);
     Value stored;
     if (in.op == Op::ArrayStore)
       stored = Pop(); // the value is pushed last
@@ -1660,17 +1703,12 @@ bool Vm::StepImpl() {
       const long long x = static_cast<long long>(RoundToInt(a.AsNumber()));
       const long long y = static_cast<long long>(RoundToInt(b.AsNumber()));
       const long long r = in.op == Op::Add ? x + y : (in.op == Op::Sub ? x - y : x * y);
-      if (kind == Value::Kind::Int) {
-        if (r < -32768 || r > 32767)
-          return Fail(kErrOverflow);
-        Push(Value::Int(static_cast<std::int16_t>(r)));
-      } else {
-        if (r < std::numeric_limits<std::int32_t>::min() ||
-            r > std::numeric_limits<std::int32_t>::max()) {
-          return Fail(kErrOverflow);
-        }
-        Push(Value::Long(static_cast<std::int32_t>(r)));
+      if (r < std::numeric_limits<std::int32_t>::min() ||
+          r > std::numeric_limits<std::int32_t>::max()) {
+        return Fail(kErrOverflow);
       }
+      Push(kind == Value::Kind::Int ? Value::Int(static_cast<std::int32_t>(r))
+                                    : Value::Long(static_cast<std::int32_t>(r)));
       break;
     }
     const double x = a.AsNumber();
@@ -1709,15 +1747,13 @@ bool Vm::StepImpl() {
     if (yi == 0)
       return Fail(kErrDivisionByZero);
     const bool wide = a.kind() == Value::Kind::Long || b.kind() == Value::Kind::Long;
-    if (in.op == Op::IntDiv) {
-      const long long r = xi / yi;
-      Push(wide ? Value::Long(static_cast<std::int32_t>(r))
-                : Value::Int(static_cast<std::int16_t>(r)));
-    } else {
-      const long long r = xi % yi;
-      Push(wide ? Value::Long(static_cast<std::int32_t>(r))
-                : Value::Int(static_cast<std::int16_t>(r)));
+    const long long r = in.op == Op::IntDiv ? xi / yi : xi % yi;
+    if (r < std::numeric_limits<std::int32_t>::min() ||
+        r > std::numeric_limits<std::int32_t>::max()) {
+      return Fail(kErrOverflow);
     }
+    Push(wide ? Value::Long(static_cast<std::int32_t>(r))
+              : Value::Int(static_cast<std::int32_t>(r)));
     break;
   }
   case Op::Pow: {
@@ -1745,12 +1781,11 @@ bool Vm::StepImpl() {
     double x = 0.0;
     if (!Number(a, &x))
       return false;
-    if (a.kind() == Value::Kind::Int) {
-      if (x <= -32768.0)
+    if (a.kind() == Value::Kind::Int || a.kind() == Value::Kind::Long) {
+      if (x <= -2147483648.0 || x > 2147483647.0)
         return Fail(kErrOverflow);
-      Push(Value::Int(static_cast<std::int16_t>(-x)));
-    } else if (a.kind() == Value::Kind::Long) {
-      Push(Value::Long(static_cast<std::int32_t>(-x)));
+      const auto result = static_cast<std::int32_t>(-x);
+      Push(a.kind() == Value::Kind::Int ? Value::Int(result) : Value::Long(result));
     } else {
       Push(MakeNum(a.kind(), -x));
     }
@@ -1849,7 +1884,7 @@ bool Vm::StepImpl() {
     }
     const Value::Kind kind = PromoteKind(a.kind(), b.kind());
     if (kind == Value::Kind::Int)
-      Push(Value::Int(static_cast<std::int16_t>(r)));
+      Push(Value::Int(static_cast<std::int32_t>(r)));
     else if (kind == Value::Kind::Long)
       Push(Value::Long(static_cast<std::int32_t>(r)));
     else
@@ -1863,7 +1898,7 @@ bool Vm::StepImpl() {
       return false;
     const long long r = ~static_cast<long long>(RoundToInt(x));
     if (a.kind() == Value::Kind::Int)
-      Push(Value::Int(static_cast<std::int16_t>(r)));
+      Push(Value::Int(static_cast<std::int32_t>(r)));
     else if (a.kind() == Value::Kind::Long)
       Push(Value::Long(static_cast<std::int32_t>(r)));
     else
@@ -2115,8 +2150,8 @@ bool Vm::StepImpl() {
     array.base = 0;
     array.dims = {width * height + 1};
     array.data.assign(static_cast<std::size_t>(width * height + 2), Value::Int(0));
-    array.data[0] = Value::Int(static_cast<std::int16_t>(width));
-    array.data[1] = Value::Int(static_cast<std::int16_t>(height));
+    array.data[0] = Value::Int(static_cast<std::int32_t>(width));
+    array.data[1] = Value::Int(static_cast<std::int32_t>(height));
     for (int row = 0; row < height; ++row) {
       for (int column = 0; column < width; ++column) {
         array.data[static_cast<std::size_t>(2 + row * width + column)] =
@@ -2521,7 +2556,8 @@ bool Vm::StepImpl() {
       double line_number = 0.0;
       if (!Number(line_value, &line_number))
         return false;
-      start_line = static_cast<int>(RoundToInt(line_number));
+      if (!LineNumberFromNumber(line_number, &start_line))
+        return Fail(kErrIllegalFunctionCall, "Line number out of range");
     }
     const Value path_value = Pop();
     std::string path;
@@ -2549,6 +2585,8 @@ bool Vm::StepImpl() {
       vars_ = std::move(kept);
     }
     program_ = std::move(loaded);
+    const_names_.clear();
+    InitConstants();
     stack_.clear();
     user_stack_.clear();
     user_stack_elements_ = 0;
@@ -2655,7 +2693,8 @@ bool Vm::StepImpl() {
       double line_number = 0.0;
       if (!Number(line_value, &line_number))
         return false;
-      start_line = static_cast<int>(RoundToInt(line_number));
+      if (!LineNumberFromNumber(line_number, &start_line))
+        return Fail(kErrIllegalFunctionCall, "Line number out of range");
     }
     Reset();
     if (start_line > 0) {
@@ -2987,10 +3026,10 @@ bool Vm::StepImpl() {
     double target_line = 0.0;
     if (!Number(target_value, &target_line))
       return false;
-    const long line = std::lround(target_line);
-    if (line < 0)
+    int line = 0;
+    if (!LineNumberFromNumber(target_line, &line))
       return Fail(kErrUndefinedLineNumber);
-    const auto range = program_.PcRangeForLine(static_cast<int>(line));
+    const auto range = program_.PcRangeForLine(line);
     if (!range)
       return Fail(kErrUndefinedLineNumber);
     if (LeavesSelect(range->first))
@@ -3021,10 +3060,10 @@ bool Vm::StepImpl() {
     double target_line = 0.0;
     if (!Number(target_value, &target_line))
       return false;
-    const long line = std::lround(target_line);
-    if (line < 0)
+    int line = 0;
+    if (!LineNumberFromNumber(target_line, &line))
       return Fail(kErrUndefinedLineNumber);
-    const auto range = program_.PcRangeForLine(static_cast<int>(line));
+    const auto range = program_.PcRangeForLine(line);
     if (!range)
       return Fail(kErrUndefinedLineNumber);
     gosub_stack_.push_back(pc_);
@@ -3402,6 +3441,12 @@ bool Vm::StepImpl() {
     }
     if (user_stack_.size() < static_cast<std::size_t>(count))
       return Fail(kErrStackEmpty);
+    for (int i = 0; i < count; ++i) {
+      const StackTarget& target =
+          program_.stack_targets_[static_cast<std::size_t>(start + i)];
+      if (const_names_.count(target.name) != 0)
+        return Fail(kErrIllegalFunctionCall, "Cannot assign to constant " + target.name);
+    }
 
     struct ResolvedTarget {
       const StackTarget* target = nullptr;

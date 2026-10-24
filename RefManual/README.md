@@ -50,13 +50,13 @@ Underscores are not part of a name. `ACCOUNT_TOTAL` is scanned as `ACCOUNT`, the
 
 | Suffix | Type | Notes |
 |---|---|---|
-| `%` | Integer | 16-bit signed (`-32768` to `32767`). Assignment rounds, and an out-of-range value raises **Overflow**. |
-| `&` | Long integer | 32-bit signed. Assignment rounds, and an out-of-range value raises **Overflow**. This suffix is a newbasic extension; GW-BASIC 3.23 does not have it. |
+| `%` | Integer | 32-bit signed (`-2147483648` to `2147483647`). Assignment rounds, and an out-of-range value raises **Overflow**. |
+| `&` | Long integer | 32-bit signed, equivalent in range to `%`. Retained as a legacy/newbasic-compatible suffix; assignment rounds and out-of-range raises **Overflow**. |
 | `!` | Single precision | The default numeric type. Values display with 7 significant digits. |
 | `#` | Double precision | Values display with 16 significant digits. |
 | `$` | String | Up to 255 characters. |
 
-The kinds are storage and display types, not separate floating-point formats. All numeric values are held as host `double`, arithmetic is host `double`, and only display formatting emulates GW-BASIC. `%` and `&` are converted to their integer ranges on assignment and display as integers; `!` and `#` differ in displayed floating-point precision.
+The kinds are storage and display types, not separate floating-point formats. All numeric values are held as host `double`, arithmetic is host `double`, and only display formatting emulates GW-BASIC. `%` and `&` are both converted to the signed 32-bit range on assignment and display as integers; `!` and `#` differ in displayed floating-point precision. `MKI$`/`CVI` are fixed two-byte field conversions and are not the `%` representation.
 
 With the default types, `A`, `a`, and `A!` are the same variable. `A%`, `A&`, `A#`, and `A$` are different. An explicit suffix beats a `DEF` default: under `DEFINT A`, `A` means `A%`, while `A!` is still a single-precision variable.
 
@@ -106,9 +106,11 @@ These differences cut across entries rather than belonging to one keyword. Follo
 | Area | Difference |
 |---|---|
 | Keywords and spacing | Only exact whole words are keywords; run-together forms need spaces. This is the most common source of syntax errors when moving a program. |
-| Numbers | Arithmetic is host `double`; only display formatting emulates GW-BASIC. Single precision displays 7 significant digits, double 16. |
+| Numbers | Integer `%` and long `&` are both signed 32-bit. Arithmetic is host `double`; only display formatting emulates GW-BASIC. Single precision displays 7 significant digits, double 16. Line numbers and `ERL` are also signed 32-bit. |
 | Random numbers | [RND](R.md#rnd-function) uses `std::mt19937`, so sequences differ from GW-BASIC but are reproducible after [RANDOMIZE](R.md#randomize-statement) with a seed. `RANDOMIZE` without an expression does not prompt. |
-| Program files | [SAVE](S.md#save-command) writes plain text by default; `SAVE ,B` and `SAVE ,P` write tokenized and protected forms. [LOAD](L.md#load-command) and [RUN](R.md#run-command) detect the form. Protected and tokenized byte fidelity with Microsoft files is unproven. |
+| Program files | [SAVE](S.md#save-command), [LOAD](L.md#load-command), and [MERGE](M.md#merge-command) use plain-text `.BAS` only. Tokenized and protected formats are not supported and report **Bad file mode**. |
+| Named labels | [LABEL](L.md#label-statement) is a newbasic extension: a symbolic line target for `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are compile-time and survive `RENUM`. |
+| Constants | [CONST](C.md#const-statement) declares a read-only global with a literal value, installed before the program starts. Assignments to a constant are compile errors. |
 | File I/O | Sequential and random data files are supported. [BLOAD](B.md#bload-command)/[BSAVE](B.md#bsave-command), [OPEN "COM"](O.md#open-com-statement), [IOCTL](I.md#ioctl-statement), and [LOCK](L.md#lock-statement)/[UNLOCK](U.md#unlock-statement) are not. DOS commands such as [FILES](F.md#files-command), [CHDIR](C.md#chdir-command), [MKDIR](M.md#mkdir-command), [NAME](N.md#name-command), [RMDIR](R.md#rmdir-command), and [KILL](K.md#kill-command) are direct mode only. |
 | Machine memory and ports | [PEEK](P.md#peek-function), [POKE](P.md#poke-statement), [INP](I.md#inp-function), [OUT](O.md#out-statement), [WAIT](W.md#wait-statement), [DEF SEG](D.md#def-seg-statement), [CALL](C.md#call-statement), [USR](U.md#usr-function), `VARPTR`/`VARPTR$`, and [FRE](F.md#fre-function) are refused. |
 | Devices and events | No serial port, joystick, light pen, cassette, or note queue. [ON TIMER](O.md#on-timern-statement) works because the clock is portable. [PLAY](P.md#play-statement) and [SOUND](S.md#sound-statement) are synchronous. |
@@ -178,7 +180,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 - Replace `INP` keyboard polling with `INKEY$`. The `KEY` family has no equivalent.
 - Remove COM, joystick, light-pen, and cassette code; there is no replacement.
 - Use `ON TIMER` for timer events, and [INKEY$](I.md#inkey-function) for keyboard polling.
-- Expect `SAVE` to write text by default. Use `SAVE ,B` when a tokenized file is required.
+- `SAVE` writes plain text. Tokenized/protected files are not supported.
 - Do not expect `RND` sequences or floating-point output to match GW-BASIC exactly.
 - Check host shell syntax and path separators when moving between Windows and Linux.
 
@@ -207,6 +209,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [COLOR Statement](C.md#color-statement) | Statement | Supported |
 | [COM(n) Statement](C.md#comn-statement) | Statement | Not supported in newbasic |
 | [COMMON Statement](C.md#common-statement) | Statement | Partial |
+| [CONST Statement](C.md#const-statement) | Statement | Supported (newbasic extension) |
 | [CONT Command](C.md#cont-command) | Command | Direct mode only |
 | [COS Function](C.md#cos-function) | Function | Supported |
 | [CSNG Function](C.md#csng-function) | Function | Supported |
@@ -262,6 +265,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [KEY Statement](K.md#key-statement) | Statement | Not supported in newbasic |
 | [KEY(n) Statement](K.md#keyn-statement) | Statement | Not supported in newbasic |
 | [KILL Command](K.md#kill-command) | Command | Direct mode only |
+| [LABEL Statement](L.md#label-statement) | Statement | Supported (newbasic extension) |
 | [LEFT$ Function](L.md#left-function) | Function | Supported |
 | [LEN Function](L.md#len-function) | Function | Supported |
 | [LET Statement](L.md#let-statement) | Statement | Supported |
@@ -270,7 +274,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [LINE Statement](L.md#line-statement) | Statement | Supported |
 | [LIST Command](L.md#list-command) | Command | Direct mode only |
 | [LLIST Command](L.md#llist-command) | Command | Direct mode only |
-| [LOAD Command](L.md#load-command) | Command | Supported |
+| [LOAD Command](L.md#load-command) | Command | Supported (text only) |
 | [LOC Function](L.md#loc-function) | Function | Supported |
 | [LOCATE Statement](L.md#locate-statement) | Statement | Supported |
 | [LOCK Statement](L.md#lock-statement) | Statement | Not supported in newbasic |
@@ -347,7 +351,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [RND Function](R.md#rnd-function) | Function | Supported |
 | [RSET Statement](R.md#rset-statement) | Statement | Supported |
 | [RUN Command](R.md#run-command) | Command | Supported |
-| [SAVE Command](S.md#save-command) | Command | Supported |
+| [SAVE Command](S.md#save-command) | Command | Supported (text only) |
 | [SCREEN Function](S.md#screen-function) | Function | Not supported in newbasic |
 | [SCREEN Statement](S.md#screen-statement) | Statement | Supported |
 | [SCREENH Function](S.md#screenh-function) | Function | Supported (newbasic extension) |

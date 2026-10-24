@@ -132,13 +132,13 @@ RENUM [new][, [old][, increment]]
 
 | Argument | Required | Description |
 |---|---|---|
-| `new` | No | New first line number. Default is `10`. |
+| `new` | No | New first line number, 1–2147483647. Default is `10`. |
 | `old` | No | Old first line to renumber. Default is the first line. |
 | `increment` | No | Step between new numbers. Default is `10`. |
 
 ### Comments
 
-`RENUM` rewrites references after `ELSE`, `GOTO`, `GOSUB`, `THEN`, `ON ... GOTO`, `ON ... GOSUB`, `RESTORE`, `RESUME`, and `RUN`, while skipping strings and comments. It refuses to reorder lines and reports undefined references. It is a direct-mode command.
+Line numbers are signed 32-bit values. `RENUM` rewrites numeric references after `ELSE`, `GOTO`, `GOSUB`, `THEN`, `ON ... GOTO`, `ON ... GOSUB`, `RESTORE`, `RESUME`, and `RUN`, while skipping strings and comments. Symbolic `GOTO label`/`GOSUB label` references and `LABEL` definitions are left alone; the label definition moves with its line and the next compile resolves it. `RENUM` refuses to reorder lines, refuses to generate a number above 2147483647, and reports undefined references. It is a direct-mode command.
 
 ### Examples
 
@@ -493,7 +493,7 @@ RUN filename [, R]
 
 ### Comments
 
-`RUN` clears variables and arrays before starting. `RUN line` starts at that line. `RUN filename` loads the file first. In a program, bare `RUN` restarts the program; use it carefully.
+`RUN` clears variables and arrays before starting. `RUN line` starts at that line. `RUN filename` loads a plain-text `.BAS` file first; tokenized/protected files are rejected. In a program, bare `RUN` restarts the program; use it carefully.
 
 ### Examples
 

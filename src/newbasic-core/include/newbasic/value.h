@@ -11,8 +11,8 @@ namespace newbasic {
 class Value {
 public:
   enum class Kind : std::uint8_t {
-    Int,  // int16, -32768..32767
-    Long, // int32
+    Int,  // 32-bit integer, -2147483648..2147483647
+    Long, // 32-bit integer (legacy & suffix; equivalent range to Int)
     Sgl,  // single precision (7 significant display digits)
     Dbl,  // double precision (16 significant display digits)
     Str,  // string (CP437 bytes)
@@ -20,7 +20,7 @@ public:
 
   Value() = default;
 
-  static Value Int(std::int16_t v);
+  static Value Int(std::int32_t v);
   static Value Long(std::int32_t v);
   static Value Sgl(double v);
   static Value Dbl(double v);

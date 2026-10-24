@@ -2,14 +2,41 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstdint>
 
 namespace newbasic {
 namespace {
-constexpr int kMaxLine = 999999;
+constexpr std::int64_t kMaxLine64 = 2147483647;
 } // namespace
 
+bool ParseLineNumberText(const std::string& text, int* out) {
+  if (text.empty())
+    return false;
+  std::int64_t value = 0;
+  for (char c : text) {
+    if (c < '0' || c > '9')
+      return false;
+    value = value * 10 + (c - '0');
+    if (value > kMaxLine64)
+      return false;
+  }
+  *out = static_cast<int>(value);
+  return true;
+}
+
+bool LineNumberFromNumber(double value, int* out) {
+  if (!std::isfinite(value) || value < 0.0 || value > static_cast<double>(kMaxLineNumber))
+    return false;
+  const double rounded = value < 0.0 ? -std::floor(-value + 0.5) : std::floor(value + 0.5);
+  if (rounded > static_cast<double>(kMaxLineNumber))
+    return false;
+  *out = static_cast<int>(rounded);
+  return true;
+}
+
 bool LineStore::Add(int line_number, std::string source) {
-  if (line_number < 1 || line_number > kMaxLine)
+  if (line_number < 1 || line_number > kMaxLineNumber)
     return false;
   auto it = std::lower_bound(lines_.begin(), lines_.end(), line_number,
                              [](const SourceLine& l, int n) { return l.line_number < n; });
@@ -71,14 +98,11 @@ bool LineStore::ParseTextBas(const std::string& text, LineStore* store, std::str
       *error_out = "line " + std::to_string(phys) + ": missing line number (direct mode is M1)";
       return false;
     }
-    int num = 0;
-    int digits = 0;
-    while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])) && digits < 6) {
-      num = num * 10 + (line[i] - '0');
+    const std::size_t digits_begin = i;
+    while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i])))
       ++i;
-      ++digits;
-    }
-    if (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i]))) {
+    int num = 0;
+    if (!ParseLineNumberText(line.substr(digits_begin, i - digits_begin), &num)) {
       *error_out = "line " + std::to_string(phys) + ": line number too large";
       return false;
     }

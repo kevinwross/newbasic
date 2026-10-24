@@ -78,6 +78,8 @@ TEST_CASE("Field: MKS$/CVS and MKD$/CVD round-trip", "[field]") {
 TEST_CASE("Field: the conversions are reachable from BASIC", "[field]") {
   CHECK(lwtest::Row0("10 PRINT LEN(MKI$(1));LEN(MKS$(1));LEN(MKD$(1))\n") == " 2  4  8");
   CHECK(lwtest::Row0("10 PRINT CVI(MKI$(1234))\n") == " 1234");
+  // MKI$ is a two-byte field conversion even though % is 32-bit now.
+  CHECK(lwtest::RunErrorCode("10 PRINT MKI$(40000%)\n") == newbasic::kErrOverflow);
   CHECK(lwtest::Row0("10 PRINT CVI(MKI$(-1))\n") == "-1");
   CHECK(lwtest::Row0("10 PRINT CVS(MKS$(1.5))\n") == " 1.5");
   CHECK(lwtest::Row0("10 PRINT CVD(MKD$(1.5))\n") == " 1.5");

@@ -3,9 +3,9 @@
 #include <cmath>
 #include <cstdint>
 
-namespace newbasic::fstok {
+namespace newbasic::mbf {
 
-// Microsoft Binary Format (MBF), the numeric encoding used inside a tokenized
+// Microsoft Binary Format (MBF), the numeric encoding used by the field
 // GW-BASIC program (M4). MBF is *not* IEEE 754: there is an implied leading 1
 // bit, the sign lives in the top bit of the first mantissa byte, the exponent
 // comes first and is biased by 128, and zero is all-zero bytes. No denormals,
@@ -109,4 +109,4 @@ inline double DecodeMbfDouble(const std::uint8_t* in) {
   return static_cast<double>(negative ? -value : value);
 }
 
-} // namespace newbasic::fstok
+} // namespace newbasic::mbf

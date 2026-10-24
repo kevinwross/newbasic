@@ -21,17 +21,19 @@ porting plan is `plan.md`.
 | M1 — lexer, expressions, control flow, REPL | ✅ |
 | M2 — types, arrays, `DEF FN`, `DATA`/`READ`/`RESTORE` | ✅ |
 | M3 — error handling, program files, `SHELL`, sequential file I/O, DOS commands, timer events | ✅ |
-| M4 — tokenized `.BAS` read/write incl. protected files | ✅ (byte-fidelity to Microsoft files unproven) |
+| M4 — tokenized `.BAS` read/write incl. protected files | ❌ removed — text `.BAS` only |
 | M5 — debugger library + `newbasic-dap` | ✅ |
 | M6 — golden corpus, spec-driven conformance | ✅ |
 | M7 — D3D11 window backend, sound, time-travel debugging | ✅ on Windows |
 | Linux port — console, POSIX host, stb glyph atlas, SDL2 window, DAP TCP | ✅ |
 
-All 365 upstream test cases pass on Linux, plus one portability regression case
-(366 total, 31,124 assertions). The Windows D3D11 backend is retained; Linux
-uses SDL2 when it is available and falls back to a terminal-only build
-otherwise. The Windows targets are cross-built in CI and were compiled here
-with LLVM-MinGW, but the MSVC job is the authoritative Windows check.
+The full Catch2 suite passes on Windows and Linux. The Windows D3D11 backend is
+retained; Linux uses SDL2 when it is available and falls back to a terminal-only
+build otherwise. The Windows targets are cross-built in CI and were compiled
+here with LLVM-MinGW, but the MSVC job is the authoritative Windows check.
+
+`%` and `&` are both signed 32-bit integers in this fork. Program files are
+plain-text `.BAS`; the old tokenized/protected formats are rejected.
 
 ## Build
 
@@ -146,12 +148,22 @@ Both use the same platform-neutral extension and locate the platform's
   `TEXTWIDTH`/`TEXTHEIGHT` for `DRAWTEXT` metrics, and `STACK PUSH`/`POP`/`TOP`
   with scalar and whole-array values. These are documented as newbasic
   extensions in the reference manual.
+- **Constants.** `CONST name = literal` declares a read-only global that is
+  initialized before the program starts. Assigning to it is a compile error.
+- **Named labels.** `LABEL name` gives a line a symbolic target for
+  `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are
+  compile-time, RENUM-safe, and documented in the reference manual. They are
+  used by the baslib host API (`GOSUB BlApiCreate`, etc.).
+- **Integer width.** `%` and `&` are both signed 32-bit integers
+  (`-2147483648` to `2147483647`). `MKI$`/`CVI` remain two-byte field
+  conversions by definition. RENUM and line-number references also use the
+  signed 32-bit range.
 - **Reference material.** GW-BASIC is MIT-licensed following Microsoft's
   revision; `GWBASIC.txt` and `docs/gw-basic/` (the chunked User's Guide and
   Reference) are therefore committed and serve as the conformance source.
-- **Format facts were sourced, not guessed** — token values, the MBF numeric
-  encoding, the protected-file transform and the tokenized layout all record
-  their provenance under `docs/`.
+- **Format facts were sourced, not guessed** — the MBF numeric encoding used by
+  `MKS$`/`MKD$` and `CVS`/`CVD` records its provenance under `docs/`. Tokenized
+  program files are no longer supported; `SAVE`/`LOAD` are text-only.
 - **Keywords are whole words.** `TOTAL`, `FORT`, `PRINTX` and `FNA` are valid variable names now;
   only an exact reserved word such as `TO`, `PRINT` or `FN` is a keyword. Run-together forms must be
   spaced: write `FOR I=1 TO 10`, `GOTO 100`, and `IF A THEN 100`, not `FORI=1TO10`, `GOTO100`, or

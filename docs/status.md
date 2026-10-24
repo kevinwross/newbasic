@@ -1,3 +1,5 @@
+> **2026-10-24:** Tokenized and protected program-file support was removed. `SAVE`/`LOAD`/`MERGE` are plain-text only. Historical notes below are retained for provenance.
+
 # Upstream status snapshot — 2026-10-17
 
 > **Port note.** This is the Windows snapshot inherited from upstream `newbasic`.
@@ -182,7 +184,7 @@ date, not estimated.
 | M1 | Lexer, expressions, line store, direct-mode REPL, control flow | ✅ |
 | M2 | Types, arrays, `DEF FN`, `DATA`/`READ`/`RESTORE` | ✅ |
 | M3 | Error handling, plain-text program files, `SHELL`, sequential file I/O, DOS commands, timer events | ✅ |
-| M4 | Tokenized `.BAS` read/write, MBF codec, protected format, `SAVE ,B` / `,P` | ✅ |
+| M4 | Tokenized `.BAS` read/write, MBF codec, protected format, `SAVE ,B` / `,P` | ❌ removed 2026-10-24; text `.BAS` only |
 | M5 | In-process debugger + `newbasic-dap` (framing, JSON, dispatcher, session, executable) | ✅ |
 | M6 | Golden corpus + spec-driven conformance | ✅ (54 conformance assertions across 4 areas; corpus is a living set) |
 | M7 | D3D11 backend, sound, time-travel debugging | ⏳ not started |

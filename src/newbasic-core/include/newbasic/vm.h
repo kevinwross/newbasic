@@ -300,6 +300,12 @@ struct StackTarget {
   int base = 0;             // OPTION BASE at compile time (for a missing array)
 };
 
+struct ConstDef {
+  std::string name; // canonical variable name, including its type suffix
+  Value value;      // already converted to the name's type
+  int line = 0;
+};
+
 class Program {
 public:
   const std::vector<Instr>& Instrs() const { return instrs_; }
@@ -318,6 +324,7 @@ public:
   std::vector<DataItem> data_items_;   // DATA values in program order
   std::map<int, int> line_data_index_; // line with DATA -> first item index
   std::vector<UserFunc> user_funcs_;   // DEF FN definitions
+  std::vector<ConstDef> constants_;    // CONST definitions, initialized before Start
   std::vector<StackSource> stack_sources_; // STACK PUSH source descriptors
   std::vector<StackTarget> stack_targets_; // STACK POP/TOP target descriptors
   // First pc of every statement, ascending: ON ERROR/RESUME work at
@@ -638,6 +645,7 @@ private:
   bool String(const Value& v, std::string* out); // error 13 on numbers
   bool StoreVariable(const std::string& name, const Value& v);
   Value LoadVariable(const std::string& name);
+  bool InitConstants();
   bool EmitValue(const Value& v); // PRINT one value (used by Emit and WRITE)
   bool CallFunction(Func f, int argc);
   bool DoForStart(const Instr& in);
@@ -666,6 +674,7 @@ private:
   std::vector<StackItem> user_stack_;
   std::size_t user_stack_elements_ = 0;
   std::map<std::string, Value> vars_;
+  std::set<std::string> const_names_; // canonical names declared by CONST
   std::map<std::string, ArrayValue> arrays_;
   std::vector<ForFrame> for_stack_;
   std::vector<int> gosub_stack_;

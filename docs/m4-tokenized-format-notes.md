@@ -1,3 +1,5 @@
+> **2026-10-24:** Tokenized and protected program-file support was removed. `SAVE`/`LOAD`/`MERGE` are plain-text only. Historical notes below are retained for provenance.
+
 # M4 notes: the tokenized `.BAS` codec
 
 Status: **partially implemented**. This file records exactly what is done and

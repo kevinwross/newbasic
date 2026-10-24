@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
+#include <vector>
 
 #include "newbasic/host.h"
 #include "test_helpers.h"
@@ -116,13 +117,28 @@ TEST_CASE("Expressions: runtime errors", "[expr][errors]") {
   CHECK(lwtest::RunErrorCode("10 PRINT 1/0\n") == newbasic::kErrDivisionByZero);
   CHECK(lwtest::RunErrorCode("10 PRINT 1+\"A\"\n") == newbasic::kErrTypeMismatch);
   CHECK(lwtest::RunErrorCode("10 A$=1\n") == newbasic::kErrTypeMismatch);
-  CHECK(lwtest::RunErrorCode("10 A%=40000\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::Row0("10 A%=40000\n20 PRINT A%\n") == " 40000");
+  CHECK(lwtest::Row0("10 A&=40000\n20 PRINT A&\n") == " 40000");
+  CHECK(lwtest::Row0("10 A%=2147483647\n20 PRINT A%\n") == " 2147483647");
+  CHECK(lwtest::Row0("10 PRINT CINT(99999)\n") == " 99999");
+  CHECK(lwtest::RunErrorCode("10 A%=2147483648\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::RunErrorCode("10 A&=2147483648\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::RunErrorCode("10 A%=2147483647\n20 A%=A%+1\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::RunErrorCode("10 PRINT CINT(2147483648)\n") == newbasic::kErrOverflow);
+  CHECK(lwtest::Row0("10 DEFINT A\n20 A=40000\n30 PRINT A\n") == " 40000");
+  CHECK(lwtest::Row0("10 PRINT CINT(-2147483648)\n") == "-2147483648");
+  {
+    const std::vector<std::string> rows =
+        lwtest::RunRows("10 FOR I%=2147483646 TO 2147483647\n20 PRINT I%\n30 NEXT\n");
+    REQUIRE(rows.size() >= 2);
+    CHECK(rows[0] == " 2147483646");
+    CHECK(rows[1] == " 2147483647");
+  }
   CHECK(lwtest::RunErrorCode("10 PRINT SQR(-1)\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 PRINT LOG(0)\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 PRINT CHR$(-1)\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 PRINT MID$(\"abc\",0)\n") == newbasic::kErrIllegalFunctionCall);
   CHECK(lwtest::RunErrorCode("10 PRINT LEFT$(\"abc\",-1)\n") == newbasic::kErrIllegalFunctionCall);
-  CHECK(lwtest::RunErrorCode("10 PRINT CINT(99999)\n") == newbasic::kErrOverflow);
   // Errors report the line they occurred in.
   int line = 0;
   CHECK(lwtest::RunErrorCode("10 A=1\n20 PRINT 1/0\n", &line) == newbasic::kErrDivisionByZero);

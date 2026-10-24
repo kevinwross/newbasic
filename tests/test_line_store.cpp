@@ -28,7 +28,10 @@ TEST_CASE("LineStore: ordering, replace, remove", "[line-store]") {
   CHECK_FALSE(store.Remove(10));
 
   CHECK_FALSE(store.Add(0, "x"));
-  CHECK_FALSE(store.Add(1000000, "x"));
+  CHECK(store.Add(newbasic::kMaxLineNumber, "x"));
+  CHECK(store.Remove(newbasic::kMaxLineNumber));
+  CHECK(store.Add(1000000, "x")); // above the old 999999 cap
+  CHECK(store.Remove(1000000));
 }
 
 TEST_CASE("LineStore::ParseTextBas", "[line-store]") {
@@ -65,8 +68,13 @@ TEST_CASE("LineStore::ParseTextBas", "[line-store]") {
   }
   SECTION("line number too large") {
     LineStore t;
-    REQUIRE_FALSE(LineStore::ParseTextBas("1000000 X\n", &t, &error));
+    REQUIRE_FALSE(LineStore::ParseTextBas("2147483648 X\n", &t, &error));
     CHECK(error.find("too large") != std::string::npos);
+  }
+  SECTION("32-bit line number") {
+    LineStore t;
+    REQUIRE(LineStore::ParseTextBas("2147483647 X\n", &t, &error));
+    CHECK(t.Lines()[0].line_number == newbasic::kMaxLineNumber);
   }
 }
 

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include "newbasic/fstok/mbf.h"
+#include "newbasic/mbf.h"
 
 namespace newbasic {
 
@@ -12,7 +12,7 @@ namespace newbasic {
 //   MKI$/CVI  2-byte signed integer, low byte first
 //   MKS$/CVS  4-byte MBF single precision
 //   MKD$/CVD  8-byte MBF double precision
-// Reusing the tokenized-format MBF codec keeps one definition of MBF in the tree.
+// The MBF codec is shared by the numeric field conversions.
 
 inline std::string MkiFromInt(std::int16_t value) {
   std::string out(2, '\0');
@@ -34,27 +34,27 @@ inline bool CviFromString(const std::string& text, std::int16_t* out) {
 
 inline std::string MksFromSingle(double value) {
   std::uint8_t raw[4] = {0, 0, 0, 0};
-  fstok::EncodeMbfSingle(value, raw);
+  mbf::EncodeMbfSingle(value, raw);
   return std::string(reinterpret_cast<const char*>(raw), sizeof(raw));
 }
 
 inline bool CvsFromString(const std::string& text, double* out) {
   if (text.size() != 4)
     return false;
-  *out = fstok::DecodeMbfSingle(reinterpret_cast<const std::uint8_t*>(text.data()));
+  *out = mbf::DecodeMbfSingle(reinterpret_cast<const std::uint8_t*>(text.data()));
   return true;
 }
 
 inline std::string MkdFromDouble(double value) {
   std::uint8_t raw[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  fstok::EncodeMbfDouble(value, raw);
+  mbf::EncodeMbfDouble(value, raw);
   return std::string(reinterpret_cast<const char*>(raw), sizeof(raw));
 }
 
 inline bool CvdFromString(const std::string& text, double* out) {
   if (text.size() != 8)
     return false;
-  *out = fstok::DecodeMbfDouble(reinterpret_cast<const std::uint8_t*>(text.data()));
+  *out = mbf::DecodeMbfDouble(reinterpret_cast<const std::uint8_t*>(text.data()));
   return true;
 }
 

@@ -69,7 +69,7 @@ TEST_CASE("Property: text .BAS round-trips through save and load", "[property][b
            [](const std::vector<std::pair<int, std::string>>& entries) {
              newbasic::LineStore store;
              for (const auto& entry : entries) {
-               if (entry.first < 1 || entry.first > 999999)
+               if (entry.first < 1 || entry.first > newbasic::kMaxLineNumber)
                  continue;
                const std::string source = NormaliseForTextFormat(entry.second);
                if (source.empty())
@@ -93,7 +93,7 @@ TEST_CASE("Property: saved text is always ordered, tabbed and CRLF-terminated", 
            [](const std::vector<std::pair<int, std::string>>& entries) {
              newbasic::LineStore store;
              for (const auto& entry : entries) {
-               if (entry.first < 1 || entry.first > 999999)
+               if (entry.first < 1 || entry.first > newbasic::kMaxLineNumber)
                  continue;
                const std::string source = NormaliseForTextFormat(entry.second);
                if (source.empty())

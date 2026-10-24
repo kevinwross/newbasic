@@ -21,7 +21,7 @@ MERGE filename
 
 | Argument | Required | Description |
 |---|---|---|
-| `filename` | Yes | Text or tokenized program file to merge. |
+| `filename` | Yes | Plain-text `.BAS` program file to merge. |
 
 ### Comments
 
@@ -176,11 +176,14 @@ MKI$(number)
 
 | Argument | Required | Description |
 |---|---|---|
-| `number` | Yes | Numeric value in the integer range. |
+| `number` | Yes | Numeric value in the signed 16-bit range (`-32768` to `32767`). |
 
 ### Comments
 
-`CVI` is the inverse. The string is a binary field representation and may contain non-printable bytes.
+`CVI` is the inverse. `MKI$` is a fixed two-byte field conversion even though
+`%`/`&` variables are signed 32-bit; a value outside the signed 16-bit range
+raises **Overflow**. The string is a binary field representation and may contain
+non-printable bytes.
 
 ### Examples
 

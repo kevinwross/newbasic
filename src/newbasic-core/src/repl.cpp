@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -11,13 +12,18 @@
 #include <vector>
 
 #include "newbasic/errors.h"
-#include "newbasic/fstok/encoder.h"
-#include "newbasic/fstok/protect.h"
 #include "newbasic/host_path.h"
 #include "newbasic/program_files.h"
 #include "newbasic/renum.h"
 
 namespace newbasic {
+namespace {
+
+bool TokenLineNumber(const Token& token, int* out) {
+  return token.kind == Tok::Number && LineNumberFromNumber(token.number.AsNumber(), out);
+}
+
+} // namespace
 
 RunResult Repl::SaveProgramFile(const std::string& path) {
   RunResult result;
@@ -49,32 +55,13 @@ RunResult Repl::LoadProgramFile(const std::string& path) {
   std::ostringstream buffer;
   buffer << in.rdbuf();
   const std::string content = buffer.str();
-  // LOAD auto-detects the format (plan section 4). GW-BASIC writes a
-  // tokenized program with a leading 0xFF, and a protected one with 0xFE;
-  // plain text has neither. (Sourced from the GW-BASIC tokenised program
-  // format description - see docs/m4-tokenized-format-notes.md.)
+  // Text .BAS is the only supported program-file format. Reject the old
+  // tokenized/protected envelopes with a clear error.
   const unsigned char first_byte = content.empty() ? 0u : static_cast<unsigned char>(content[0]);
-  // A protected file is the tokenized format with a 0xFE envelope; unprotect
-  // it first, then it decodes like any other tokenized program.
-  const std::string tokenized_content =
-      first_byte == 0xFE ? fstok::UnprotectTokenized(content) : content;
   if (first_byte == 0xFE || first_byte == 0xFF) {
-    // Tokenized: decode the line records into the same LineStore the text
-    // loader produces, so everything downstream is format-agnostic.
-    std::vector<fstok::DecodedLine> decoded;
-    std::string decode_error;
-    if (!fstok::DecodeTokenized(tokenized_content, &decoded, &decode_error)) {
-      result.status = RunResult::Status::Error;
-      result.code = kErrBadFileMode;
-      result.message = decode_error;
-      return result;
-    }
-    LineStore tokenized;
-    for (const fstok::DecodedLine& line : decoded) {
-      tokenized.Add(line.number, line.source);
-    }
-    store_ = std::move(tokenized);
-    vm_.Reset();
+    result.status = RunResult::Status::Error;
+    result.code = kErrBadFileMode;
+    result.message = "tokenized program files are not supported";
     return result;
   }
   LineStore loaded;
@@ -140,7 +127,12 @@ RunResult Repl::RunProgram(int start_line) {
 bool Repl::HandleRun(const std::vector<Token>& tokens, RunResult* result) {
   int start_line = 0;
   if (tokens.size() > 1 && tokens[1].kind == Tok::Number) {
-    start_line = static_cast<int>(std::lround(tokens[1].number.AsNumber()));
+    if (!TokenLineNumber(tokens[1], &start_line)) {
+      result->status = RunResult::Status::Error;
+      result->code = kErrIllegalFunctionCall;
+      result->message = "Line number out of range";
+      return true;
+    }
   }
   *result = RunProgram(start_line);
   ran_program_ = true;
@@ -160,7 +152,6 @@ void Repl::ListRange(int start, int end, bool have_start, bool have_end) {
 }
 
 bool Repl::HandleList(const std::vector<Token>& tokens, RunResult* result) {
-  (void)result;
   int start = 0;
   int end = 0;
   bool have_start = false;
@@ -171,7 +162,13 @@ bool Repl::HandleList(const std::vector<Token>& tokens, RunResult* result) {
     if (token.kind == Tok::EndOfLine)
       break;
     if (token.kind == Tok::Number) {
-      const int value = static_cast<int>(std::lround(token.number.AsNumber()));
+      int value = 0;
+      if (!TokenLineNumber(token, &value)) {
+        result->status = RunResult::Status::Error;
+        result->code = kErrIllegalFunctionCall;
+        result->message = "Line number out of range";
+        return true;
+      }
       if (!saw_dash && !have_start) {
         start = value;
         have_start = true;
@@ -202,7 +199,13 @@ bool Repl::HandleDelete(const std::vector<Token>& tokens, RunResult* result) {
     if (token.kind == Tok::EndOfLine)
       break;
     if (token.kind == Tok::Number) {
-      const int value = static_cast<int>(std::lround(token.number.AsNumber()));
+      int value = 0;
+      if (!TokenLineNumber(token, &value)) {
+        result->status = RunResult::Status::Error;
+        result->code = kErrIllegalFunctionCall;
+        result->message = "Line number out of range";
+        return true;
+      }
       if (!saw_dash && !have_start) {
         start = value;
         have_start = true;
@@ -227,7 +230,7 @@ bool Repl::HandleDelete(const std::vector<Token>& tokens, RunResult* result) {
   if (!have_start)
     start = 0;
   if (!have_end)
-    end = 999999;
+    end = kMaxLineNumber;
   std::vector<int> doomed;
   for (const SourceLine& line : store_.Lines()) {
     if (line.line_number >= start && line.line_number <= end)
@@ -254,7 +257,13 @@ RunResult Repl::Process(const std::string& line) {
 
   // Numbered line: edit the program.
   if (tokens[0].kind == Tok::Number) {
-    const int number = static_cast<int>(std::lround(tokens[0].number.AsNumber()));
+    int number = 0;
+    if (!TokenLineNumber(tokens[0], &number)) {
+      result.status = RunResult::Status::Error;
+      result.code = kErrSyntax;
+      result.message = "Line number out of range";
+      return result;
+    }
     const std::size_t source_pos =
         tokens.size() > 1 ? static_cast<std::size_t>(tokens[1].pos) : line.size();
     std::string source = source_pos < line.size() ? line.substr(source_pos) : std::string();
@@ -295,48 +304,18 @@ RunResult Repl::Process(const std::string& line) {
         result.message = "Expected a file name";
         return result;
       }
-      // SAVE "file",B writes the tokenized format and "file",P the protected
-      // one; plain text is the default (a deliberate inversion of GW-BASIC,
-      // where ",A" asks for text).
-      bool tokenized = false;
-      bool protected_format = false;
+      // SAVE is text-only. The old ,B (tokenized) and ,P (protected)
+      // modifiers are explicitly rejected instead of being silently ignored.
       for (std::size_t i = 2; i + 1 < tokens.size(); ++i) {
         if (tokens[i].kind != Tok::Op || tokens[i].text != ",")
           continue;
         const std::string& modifier = tokens[i + 1].text;
-        if (modifier == "B" || modifier == "b")
-          tokenized = true;
-        if (modifier == "P" || modifier == "p") {
-          tokenized = true; // the protected form is built on the tokenized one
-          protected_format = true;
-        }
-      }
-      if (tokenized) {
-        std::vector<fstok::DecodedLine> lines;
-        for (const SourceLine& source_line : store_.Lines()) {
-          fstok::DecodedLine decoded;
-          decoded.number = source_line.line_number;
-          decoded.source = source_line.source;
-          lines.push_back(std::move(decoded));
-        }
-        const std::string bytes = protected_format
-                                      ? fstok::ProtectTokenized(fstok::EncodeTokenized(lines))
-                                      : fstok::EncodeTokenized(lines);
-        std::ofstream file(HostPath(tokens[1].str), std::ios::binary | std::ios::trunc);
-        if (!file) {
+        if (modifier == "B" || modifier == "b" || modifier == "P" || modifier == "p") {
           result.status = RunResult::Status::Error;
-          result.code = kErrPathFileAccess;
-          result.message = ErrorMessage(kErrPathFileAccess);
+          result.code = kErrBadFileMode;
+          result.message = "tokenized program files are not supported";
           return result;
         }
-        file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-        if (!file) {
-          result.status = RunResult::Status::Error;
-          result.code = kErrPathFileAccess;
-          result.message = ErrorMessage(kErrPathFileAccess);
-          return result;
-        }
-        return result;
       }
       return SaveProgramFile(tokens[1].str);
     }
@@ -435,8 +414,15 @@ RunResult Repl::Process(const std::string& line) {
         if (tokens[i].kind == Tok::EndOfLine)
           break;
         if (tokens[i].kind == Tok::Number) {
+          int value = 0;
+          if (!TokenLineNumber(tokens[i], &value)) {
+            result.status = RunResult::Status::Error;
+            result.code = kErrIllegalFunctionCall;
+            result.message = "Line number out of range";
+            return result;
+          }
           if (slot < 3)
-            slots[slot] = static_cast<int>(std::lround(tokens[i].number.AsNumber()));
+            slots[slot] = value;
         } else if (tokens[i].kind == Tok::Op && tokens[i].text == ",") {
           if (slot < 3)
             ++slot;
@@ -514,8 +500,15 @@ RunResult Repl::Process(const std::string& line) {
         if (tokens[i].kind == Tok::EndOfLine)
           break;
         if (tokens[i].kind == Tok::Number) {
+          int value = 0;
+          if (!TokenLineNumber(tokens[i], &value)) {
+            result.status = RunResult::Status::Error;
+            result.code = kErrIllegalFunctionCall;
+            result.message = "Line number out of range";
+            return result;
+          }
           if (slot < 2)
-            slots[slot] = static_cast<int>(std::lround(tokens[i].number.AsNumber()));
+            slots[slot] = value;
         } else if (tokens[i].kind == Tok::Op && tokens[i].text == ",") {
           if (slot < 2)
             ++slot;
@@ -526,13 +519,28 @@ RunResult Repl::Process(const std::string& line) {
           return result;
         }
       }
-      const int start =
-          slots[0] >= 0 ? slots[0]
-                        : (store_.Lines().empty() ? 10 : store_.Lines().back().line_number + 10);
+      const std::int64_t start =
+          slots[0] >= 0
+              ? slots[0]
+              : (store_.Lines().empty() ? 10
+                                        : static_cast<std::int64_t>(store_.Lines().back().line_number) +
+                                              10);
+      if (start > kMaxLineNumber) {
+        result.status = RunResult::Status::Error;
+        result.code = kErrIllegalFunctionCall;
+        result.message = "Line number out of range";
+        return result;
+      }
       const int increment = slots[1] > 0 ? slots[1] : 10;
-      int next = start;
+      std::int64_t next = start;
       bool changed = false;
       for (;;) {
+        if (next > kMaxLineNumber) {
+          result.status = RunResult::Status::Error;
+          result.code = kErrIllegalFunctionCall;
+          result.message = "Line number out of range";
+          break;
+        }
         // The generated number is a prompt, not a completed line: keep the caret
         // on it so the user's first character appears immediately after the number.
         screen_.WriteAtCursor(screen::DecodeCp437(std::to_string(next) + " "));
@@ -546,7 +554,7 @@ RunResult Repl::Process(const std::string& line) {
           Process(text);
           break;
         }
-        store_.Add(next, text);
+        store_.Add(static_cast<int>(next), text);
         changed = true;
         next += increment;
       }

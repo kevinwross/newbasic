@@ -4,17 +4,17 @@
 ## SAVE Command
 
 **Type:** Command  
-**Status:** Supported  
+**Status:** Supported (text only)  
 **See also:** `LOAD`, `MERGE`
 
 ### Purpose
 
-Saves the stored program to disk.
+Saves the stored program to disk as plain text.
 
 ### Syntax
 
 ```basic
-SAVE filename [, A|B|P]
+SAVE filename [, A]
 ```
 
 ### Arguments
@@ -22,19 +22,19 @@ SAVE filename [, A|B|P]
 | Argument | Required | Description |
 |---|---|---|
 | `filename` | Yes | Destination file. |
-| `A` | No | ASCII/plain-text form. This is the default for `SAVE`. |
-| `B` | No | Tokenized GW-BASIC binary form. |
-| `P` | No | Protected tokenized form. |
+| `A` | No | ASCII/plain-text form. This is the only supported form. |
 
 ### Comments
 
-`SAVE` with no modifier writes plain text, a deliberate inversion of GW-BASIC’s default. `SAVE ,B` and `SAVE ,P` write binary forms. Protected-file byte fidelity with Microsoft files is not proven.
+`SAVE` writes a plain-text `.BAS` file. The old `,B` (tokenized) and `,P`
+(protected) forms are no longer supported and report **Bad file mode**.
+Line numbers in the text file are signed 32-bit values.
 
 ### Examples
 
 ```text
 SAVE "HELLO.BAS"
-SAVE "HELLO.BAS", B
+SAVE "HELLO.BAS", A
 ```
 
 <a id="screen-function"></a>

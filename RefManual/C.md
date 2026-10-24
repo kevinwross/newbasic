@@ -194,7 +194,7 @@ CINT(number)
 
 ### Comments
 
-Fractions are rounded to the nearest integer. Values outside the integer range can raise **Overflow**.
+Fractions are rounded to the nearest integer. The result is a signed 32-bit integer (`-2147483648` to `2147483647`). Values outside that range raise **Overflow**.
 
 ### Examples
 
@@ -523,6 +523,81 @@ Scalar `COMMON` works. `COMMON` of arrays raises **Advanced Feature**. The carri
 10 COMMON TOTAL
 20 TOTAL = 42
 30 CHAIN "PART2.BAS"
+```
+
+<a id="const-statement"></a>
+## CONST Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `LET`, `DEFINT`
+
+### Purpose
+
+Declares a read-only global constant and initializes it before the program
+starts.
+
+### Syntax
+
+```basic
+CONST name = literal
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | Yes | A variable name, optionally with a type suffix. |
+| `literal` | Yes | A number (optionally signed) or a quoted string. No expression. |
+
+### Comments
+
+If the name has no suffix, the suffix is inferred from the literal: an integer
+literal makes a 32-bit integer (`%`), a decimal or `E` exponent makes a single
+(`!`), a `D` exponent or `#` literal makes a double (`#`), and a string makes a
+string (`$`). An
+explicit suffix wins and converts the literal to that type; integer constants
+round and range-check exactly like an assignment.
+
+The value is installed before the first instruction, so a program may read a
+constant textually before its `CONST` line. `CLEAR`, `RUN`, and `LOAD`
+reinitialize the constants the same way.
+
+Constants are read-only. Assigning to one is a compile error, including
+`LET`/implicit assignment, `FOR`, `INPUT`, `READ`, `DIM`, `SWAP`,
+`LSET`/`RSET`, `GET` image arrays, and `STACK POP`/`STACK TOP`. Duplicate
+declarations and type/range/overflow errors are also reported at compile time.
+A different type suffix is a different variable; use the declared spelling.
+
+Put `CONST` at the start of its line so forward references can be collected.
+The declaration itself emits no code and may share its line with other
+statements after a colon. `CONST` is not allowed in direct mode.
+
+### Examples
+
+#### Example 1 — Numeric and string constants
+
+```basic
+10 CONST MAX% = 100
+20 CONST TITLE$ = "COUNT"
+30 PRINT TITLE$; MAX
+40 PRINT ANSWER
+50 CONST ANSWER% = 42
+```
+
+Output:
+
+```text
+COUNT 100
+42
+```
+
+#### Example 2 — Type suffix
+
+```basic
+10 CONST BASE& = 40000
+20 CONST RATE! = 1.5
+30 PRINT BASE&; RATE!
 ```
 
 <a id="cont-command"></a>

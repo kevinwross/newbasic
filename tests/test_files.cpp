@@ -9,8 +9,6 @@
 #include <vector>
 
 #include "newbasic/errors.h"
-#include "newbasic/fstok/encoder.h"
-#include "newbasic/fstok/protect.h"
 #include "newbasic/host_path.h"
 #include "newbasic/repl.h"
 #include "newbasic/screen/headless_screen.h"
@@ -63,89 +61,33 @@ TEST_CASE("Program files: SAVE writes plain text and LOAD reads it back", "[file
   std::remove(kTempFile);
 }
 
-TEST_CASE("Program files: format auto-detection", "[files]") {
+TEST_CASE("Program files: tokenized/protected formats are rejected", "[files]") {
   Session s;
   std::remove(kTempFile);
-  // A leading 0xFE marks a protected program: LOAD unprotects it and runs it.
-  {
-    const std::vector<newbasic::fstok::DecodedLine> lines = {{10, "PRINT \"PROTECTED\""},
-                                                             {20, "END"}};
-    const std::string tokenized = newbasic::fstok::EncodeTokenized(lines);
-    const std::string protected_bytes = newbasic::fstok::ProtectTokenized(tokenized);
-    std::ofstream out(kTempFile, std::ios::binary);
-    out.write(protected_bytes.data(), static_cast<std::streamsize>(protected_bytes.size()));
-  }
-  const newbasic::RunResult protected_file =
-      s.repl.Process("LOAD \"" + std::string(kTempFile) + "\"");
-  CHECK(protected_file.status == newbasic::RunResult::Status::Done);
-  CHECK(s.repl.Store().Size() == 2);
-  s.screen.Clear();
-  CHECK(s.repl.Process("RUN").status == newbasic::RunResult::Status::Done);
-  CHECK(s.screen.RenderRows()[0] == "PROTECTED");
-
-  // A leading 0xFF is a tokenized program: M4 decodes it into the line store.
-  {
-    std::ofstream out(kTempFile, std::ios::binary | std::ios::trunc);
-    const std::vector<newbasic::fstok::DecodedLine> lines = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                             {20, "END"}};
-    const std::string bytes = newbasic::fstok::EncodeTokenized(lines);
-    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-  }
-  const newbasic::RunResult tokenized = s.repl.Process("LOAD \"" + std::string(kTempFile) + "\"");
-  CHECK(tokenized.status == newbasic::RunResult::Status::Done);
-  CHECK(s.repl.Store().Size() == 2);
-  // The decoded program runs like any other.
-  s.screen.Clear();
-  CHECK(s.repl.Process("RUN").status == newbasic::RunResult::Status::Done);
-  CHECK(s.screen.RenderRows()[0] == "FROM TOKENIZED");
-
-  // SAVE "file",B round-trips through the tokenized format: the file it writes
-  // is byte-for-byte the program that was just loaded.
-  std::remove(kTempFile);
-  s.repl.Process("10 PRINT \"FROM TOKENIZED\"");
+  s.repl.Process("10 PRINT \"KEEP\"");
   s.repl.Process("20 END");
-  CHECK(s.repl.Process("SAVE \"" + std::string(kTempFile) + "\",B").status ==
-        newbasic::RunResult::Status::Done);
-  {
-    std::ifstream in(kTempFile, std::ios::binary);
-    std::ostringstream buffer;
-    buffer << in.rdbuf();
-    const std::string written = buffer.str();
-    REQUIRE(!written.empty());
-    CHECK(static_cast<unsigned char>(written[0]) == 0xFF);
-    const std::vector<newbasic::fstok::DecodedLine> expected = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                                {20, "END"}};
-    CHECK(written == newbasic::fstok::EncodeTokenized(expected));
+
+  for (const char envelope : {static_cast<char>(0xFE), static_cast<char>(0xFF)}) {
+    {
+      std::ofstream out(kTempFile, std::ios::binary | std::ios::trunc);
+      out.put(envelope);
+      out << "not a text program";
+    }
+    const newbasic::RunResult loaded =
+        s.repl.Process("LOAD \"" + std::string(kTempFile) + "\"");
+    CHECK(loaded.status == newbasic::RunResult::Status::Error);
+    CHECK(loaded.code == newbasic::kErrBadFileMode);
+    CHECK(loaded.message.find("tokenized") != std::string::npos);
+    CHECK(s.repl.Store().Size() == 2); // failed LOAD left the program intact
   }
-  // SAVE "file",P writes the protected form: the same program with a 0xFE
-  // envelope and the Kocher transform applied.
-  CHECK(s.repl.Process("SAVE \"" + std::string(kTempFile) + "\",P").status ==
-        newbasic::RunResult::Status::Done);
-  {
-    std::ifstream in(kTempFile, std::ios::binary);
-    std::ostringstream buffer;
-    buffer << in.rdbuf();
-    const std::string written = buffer.str();
-    REQUIRE(!written.empty());
-    CHECK(static_cast<unsigned char>(written[0]) == 0xFE);
-    const std::vector<newbasic::fstok::DecodedLine> expected = {{10, "PRINT \"FROM TOKENIZED\""},
-                                                                {20, "END"}};
-    CHECK(newbasic::fstok::UnprotectTokenized(written) ==
-          newbasic::fstok::EncodeTokenized(expected));
+
+  for (const char* modifier : {",B", ",P"}) {
+    const newbasic::RunResult saved =
+        s.repl.Process("SAVE \"" + std::string(kTempFile) + "\"" + modifier);
+    CHECK(saved.status == newbasic::RunResult::Status::Error);
+    CHECK(saved.code == newbasic::kErrBadFileMode);
+    CHECK(saved.message.find("tokenized") != std::string::npos);
   }
-  // And the protected file loads back as the same program.
-  CHECK(s.repl.Process("NEW").status == newbasic::RunResult::Status::Done);
-  CHECK(s.repl.Process("LOAD \"" + std::string(kTempFile) + "\"").status ==
-        newbasic::RunResult::Status::Done);
-  s.screen.Clear();
-  CHECK(s.repl.Process("RUN").status == newbasic::RunResult::Status::Done);
-  CHECK(s.screen.RenderRows()[0] == "FROM TOKENIZED");
-  // And it loads back as the same program.
-  CHECK(s.repl.Process("NEW").status == newbasic::RunResult::Status::Done);
-  CHECK(s.repl.Process("LOAD \"" + std::string(kTempFile) + "\"").status ==
-        newbasic::RunResult::Status::Done);
-  CHECK(s.repl.Store().Size() == 2);
-  std::remove(kTempFile);
 
   // An empty file is a valid (empty) text program.
   {

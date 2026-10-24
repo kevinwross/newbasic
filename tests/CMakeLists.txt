@@ -8,6 +8,7 @@ add_executable(newbasic-tests
   test_statements.cpp
   test_arrays.cpp
   test_data.cpp
+  test_const.cpp
   test_userfuncs.cpp
   test_errors.cpp
   test_files.cpp
@@ -17,9 +18,6 @@ add_executable(newbasic-tests
   test_dap_json.cpp
   test_dap_handler.cpp
   test_dap_session.cpp
-  test_fstok_tokens.cpp
-  test_fstok_codec.cpp
-  test_fstok_properties.cpp
   test_robustness.cpp
   test_debugger.cpp
   test_repl.cpp
@@ -32,6 +30,7 @@ add_executable(newbasic-tests
   test_program_control.cpp
   test_chaining.cpp
   test_inventory.cpp
+  test_labels.cpp
   test_renum.cpp
   test_printer.cpp
   test_graphics.cpp

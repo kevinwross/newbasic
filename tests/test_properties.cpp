@@ -73,7 +73,7 @@ TEST_CASE("Property: LineStore stays sorted and unique under arbitrary ops", "[p
              const std::size_t n = std::min(numbers.size(), add.size());
              for (std::size_t i = 0; i < n; ++i) {
                const int line = numbers[i];
-               if (line < 1 || line > 999999)
+               if (line < 1 || line > newbasic::kMaxLineNumber)
                  continue;
                if (add[i]) {
                  store.Add(line, "S");

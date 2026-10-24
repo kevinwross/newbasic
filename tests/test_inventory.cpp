@@ -46,6 +46,8 @@ const char* const kImplemented[] = {
     "SLEEP",
     "PUSH",
     "POP",
+    "LABEL",
+    "CONST",
     "STACK",
     // Graphics: phases 1 to 3.
     "SCREEN",

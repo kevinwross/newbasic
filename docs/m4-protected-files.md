@@ -1,3 +1,5 @@
+> **2026-10-24:** Tokenized and protected program-file support was removed. `SAVE`/`LOAD`/`MERGE` are plain-text only. Historical notes below are retained for provenance.
+
 # M4 notes: protected `.BAS` files (the `0xFE` format)
 
 Collected in round 49 from PC-BASIC's `protect.py` (GPL-3.0), which cites Paul

@@ -2,11 +2,8 @@
 
 #include <fstream>
 #include <sstream>
-#include <vector>
 
 #include "newbasic/errors.h"
-#include "newbasic/fstok/codec.h"
-#include "newbasic/fstok/protect.h"
 #include "newbasic/host_path.h"
 #include "newbasic/line_store.h"
 
@@ -28,23 +25,13 @@ bool LoadProgramFromFile(const std::string& path, LineStore* store, int* error_c
 
   const unsigned char first_byte = content.empty() ? 0u : static_cast<unsigned char>(content[0]);
   if (first_byte == 0xFE || first_byte == 0xFF) {
-    // A protected file is the tokenized format in a 0xFE envelope: unprotect it,
-    // then decode like any other tokenized program.
-    const std::string tokenized = first_byte == 0xFE ? fstok::UnprotectTokenized(content) : content;
-    std::vector<fstok::DecodedLine> decoded;
-    std::string decode_error;
-    if (!fstok::DecodeTokenized(tokenized, &decoded, &decode_error)) {
-      if (error_code != nullptr)
-        *error_code = kErrBadFileMode;
-      if (error != nullptr)
-        *error = decode_error;
-      return false;
-    }
-    LineStore loaded;
-    for (const fstok::DecodedLine& line : decoded)
-      loaded.Add(line.number, line.source);
-    *store = std::move(loaded);
-    return true;
+    // Tokenized/protected program files were removed. Text .BAS is the only
+    // supported program-file format.
+    if (error_code != nullptr)
+      *error_code = kErrBadFileMode;
+    if (error != nullptr)
+      *error = "tokenized program files are not supported";
+    return false;
   }
 
   LineStore loaded;

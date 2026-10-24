@@ -19,6 +19,8 @@ TEST_CASE("FormatNumber: integers", "[format]") {
   CHECK(newbasic::FormatNumber(Value::Int(0)) == " 0");
   CHECK(newbasic::FormatNumber(Value::Int(32767)) == " 32767");
   CHECK(newbasic::FormatNumber(Value::Int(-32768)) == "-32768");
+  CHECK(newbasic::FormatNumber(Value::Int(2147483647)) == " 2147483647");
+  CHECK(newbasic::FormatNumber(Value::Int(-2147483647 - 1)) == "-2147483648");
   CHECK(newbasic::FormatNumber(Value::Long(123456)) == " 123456");
   CHECK(newbasic::FormatNumber(Value::Long(-999999)) == "-999999");
   CHECK(newbasic::FormatNumber(Value::Long(0)) == " 0");

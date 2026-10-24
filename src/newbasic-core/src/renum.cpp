@@ -1,6 +1,7 @@
 #include "newbasic/renum.h"
 
 #include <cctype>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,7 +12,7 @@
 namespace newbasic {
 namespace {
 
-constexpr int kMaxLine = 65529;
+constexpr int kMaxLine = kMaxLineNumber;
 
 std::string Upper(const std::string& text) {
   std::string out = text;
@@ -37,7 +38,7 @@ bool ExpectsLineNumber(const std::string& word) {
 // skipped so that PRINT "GOTO 100" and REM GOTO 100 are left alone. When `map`
 // lacks a line, the number is left untouched and *undefined is set to it.
 std::string RewriteReferences(const std::string& source, const std::map<int, int>& map,
-                              int* undefined) {
+                              int* undefined, std::string* undefined_text) {
   std::string out;
   out.reserve(source.size());
   bool expect_line = false;
@@ -76,14 +77,24 @@ std::string RewriteReferences(const std::string& source, const std::map<int, int
         ++i;
       const std::string digits = source.substr(start, i - start);
       if (expect_line) {
-        const int number = std::stoi(digits);
-        const auto found = map.find(number);
-        if (found != map.end()) {
-          out += std::to_string(found->second);
-        } else {
+        int number = 0;
+        if (!ParseLineNumberText(digits, &number)) {
           out += digits;
           if (undefined != nullptr)
-            *undefined = number;
+            *undefined = -1;
+          if (undefined_text != nullptr)
+            *undefined_text = digits;
+        } else {
+          const auto found = map.find(number);
+          if (found != map.end()) {
+            out += std::to_string(found->second);
+          } else {
+            out += digits;
+            if (undefined != nullptr)
+              *undefined = number;
+            if (undefined_text != nullptr)
+              *undefined_text = digits;
+          }
         }
         // A comma continues a list (ON n GOTO 100,200); anything else ends it.
         expect_line = i < source.size() && source[i] == ',';
@@ -115,16 +126,17 @@ RenumOutcome RenumberProgram(LineStore* store, int new_start, int old_start, int
     outcome.message = "no program";
     return outcome;
   }
-  if (increment < 1 || new_start < 0 || new_start > kMaxLine || old_start < 0) {
+  if (increment < 1 || new_start < 1 || new_start > kMaxLine || old_start < 0) {
     outcome.ok = false;
     outcome.error_code = kErrIllegalFunctionCall;
     outcome.message = "invalid RENUM arguments";
     return outcome;
   }
 
-  // Assign new numbers to the lines from old_start upward, in order.
+  // Assign new numbers to the lines from old_start upward, in order. Use a
+  // wider temporary so a valid 32-bit start plus an increment cannot wrap.
   std::map<int, int> map;
-  int next = new_start;
+  std::int64_t next = new_start;
   int last_kept = -1;
   std::vector<SourceLine> kept;
   std::vector<SourceLine> moving;
@@ -136,10 +148,10 @@ RenumOutcome RenumberProgram(LineStore* store, int new_start, int old_start, int
       if (next > kMaxLine) {
         outcome.ok = false;
         outcome.error_code = kErrIllegalFunctionCall;
-        outcome.message = "line number above 65529";
+        outcome.message = "line number above 2147483647";
         return outcome;
       }
-      map[line.line_number] = next;
+      map[line.line_number] = static_cast<int>(next);
       moving.push_back(line);
       next += increment;
     }
@@ -155,16 +167,19 @@ RenumOutcome RenumberProgram(LineStore* store, int new_start, int old_start, int
   // Rewrite references in every line, including the ones keeping their numbers.
   LineStore rebuilt;
   int undefined = 0;
+  std::string undefined_text;
   for (const SourceLine& line : kept) {
-    rebuilt.Add(line.line_number, RewriteReferences(line.source, map, &undefined));
+    rebuilt.Add(line.line_number, RewriteReferences(line.source, map, &undefined, &undefined_text));
   }
   for (const SourceLine& line : moving) {
-    const std::string source = RewriteReferences(line.source, map, &undefined);
+    const std::string source =
+        RewriteReferences(line.source, map, &undefined, &undefined_text);
     rebuilt.Add(map[line.line_number], source);
   }
   if (undefined != 0) {
     outcome.warned = true;
-    outcome.message = "Undefined line " + std::to_string(undefined);
+    outcome.message = "Undefined line " +
+                      (undefined_text.empty() ? std::to_string(undefined) : undefined_text);
   }
   *store = std::move(rebuilt);
   return outcome;
