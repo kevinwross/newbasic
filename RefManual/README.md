@@ -113,7 +113,7 @@ These differences cut across entries rather than belonging to one keyword. Follo
 | Machine memory and ports | [PEEK](P.md#peek-function), [POKE](P.md#poke-statement), [INP](I.md#inp-function), [OUT](O.md#out-statement), [WAIT](W.md#wait-statement), [DEF SEG](D.md#def-seg-statement), [CALL](C.md#call-statement), [USR](U.md#usr-function), `VARPTR`/`VARPTR$`, and [FRE](F.md#fre-function) are refused. |
 | Devices and events | No serial port, joystick, light pen, cassette, or note queue. [ON TIMER](O.md#on-timern-statement) works because the clock is portable. [PLAY](P.md#play-statement) and [SOUND](S.md#sound-statement) are synchronous. |
 | Keyboard | The [KEY](K.md#key-statement) family and function-key traps are removed. [INKEY$](I.md#inkey-function) returns characters and arrow-key codes, but does not deliver function keys. |
-| Screen and graphics | Graphics drawing is supported. [SCREEN](S.md#screen-statement) accepts 0–13 plus the 720 extension. The `SCREEN` function (text-buffer read) is absent, [WIDTH](W.md#width-statement) does not resize the physical window, and [VIEW PRINT](V.md#view-print-statement) defaults to the whole grid. |
+| Screen and graphics | Graphics drawing is supported, including the newbasic [DRAWTEXT](D.md#drawtext-statement) canvas-text extension. [SCREEN](S.md#screen-statement) accepts 0–13 plus the 720 extension. The `SCREEN` function (text-buffer read) is absent, [WIDTH](W.md#width-statement) does not resize the physical window, and [VIEW PRINT](V.md#view-print-statement) defaults to the whole grid. |
 | Program editing | [EDIT](E.md#edit-command) has no screen editor. The recommended editor is VS Code with the extension in [`editors/vscode`](../editors/vscode/README.md), which adds launch and debug; `LIST`, `DELETE`, `RENUM`, and `MERGE` remain for direct line operations. |
 | Environment | [ENVIRON$](E.md#environ-function) is read-only; [ENVIRON](E.md#environ-statement) is refused so a program cannot change the host environment. |
 | Host commands and paths | [SHELL](S.md#shell-statement) runs the host shell (`cmd.exe` on Windows, `$SHELL` on POSIX). DOS path separators are translated on POSIX; Linux file names remain case-sensitive. |
@@ -226,6 +226,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [DELETE Command](D.md#delete-command) | Command | Direct mode only |
 | [DIM Statement](D.md#dim-statement) | Statement | Supported |
 | [DRAW Statement](D.md#draw-statement) | Statement | Supported |
+| [DRAWTEXT Statement](D.md#drawtext-statement) | Statement | Supported |
 | [EDIT Command](E.md#edit-command) | Command | Not supported in newbasic |
 | [END Statement](E.md#end-statement) | Statement | Supported |
 | [ENVIRON Statement](E.md#environ-statement) | Statement | Not supported in newbasic |
@@ -286,6 +287,14 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [MKI$ Function](M.md#mki-function) | Function | Supported |
 | [MKS$ Function](M.md#mks-function) | Function | Supported |
 | [MOTOR Statement](M.md#motor-statement) | Statement | Not supported in newbasic |
+| [MOUSE Function](M.md#mouse-function) | Function | Supported (newbasic extension) |
+| [MOUSEB Function](M.md#mouseb-function) | Function | Supported (newbasic extension) |
+| [MOUSEBUTTONS Function](M.md#mousebuttons-function) | Function | Supported (newbasic extension) |
+| [MOUSEPOSX Function](M.md#mouseposx-function) | Function | Supported (newbasic extension) |
+| [MOUSEPOSY Function](M.md#mouseposy-function) | Function | Supported (newbasic extension) |
+| [MOUSEWHEEL Function](M.md#mousewheel-function) | Function | Supported (newbasic extension) |
+| [MOUSEX Function](M.md#mousex-function) | Function | Supported (newbasic extension) |
+| [MOUSEY Function](M.md#mousey-function) | Function | Supported (newbasic extension) |
 | [NAME Command](N.md#name-command) | Command | Direct mode only |
 | [NEW Command](N.md#new-command) | Command | Direct mode only |
 | [NEXT Statement](N.md#next-statement) | Statement | Supported |
@@ -315,6 +324,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [PMAP Function](P.md#pmap-function) | Function | Supported |
 | [POINT Function](P.md#point-function) | Function | Supported |
 | [POKE Statement](P.md#poke-statement) | Statement | Not supported in newbasic |
+| [POP VIEW Statement](P.md#pop-view-statement) | Statement | Supported (newbasic extension) |
 | [POS Function](P.md#pos-function) | Function | Supported |
 | [PRESET Statement](P.md#preset-statement) | Statement | Supported |
 | [PRINT Statement](P.md#print-statement) | Statement | Supported |
@@ -322,6 +332,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [PRINT# Statement](P.md#print-statement-2) | Statement | Supported |
 | [PRINT# USING Statement](P.md#print-using-statement-2) | Statement | Supported |
 | [PSET Statement](P.md#pset-statement) | Statement | Supported |
+| [PUSH VIEW Statement](P.md#push-view-statement) | Statement | Supported (newbasic extension) |
 | [PUT Statement](P.md#put-statement) | Statement | Supported |
 | [RANDOMIZE Statement](R.md#randomize-statement) | Statement | Supported |
 | [READ Statement](R.md#read-statement) | Statement | Supported |
@@ -339,13 +350,18 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [SAVE Command](S.md#save-command) | Command | Supported |
 | [SCREEN Function](S.md#screen-function) | Function | Not supported in newbasic |
 | [SCREEN Statement](S.md#screen-statement) | Statement | Supported |
+| [SCREENH Function](S.md#screenh-function) | Function | Supported (newbasic extension) |
+| [SCREENW Function](S.md#screenw-function) | Function | Supported (newbasic extension) |
+| [SELECT CASE Statement](S.md#select-case-statement) | Statement | Supported (newbasic extension) |
 | [SGN Function](S.md#sgn-function) | Function | Supported |
 | [SHELL Statement](S.md#shell-statement) | Statement | Supported |
 | [SIN Function](S.md#sin-function) | Function | Supported |
+| [SLEEP Statement](S.md#sleep-statement) | Statement | Supported (newbasic extension) |
 | [SOUND Statement](S.md#sound-statement) | Statement | Supported |
 | [SPACE$ Function](S.md#space-function) | Function | Supported |
 | [SPC Function](S.md#spc-function) | Function | Supported in PRINT only |
 | [SQR Function](S.md#sqr-function) | Function | Supported |
+| [STACK Statement](S.md#stack-statement) | Statement | Supported |
 | [STICK Function](S.md#stick-function) | Function | Not supported in newbasic |
 | [STOP Statement](S.md#stop-statement) | Statement | Supported |
 | [STR$ Function](S.md#str-function) | Function | Supported |
@@ -356,6 +372,8 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [SYSTEM Command](S.md#system-command) | Command | Direct mode only |
 | [TAB Function](T.md#tab-function) | Function | Supported in PRINT only |
 | [TAN Function](T.md#tan-function) | Function | Supported |
+| [TEXTHEIGHT Function](T.md#textheight-function) | Function | Supported (newbasic extension) |
+| [TEXTWIDTH Function](T.md#textwidth-function) | Function | Supported (newbasic extension) |
 | [TIME$ Function](T.md#time-function) | Function | Supported |
 | [TIMER Function](T.md#timer-function) | Function | Supported |
 | [TIMER Statement](T.md#timer-statement) | Statement | Supported |
@@ -368,6 +386,10 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [VARPTR$ Function](V.md#varptr-function-2) | Function | Not supported in newbasic |
 | [VIEW PRINT Statement](V.md#view-print-statement) | Statement | Supported |
 | [VIEW Statement](V.md#view-statement) | Statement | Supported |
+| [VIEWX1 Function](V.md#viewx1-function) | Function | Supported (newbasic extension) |
+| [VIEWX2 Function](V.md#viewx2-function) | Function | Supported (newbasic extension) |
+| [VIEWY1 Function](V.md#viewy1-function) | Function | Supported (newbasic extension) |
+| [VIEWY2 Function](V.md#viewy2-function) | Function | Supported (newbasic extension) |
 | [WAIT Statement](W.md#wait-statement) | Statement | Not supported in newbasic |
 | [WEND Statement](W.md#wend-statement) | Statement | Supported |
 | [WHILE Statement](W.md#while-statement) | Statement | Supported |

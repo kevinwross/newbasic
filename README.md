@@ -139,6 +139,13 @@ Both use the same platform-neutral extension and locate the platform's
 
 ## Notes
 
+- **Language extensions.** In addition to the GW-BASIC surface, newbasic supports
+  `DRAWTEXT`, computed `GOTO`/`GOSUB` targets, `SELECT CASE`, `SLEEP`, `SCREENW`/`SCREENH`,
+  viewport queries with `PUSH VIEW`/`POP VIEW`, live mouse state
+  (`MOUSEPOSX`/`MOUSEPOSY`/`MOUSEBUTTONS`/`MOUSEWHEEL`),
+  `TEXTWIDTH`/`TEXTHEIGHT` for `DRAWTEXT` metrics, and `STACK PUSH`/`POP`/`TOP`
+  with scalar and whole-array values. These are documented as newbasic
+  extensions in the reference manual.
 - **Reference material.** GW-BASIC is MIT-licensed following Microsoft's
   revision; `GWBASIC.txt` and `docs/gw-basic/` (the chunked User's Guide and
   Reference) are therefore committed and serve as the conformance source.

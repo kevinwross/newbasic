@@ -60,6 +60,7 @@ enum ErrorCode : int {
   kErrRenameAcrossDisks = 74,
   kErrPathFileAccess = 75,
   kErrPathNotFound = 76,
+  kErrStackEmpty = 77, // newbasic extension: STACK POP/TOP target list too short
 };
 
 // Message text for a code ("Syntax error", "Division by zero", ...).

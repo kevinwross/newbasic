@@ -79,6 +79,90 @@ Output:
  0
 ```
 
+<a id="textheight-function"></a>
+## TEXTHEIGHT Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `TEXTWIDTH`, `DRAWTEXT`
+
+### Purpose
+
+Returns the pixel height that `DRAWTEXT` would use for a string.
+
+### Syntax
+
+```basic
+TEXTHEIGHT(text$[, size])
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `text$` | Yes | CP437 text. |
+| `size` | No | Glyph scale 1–8. Default `1`. |
+
+### Comments
+
+The height is the number of lines multiplied by `16 * size`. `CHR$(13)`, `CHR$(10)`, and CRLF each start a new line. The empty string returns `0`. An invalid size raises **Illegal function call**. The function measures; it does not draw.
+
+### Examples
+
+```basic
+10 PRINT TEXTHEIGHT("A" + CHR$(13) + "B")
+20 END
+```
+
+Output:
+
+```text
+ 32
+```
+
+<a id="textwidth-function"></a>
+## TEXTWIDTH Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `TEXTHEIGHT`, `DRAWTEXT`
+
+### Purpose
+
+Returns the pixel width of the widest line in a string when drawn by `DRAWTEXT`.
+
+### Syntax
+
+```basic
+TEXTWIDTH(text$[, size])
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `text$` | Yes | CP437 text. |
+| `size` | No | Glyph scale 1–8. Default `1`. |
+
+### Comments
+
+The width is the longest line's character count multiplied by `8 * size`. CR, LF, and CRLF start a new line. The empty string returns `0`. An invalid size raises **Illegal function call**. The function measures; it does not draw.
+
+### Examples
+
+```basic
+10 PRINT TEXTWIDTH("HELLO")
+20 PRINT TEXTWIDTH("A" + CHR$(13) + "BBB")
+30 END
+```
+
+Output:
+
+```text
+ 40
+ 24
+```
+
 <a id="time-function"></a>
 ## TIME$ Function
 

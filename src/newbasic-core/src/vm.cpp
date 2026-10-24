@@ -11,6 +11,7 @@
 #include <limits>
 #include <random>
 
+#include "cp437_font8x16.h"
 #include "newbasic/errors.h"
 #include "newbasic/field.h"
 #include "newbasic/frontend.h"
@@ -28,6 +29,40 @@ namespace {
 constexpr std::uint32_t kDefaultSeed = 0x5A17u;
 
 constexpr std::size_t kMaxStringLength = 255; // GW-BASIC string limit
+// User-visible STACK values. A runaway PUSH loop should report Out of memory
+// rather than exhausting the host. Arrays count their elements against the same
+// budget, so one huge array cannot bypass the scalar limit.
+constexpr std::size_t kMaxUserStack = 1'000'000;
+constexpr std::size_t kMaxStackElements = 1'000'000;
+
+// DRAWTEXT's line rules: CR, LF, or CRLF starts a new line. TEXTWIDTH reports
+// the widest line and TEXTHEIGHT the number of lines, both in pixels.
+struct Cp437TextMetrics {
+  int max_chars = 0;
+  int lines = 0;
+};
+
+Cp437TextMetrics MeasureCp437Text(const std::string& text) {
+  Cp437TextMetrics metrics;
+  if (text.empty())
+    return metrics;
+  metrics.lines = 1;
+  int chars = 0;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const unsigned char ch = static_cast<unsigned char>(text[i]);
+    if (ch == '\r' || ch == '\n') {
+      metrics.max_chars = std::max(metrics.max_chars, chars);
+      chars = 0;
+      ++metrics.lines;
+      if (ch == '\r' && i + 1 < text.size() && text[i + 1] == '\n')
+        ++i;
+      continue;
+    }
+    ++chars;
+  }
+  metrics.max_chars = std::max(metrics.max_chars, chars);
+  return metrics;
+}
 
 Value::Kind PromoteKind(Value::Kind a, Value::Kind b) {
   if (a == Value::Kind::Dbl || b == Value::Kind::Dbl)
@@ -223,6 +258,30 @@ const char* FuncName(Func f) {
     return "TIME$";
   case Func::Timer:
     return "TIMER";
+  case Func::TextWidth:
+    return "TEXTWIDTH";
+  case Func::TextHeight:
+    return "TEXTHEIGHT";
+  case Func::MousePosX:
+    return "MOUSEPOSX";
+  case Func::MousePosY:
+    return "MOUSEPOSY";
+  case Func::MouseButtons:
+    return "MOUSEBUTTONS";
+  case Func::MouseWheel:
+    return "MOUSEWHEEL";
+  case Func::ScreenWidth:
+    return "SCREENW";
+  case Func::ScreenHeight:
+    return "SCREENH";
+  case Func::ViewX1:
+    return "VIEWX1";
+  case Func::ViewY1:
+    return "VIEWY1";
+  case Func::ViewX2:
+    return "VIEWX2";
+  case Func::ViewY2:
+    return "VIEWY2";
   case Func::Err:
     return "ERR";
   case Func::Eof:
@@ -295,11 +354,23 @@ int FuncArity(Func f) {
   case Func::Inkey:
   case Func::Time:
   case Func::Timer:
+  case Func::MousePosX:
+  case Func::MousePosY:
+  case Func::MouseButtons:
+  case Func::MouseWheel:
+  case Func::ScreenWidth:
+  case Func::ScreenHeight:
+  case Func::ViewX1:
+  case Func::ViewY1:
+  case Func::ViewX2:
+  case Func::ViewY2:
     return 0;
-  case Func::Instr: // INSTR([start,] haystack, needle)
-  case Func::Mid:   // MID$(s, start[, length])
-  case Func::Rnd:   // RND[(n)]
-  case Func::Point: // POINT(x,y) or POINT(n)
+  case Func::Instr:      // INSTR([start,] haystack, needle)
+  case Func::Mid:        // MID$(s, start[, length])
+  case Func::Rnd:        // RND[(n)]
+  case Func::Point:      // POINT(x,y) or POINT(n)
+  case Func::TextWidth:  // TEXTWIDTH(text$[, size])
+  case Func::TextHeight: // TEXTHEIGHT(text$[, size])
     return -1;
   case Func::Mouse: // MOUSE(n): 0 button, 1 x, 2 y
     return 1;
@@ -399,6 +470,16 @@ void Vm::MapGraphicsPoint(double x, double y, int* sx, int* sy) const {
                                  : static_cast<int>(std::lround((1.0 - ny) * (height - 1.0))));
 }
 
+bool Vm::LeavesSelect(int target_pc) const {
+  if (select_stack_.empty())
+    return false;
+  const std::optional<int> target_line = program_.LineForPc(target_pc);
+  if (!target_line)
+    return true;
+  const SelectFrame& frame = select_stack_.back();
+  return *target_line < frame.start_line || *target_line > frame.end_line;
+}
+
 void Vm::Load(Program program) {
   CloseAllFiles();
   program_ = std::move(program);
@@ -406,6 +487,8 @@ void Vm::Load(Program program) {
   stack_.clear();
   for_stack_.clear();
   gosub_stack_.clear();
+  select_stack_.clear();
+  view_stack_.clear();
   func_stack_.clear();
   data_index_ = 0;
   ResetPrintState();
@@ -419,8 +502,12 @@ void Vm::ClearState() {
   vars_.clear();
   arrays_.clear();
   stack_.clear();
+  user_stack_.clear();
+  user_stack_elements_ = 0;
   for_stack_.clear();
   gosub_stack_.clear();
+  select_stack_.clear();
+  view_stack_.clear();
   func_stack_.clear();
   data_index_ = 0;
   ResetPrintState();
@@ -1032,6 +1119,58 @@ bool Vm::CallFunction(Func f, int argc) {
       Push(Value::Int(static_cast<std::int16_t>(which == 1 ? mouse_x_ : mouse_y_)));
     return true;
   }
+  case Func::TextWidth:
+  case Func::TextHeight: {
+    std::string value;
+    if (!text(0, &value))
+      return false;
+    double scale_arg = 1.0;
+    if (argc > 1 && !numeric(1, &scale_arg))
+      return false;
+    const int scale = static_cast<int>(std::lround(scale_arg));
+    if (scale < 1 || scale > 8)
+      return Fail(kErrIllegalFunctionCall);
+    const Cp437TextMetrics metrics = MeasureCp437Text(value);
+    const int result = f == Func::TextWidth
+                           ? metrics.max_chars * screen::detail::kCp437GlyphWidth * scale
+                           : metrics.lines * screen::detail::kCp437GlyphHeight * scale;
+    Push(Value::Long(result));
+    return true;
+  }
+  case Func::MousePosX:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.MousePositionX())));
+    return true;
+  case Func::MousePosY:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.MousePositionY())));
+    return true;
+  case Func::MouseButtons:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.MouseButtons())));
+    return true;
+  case Func::MouseWheel:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.TakeMouseWheel())));
+    return true;
+  case Func::ScreenWidth:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.Graphics().Width())));
+    return true;
+  case Func::ScreenHeight:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.Graphics().Height())));
+    return true;
+  case Func::ViewX1:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.ViewX())));
+    return true;
+  case Func::ViewY1:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.ViewY())));
+    return true;
+  case Func::ViewX2:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
+                                                  ? -1
+                                                  : screen_.ViewX() + screen_.ViewWidth() - 1)));
+    return true;
+  case Func::ViewY2:
+    Push(Value::Int(static_cast<std::int16_t>(screen_.GraphicsMode() == screen::Screen::kTextMode
+                                                  ? -1
+                                                  : screen_.ViewY() + screen_.ViewHeight() - 1)));
+    return true;
   case Func::Point: {
     // POINT(x,y) reads a pixel's palette index and returns -1 out of range;
     // POINT(n) with one argument returns the current graphics position (0 = x).
@@ -1850,6 +1989,7 @@ bool Vm::StepImpl() {
         return Fail(kErrIllegalFunctionCall);
     }
     screen_.SetGraphicsMode(mode);
+    view_stack_.clear();
     return true;
   }
   case Op::PSet: {
@@ -2070,6 +2210,15 @@ bool Vm::StepImpl() {
     screen_.SetGraphicsViewport(x1, y1, x2, y2, fill, border);
     return true;
   }
+  case Op::PushView:
+    view_stack_.push_back(screen_.SaveGraphicsViewport());
+    break;
+  case Op::PopView:
+    if (view_stack_.empty())
+      return Fail(kErrIllegalFunctionCall, "POP VIEW without PUSH VIEW");
+    screen_.RestoreGraphicsViewport(view_stack_.back());
+    view_stack_.pop_back();
+    break;
   case Op::Window: {
     // WINDOW [(x1,y1)-(x2,y2)], or WINDOW SCREEN (...). No arguments restores plain
     // screen coordinates.
@@ -2114,8 +2263,8 @@ bool Vm::StepImpl() {
         return Fail(kErrIllegalFunctionCall);
       const int max_colour = screen_.IsTrueColourMode() ? 0x3FFFFF : 63;
       for (int i = 0; i < count; ++i) {
-        const int colour =
-            static_cast<int>(std::lround(array->data[static_cast<std::size_t>(offset + i)].AsNumber()));
+        const int colour = static_cast<int>(
+            std::lround(array->data[static_cast<std::size_t>(offset + i)].AsNumber()));
         if (colour == -1)
           continue;
         if (colour < 0 || colour > max_colour)
@@ -2181,6 +2330,48 @@ bool Vm::StepImpl() {
       return Fail(kErrIllegalFunctionCall, error);
     }
     screen_.InvalidateGraphics();
+    return true;
+  }
+  case Op::DrawText: {
+    // DRAWTEXT (x,y), text$ [, colour] [, size]: four-argument form. `in.a` bit 0
+    // means STEP, so the anchor is relative to the last graphics point.
+    const Value size_value = Pop();
+    const Value colour_value = Pop();
+    const Value text_value = Pop();
+    const Value y_value = Pop();
+    const Value x_value = Pop();
+    if (screen_.GraphicsMode() == screen::Screen::kTextMode)
+      return Fail(kErrIllegalFunctionCall, "DRAWTEXT needs a graphics screen");
+    double size_number = 0.0;
+    if (!Number(size_value, &size_number))
+      return false;
+    const int scale = static_cast<int>(std::lround(size_number));
+    if (scale < 1 || scale > 8)
+      return Fail(kErrIllegalFunctionCall, "DRAWTEXT size must be 1 to 8");
+    double colour_number = 0.0;
+    if (!Number(colour_value, &colour_number))
+      return false;
+    const int colour = static_cast<int>(std::lround(colour_number));
+    if (colour < 0 || colour > screen_.MaxColour())
+      return Fail(kErrIllegalFunctionCall);
+    std::string text;
+    if (!String(text_value, &text))
+      return false;
+    double world_x = 0.0;
+    double world_y = 0.0;
+    if (!Number(x_value, &world_x) || !Number(y_value, &world_y))
+      return false;
+    if ((in.a & 1) != 0) { // STEP: relative to the last referenced point
+      world_x += last_x_;
+      world_y += last_y_;
+    }
+    int px = 0;
+    int py = 0;
+    MapGraphicsPoint(world_x, world_y, &px, &py);
+    screen_.DrawGraphicsText(px, py, text, colour, scale);
+    // The text anchor is the last referenced point, so STEP chains predictably.
+    last_x_ = static_cast<int>(std::lround(world_x));
+    last_y_ = static_cast<int>(std::lround(world_y));
     return true;
   }
   case Op::Paint: {
@@ -2272,8 +2463,7 @@ bool Vm::StepImpl() {
     } else {
       screen_.SetColor(7, 0);
       const bool full_window =
-          screen_.TextWindowTop() == 0 &&
-          screen_.TextWindowBottom() == screen_.Height() - 1;
+          screen_.TextWindowTop() == 0 && screen_.TextWindowBottom() == screen_.Height() - 1;
       if (full_window)
         screen_.Clear();
       else
@@ -2360,6 +2550,8 @@ bool Vm::StepImpl() {
     }
     program_ = std::move(loaded);
     stack_.clear();
+    user_stack_.clear();
+    user_stack_elements_ = 0;
     for_stack_.clear();
     gosub_stack_.clear();
     func_stack_.clear();
@@ -2768,11 +2960,44 @@ bool Vm::StepImpl() {
     }
     break;
   }
+  case Op::Sleep: {
+    const Value amount = Pop();
+    double milliseconds = 0.0;
+    if (!Number(amount, &milliseconds))
+      return false;
+    if (milliseconds < 0.0)
+      return Fail(kErrIllegalFunctionCall);
+    host_->SleepMilliseconds(static_cast<int>(std::lround(milliseconds)));
+    break;
+  }
   case Op::Jump:
     if (in.a < 0)
       return Fail(kErrUndefinedLineNumber);
     pc_ = in.a;
     break;
+  case Op::Goto:
+    if (in.a < 0)
+      return Fail(kErrUndefinedLineNumber);
+    if (LeavesSelect(in.a))
+      return Fail(kErrIllegalFunctionCall, "GOTO would leave a SELECT CASE");
+    pc_ = in.a;
+    break;
+  case Op::GotoIndirect: {
+    const Value target_value = Pop();
+    double target_line = 0.0;
+    if (!Number(target_value, &target_line))
+      return false;
+    const long line = std::lround(target_line);
+    if (line < 0)
+      return Fail(kErrUndefinedLineNumber);
+    const auto range = program_.PcRangeForLine(static_cast<int>(line));
+    if (!range)
+      return Fail(kErrUndefinedLineNumber);
+    if (LeavesSelect(range->first))
+      return Fail(kErrIllegalFunctionCall, "GOTO would leave a SELECT CASE");
+    pc_ = range->first;
+    break;
+  }
   case Op::JumpIfFalse: {
     const Value v = Pop();
     double value = 0.0;
@@ -2791,9 +3016,26 @@ bool Vm::StepImpl() {
     gosub_stack_.push_back(pc_);
     pc_ = in.a;
     break;
+  case Op::GosubIndirect: {
+    const Value target_value = Pop();
+    double target_line = 0.0;
+    if (!Number(target_value, &target_line))
+      return false;
+    const long line = std::lround(target_line);
+    if (line < 0)
+      return Fail(kErrUndefinedLineNumber);
+    const auto range = program_.PcRangeForLine(static_cast<int>(line));
+    if (!range)
+      return Fail(kErrUndefinedLineNumber);
+    gosub_stack_.push_back(pc_);
+    pc_ = range->first;
+    break;
+  }
   case Op::Return:
     if (gosub_stack_.empty())
       return Fail(kErrReturnWithoutGosub);
+    if (LeavesSelect(gosub_stack_.back()))
+      return Fail(kErrIllegalFunctionCall, "RETURN would leave a SELECT CASE");
     in_event_ = false; // a timer handler finished
     pc_ = gosub_stack_.back();
     gosub_stack_.pop_back();
@@ -2817,10 +3059,30 @@ bool Vm::StepImpl() {
         return Fail(kErrUndefinedLineNumber);
       if (in.b == 1)
         gosub_stack_.push_back(pc_);
+      else if (LeavesSelect(target))
+        return Fail(kErrIllegalFunctionCall, "GOTO would leave a SELECT CASE");
       pc_ = target;
     }
     break;
   }
+  case Op::SelectPush: {
+    SelectFrame frame;
+    frame.selector = Pop();
+    frame.start_line = in.a;
+    frame.end_line = in.b;
+    select_stack_.push_back(std::move(frame));
+    break;
+  }
+  case Op::SelectLoad:
+    if (select_stack_.empty() || select_stack_.back().start_line != in.a)
+      return Fail(kErrIllegalFunctionCall, "SELECT CASE stack mismatch");
+    Push(select_stack_.back().selector);
+    break;
+  case Op::SelectPop:
+    if (select_stack_.empty() || select_stack_.back().start_line != in.a)
+      return Fail(kErrIllegalFunctionCall, "SELECT CASE stack mismatch");
+    select_stack_.pop_back();
+    break;
   case Op::CallUser: {
     if (in.a < 0 || static_cast<std::size_t>(in.a) >= program_.user_funcs_.size()) {
       return Fail(kErrUndefinedUserFunction);
@@ -3087,6 +3349,173 @@ bool Vm::StepImpl() {
     }
     rng_.seed(static_cast<std::uint32_t>(std::llround(seed_value)));
     break;
+  }
+  case Op::StackPush: {
+    const int start = in.a;
+    const int count = in.b;
+    if (count <= 0)
+      return true;
+    if (start < 0 || static_cast<std::size_t>(start) + static_cast<std::size_t>(count) >
+                         program_.stack_sources_.size()) {
+      return Fail(kErrInternal);
+    }
+    // Build the new entries in source order. Scalar expressions are on the
+    // operand stack in source order; whole arrays are copied by value here.
+    std::vector<StackItem> items(static_cast<std::size_t>(count));
+    for (int i = count - 1; i >= 0; --i) {
+      const StackSource& source =
+          program_.stack_sources_[static_cast<std::size_t>(start + i)];
+      StackItem& item = items[static_cast<std::size_t>(i)];
+      if (source.whole_array) {
+        const ArrayValue* array = FindArray(source.name);
+        if (array == nullptr) {
+          return Fail(kErrSubscriptOutOfRange,
+                      "STACK PUSH " + source.name + "() needs a DIMensioned array");
+        }
+        item.is_array = true;
+        item.array = *array;
+      } else {
+        item.scalar = Pop();
+      }
+    }
+    if (user_stack_.size() + items.size() > kMaxUserStack)
+      return Fail(kErrOutOfMemory);
+    std::size_t added_elements = 0;
+    for (const StackItem& item : items)
+      added_elements += item.Elements();
+    if (user_stack_elements_ + added_elements > kMaxStackElements)
+      return Fail(kErrOutOfMemory);
+    for (StackItem& item : items)
+      user_stack_.push_back(std::move(item));
+    user_stack_elements_ += added_elements;
+    return true;
+  }
+  case Op::StackPop:
+  case Op::StackTop: {
+    const bool pop = in.op == Op::StackPop;
+    const int start = in.a;
+    const int count = in.b;
+    if (start < 0 || count <= 0 ||
+        static_cast<std::size_t>(start) + static_cast<std::size_t>(count) >
+            program_.stack_targets_.size()) {
+      return Fail(kErrInternal);
+    }
+    if (user_stack_.size() < static_cast<std::size_t>(count))
+      return Fail(kErrStackEmpty);
+
+    struct ResolvedTarget {
+      const StackTarget* target = nullptr;
+      std::vector<int> subscripts;
+      ArrayValue* array = nullptr;
+      std::size_t offset = 0;
+      Value value;
+      ArrayValue whole;
+    };
+    std::vector<ResolvedTarget> resolved(static_cast<std::size_t>(count));
+    // Subscripts were compiled in target order, so the last target's subscripts
+    // are on top of the operand stack. Pop them into per-target vectors first.
+    for (int i = count - 1; i >= 0; --i) {
+      const StackTarget& target = program_.stack_targets_[static_cast<std::size_t>(start + i)];
+      ResolvedTarget& item = resolved[static_cast<std::size_t>(i)];
+      item.target = &target;
+      item.subscripts.assign(static_cast<std::size_t>(target.subscripts), 0);
+      for (int subscript = target.subscripts - 1; subscript >= 0; --subscript) {
+        const Value value = Pop();
+        double number = 0.0;
+        if (!Number(value, &number))
+          return false;
+        item.subscripts[static_cast<std::size_t>(subscript)] = static_cast<int>(RoundToInt(number));
+      }
+    }
+
+    std::vector<std::string> created_arrays;
+    const auto cleanup = [&] {
+      for (const std::string& name : created_arrays)
+        arrays_.erase(name);
+    };
+    const std::size_t depth = user_stack_.size();
+    // Preflight every conversion, array lookup and subscript before changing any
+    // variable or removing a value. A failed POP must leave the stack intact.
+    for (int i = 0; i < count; ++i) {
+      ResolvedTarget& item = resolved[static_cast<std::size_t>(i)];
+      const StackTarget& target = *item.target;
+      const StackItem& source = user_stack_[depth - 1 - static_cast<std::size_t>(i)];
+      if (target.whole_array) {
+        if (!source.is_array) {
+          cleanup();
+          return Fail(kErrTypeMismatch);
+        }
+        ArrayValue converted;
+        converted.kind = ArrayKindForName(target.name);
+        converted.base = source.array.base;
+        converted.dims = source.array.dims;
+        converted.data.reserve(source.array.data.size());
+        for (const Value& element : source.array.data) {
+          Value value;
+          if (!ConvertForName(target.name, element, &value)) {
+            cleanup();
+            return false;
+          }
+          converted.data.push_back(std::move(value));
+        }
+        item.whole = std::move(converted);
+        continue;
+      }
+      if (source.is_array) {
+        cleanup();
+        return Fail(kErrTypeMismatch);
+      }
+      Value converted;
+      if (!ConvertForName(target.name, source.scalar, &converted)) {
+        cleanup();
+        return false;
+      }
+      if (!target.array) {
+        item.value = std::move(converted);
+        continue;
+      }
+      ArrayValue* array = FindArray(target.name);
+      if (array == nullptr) {
+        // Auto-dimension at the default size, exactly as an array-element LET would.
+        array = EnsureArray(target.name,
+                            std::vector<int>(static_cast<std::size_t>(target.subscripts), 10),
+                            target.base);
+        if (array == nullptr) {
+          cleanup();
+          return Fail(kErrOutOfMemory);
+        }
+        created_arrays.push_back(target.name);
+      }
+      if (converted.kind() != array->kind) {
+        cleanup();
+        return Fail(kErrTypeMismatch);
+      }
+      if (!ArrayOffset(*array, item.subscripts, &item.offset)) {
+        cleanup();
+        return Fail(kErrSubscriptOutOfRange);
+      }
+      item.array = array;
+      item.value = std::move(converted);
+    }
+
+    // Commit: all targets and values are known to be valid.
+    for (ResolvedTarget& item : resolved) {
+      if (item.target->whole_array) {
+        arrays_[item.target->name] = std::move(item.whole);
+      } else if (item.target->array) {
+        item.array->data[item.offset] = std::move(item.value);
+      } else {
+        vars_[item.target->name] = std::move(item.value);
+      }
+    }
+    if (pop) {
+      std::size_t removed_elements = 0;
+      for (int i = 0; i < count; ++i)
+        removed_elements += user_stack_[depth - 1 - static_cast<std::size_t>(i)].Elements();
+      user_stack_.resize(depth - static_cast<std::size_t>(count));
+      user_stack_elements_ -= removed_elements;
+    }
+    return true;
   }
   case Op::Swap: {
     const std::vector<std::string> names = SplitCommas(in.name);

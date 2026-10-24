@@ -7,6 +7,7 @@
 #include <ctime>
 #include <fstream>
 #include <string>
+#include <thread>
 
 #include "newbasic/host_path.h"
 
@@ -93,6 +94,11 @@ std::vector<std::pair<std::string, std::string>> SystemHost::EnvironmentSnapshot
     result.emplace_back(entry.substr(0, equals), entry.substr(equals + 1));
   }
   return result;
+}
+
+void SystemHost::SleepMilliseconds(int milliseconds) {
+  if (milliseconds > 0)
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 }
 
 void SystemHost::WriteToPrinter(const std::string& text) {

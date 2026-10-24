@@ -412,6 +412,40 @@ POKE address, value
 
 Recognised and refused with **Advanced Feature**. There is no addressable machine memory.
 
+<a id="pop-view-statement"></a>
+## POP VIEW Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `PUSH VIEW`, `VIEW`
+
+### Purpose
+
+Restores the graphics viewport saved by the matching `PUSH VIEW`.
+
+### Syntax
+
+```basic
+POP VIEW
+```
+
+### Comments
+
+`PUSH VIEW` and `POP VIEW` form a stack. `POP VIEW` restores the exact viewport rectangle, fill colour, and clipping state that was current at the matching push. The border is not redrawn; it is a one-shot `VIEW` effect. Popping an empty stack raises **Illegal function call**. The stack is cleared by `SCREEN` and `CLEAR`.
+
+### Examples
+
+#### Example 1 — Temporary viewport
+
+```basic
+10 SCREEN 1
+20 VIEW (10,10)-(100,100)
+30 PUSH VIEW
+40 VIEW (20,20)-(80,80)
+50 POP VIEW
+60 END
+```
+
 <a id="pos-function"></a>
 ## POS Function
 
@@ -699,6 +733,40 @@ PSET [STEP] (x, y) [, colour]
 20 PSET (160,100),2
 30 PRINT POINT(160,100)
 40 END
+```
+
+<a id="push-view-statement"></a>
+## PUSH VIEW Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `POP VIEW`, `VIEW`
+
+### Purpose
+
+Saves the current graphics viewport so it can be restored with `POP VIEW`.
+
+### Syntax
+
+```basic
+PUSH VIEW
+```
+
+### Comments
+
+The saved state includes the viewport rectangle, fill colour, and clipping state. The border is not saved. `PUSH VIEW` may be nested; each `POP VIEW` restores the most recent save. `SCREEN` and `CLEAR` clear the stack.
+
+### Examples
+
+#### Example 1 — Save and restore
+
+```basic
+10 SCREEN 1
+20 VIEW (10,10)-(100,100)
+30 PUSH VIEW
+40 VIEW (20,20)-(80,80)
+50 POP VIEW
+60 END
 ```
 
 <a id="put-statement"></a>

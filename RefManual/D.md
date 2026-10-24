@@ -480,3 +480,72 @@ Commands include `U`, `D`, `L`, `R`, `E`, `F`, `G`, `H`, `M`, `B`, and `N`, with
 30 DRAW "R40 D40 L40 U40"
 40 END
 ```
+
+<a id="drawtext-statement"></a>
+## DRAWTEXT Statement
+
+**Type:** Statement  
+**Status:** Supported  
+**See also:** `PSET`, `LINE`, `DRAW`, `VIEW`, `WINDOW`, `GET`, `PUT`
+
+### Purpose
+
+Draws CP437 text at an arbitrary pixel or world-coordinate anchor on a graphics canvas, independently of the text grid.
+
+### Syntax
+
+```basic
+DRAWTEXT [STEP] (x, y), text$ [, colour] [, size]
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `x`, `y` | Yes | Anchor in graphics coordinates. Under `VIEW` these are relative to the viewport; under `WINDOW` they are world coordinates. |
+| `text$` | Yes | String expression. Each byte is a CP437 glyph. |
+| `colour` | No | Palette index, validated like `PSET`. Default `1`. |
+| `size` | No | Integer glyph scale from `1` to `8`. Default `1`. |
+| `STEP` | No | Makes `(x, y)` relative to the last graphics point. |
+
+### Comments
+
+`DRAWTEXT` is a newbasic extension; GW-BASIC has no equivalent graphics text statement. It uses a built-in 8×16 CP437 bitmap font, so its pixels are deterministic across Windows and Linux. `CHR$` can select any CP437 glyph, including the box-drawing, block, and shade characters.
+
+The anchor is the top-left of the first glyph cell. `CHR$(13)` or `CHR$(10)` starts a new line one glyph height below; a CRLF pair counts as one line break. There is no automatic wrapping or scrolling. Text is clipped to the active graphics `VIEW`; it is not clipped or wrapped by `VIEW PRINT`.
+
+`WINDOW` transforms the anchor but does not scale the glyphs: glyph size is always measured in canvas pixels. Text remains upright with both the default y-up `WINDOW` and `WINDOW SCREEN`. The statement updates the last graphics point to the anchor, so a following `STEP` uses it.
+
+Because the text is rasterised into the graphics canvas, graphics `GET` captures it, `PUT` copies it, `PCOPY` snapshots it, and `CLS`/`CLS 1` clear it with the rest of the canvas. `PALETTE` changes how the stored colour index is displayed; it does not change the pixels.
+
+`DRAWTEXT` requires a graphics mode. In `SCREEN 0` or `SCREEN 3` it raises **Illegal function call**. An invalid colour or a size outside `1`–`8` also raises **Illegal function call**; a non-string `text$` raises **Type mismatch**.
+
+### Examples
+
+#### Example 1 — Label a graphics screen
+
+```basic
+10 SCREEN 1
+20 DRAWTEXT (10, 20), "HELLO", 2
+30 DRAWTEXT (160, 100), "SCORE: 42", 15, 2
+40 END
+```
+
+#### Example 2 — Use a viewport and a world window
+
+```basic
+10 SCREEN 1
+20 VIEW (20, 20)-(300, 180), 0, 1
+30 WINDOW (0, 0)-(100, 100)
+40 DRAWTEXT (50, 50), "CENTER POINT", 3
+50 END
+```
+
+#### Example 3 — Chain anchors with STEP
+
+```basic
+10 SCREEN 1
+20 DRAWTEXT (10, 10), "ONE", 1
+30 DRAWTEXT STEP (0, 20), "TWO", 2
+40 END
+```

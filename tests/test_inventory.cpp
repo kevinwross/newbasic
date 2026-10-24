@@ -40,6 +40,13 @@ const char* const kImplemented[] = {
     "WIDTH",
     "WRITE",
     "LPRINT",
+    // 2026-10-24 extensions.
+    "SELECT",
+    "CASE",
+    "SLEEP",
+    "PUSH",
+    "POP",
+    "STACK",
     // Graphics: phases 1 to 3.
     "SCREEN",
     "PSET",
@@ -48,6 +55,7 @@ const char* const kImplemented[] = {
     "CIRCLE",
     "PAINT",
     "DRAW",
+    "DRAWTEXT",
     "PALETTE",
 };
 
@@ -61,9 +69,8 @@ const char* const kImplemented[] = {
 // Statements with no implementation: they report Advanced Feature. This list must
 // match kUnimplementedStatements in frontend.cpp.
 const char* const kStubs[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",  "MKDIR",
-    "MOTOR", "NAME", "OUT", "PEN", "POKE", "RMDIR", "STICK", "STRIG", "USR", "VARPTR",
-    "WAIT",
+    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
+    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
 };
 
 } // namespace

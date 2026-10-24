@@ -252,3 +252,169 @@ MOTOR [ON|OFF]
 ### Newbasic status
 
 Not implemented; there is no cassette interface.
+
+<a id="mouse-function"></a>
+## MOUSE Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns one field of the most recent click.
+
+### Syntax
+
+```basic
+MOUSE(n)
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `n` | Yes | `0` button, `1` x coordinate, `2` y coordinate. |
+
+### Comments
+
+Like `MOUSEB`, a call with a queued click consumes one and latches its button and coordinates. `MOUSE(0)` returns that button, while `MOUSE(1)` and `MOUSE(2)` return the latched coordinates. They are the same fields that `MOUSEB`, `MOUSEX`, and `MOUSEY` read. A field outside `0`–`2` raises **Illegal function call**.
+
+<a id="mouseb-function"></a>
+## MOUSEB Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Consumes one queued click and returns its button.
+
+### Syntax
+
+```basic
+MOUSEB
+```
+
+### Comments
+
+Returns `1` for the left button, `2` for the right button, `3` for the middle button, or `0` when no click is queued. The coordinates of the consumed click are available through `MOUSEX` and `MOUSEY`. Backends without a pointing device always return `0`.
+
+<a id="mousebuttons-function"></a>
+## MOUSEBUTTONS Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns the live mouse button state as a bit mask.
+
+### Syntax
+
+```basic
+MOUSEBUTTONS
+```
+
+### Comments
+
+Bit `1` is the left button, bit `2` the right button, and bit `4` the middle button. Unlike `MOUSEB`, this does not consume a click. The value is current for the last message pump; backends without a pointing device return `0`.
+
+<a id="mouseposx-function"></a>
+## MOUSEPOSX Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns the live mouse x position in canvas pixels.
+
+### Syntax
+
+```basic
+MOUSEPOSX
+```
+
+### Comments
+
+This is the current pointer position, not the last click position. A window backend returns `-1` when the pointer is outside the graphics canvas. A backend without a pointing device returns `0`.
+
+<a id="mouseposy-function"></a>
+## MOUSEPOSY Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns the live mouse y position in canvas pixels.
+
+### Syntax
+
+```basic
+MOUSEPOSY
+```
+
+### Comments
+
+This is the current pointer position, not the last click position. A window backend returns `-1` when the pointer is outside the graphics canvas. A backend without a pointing device returns `0`.
+
+<a id="mousewheel-function"></a>
+## MOUSEWHEEL Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns and consumes accumulated wheel movement.
+
+### Syntax
+
+```basic
+MOUSEWHEEL
+```
+
+### Comments
+
+Positive values scroll up/away from the user and negative values scroll down/toward the user, following the host backend's wheel direction. The value is a count of wheel steps accumulated since the previous call; the call resets it to zero. Backends without a wheel return `0`.
+
+<a id="mousex-function"></a>
+## MOUSEX Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns the x coordinate of the most recent click.
+
+### Syntax
+
+```basic
+MOUSEX
+```
+
+### Comments
+
+Coordinates are canvas pixels. The value is latched when a mouse function consumes a click and does not follow pointer movement; use `MOUSEPOSX` for the live position.
+
+<a id="mousey-function"></a>
+## MOUSEY Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)
+
+### Purpose
+
+Returns the y coordinate of the most recent click.
+
+### Syntax
+
+```basic
+MOUSEY
+```
+
+### Comments
+
+Coordinates are canvas pixels. The value is latched when a mouse function consumes a click and does not follow pointer movement; use `MOUSEPOSY` for the live position.

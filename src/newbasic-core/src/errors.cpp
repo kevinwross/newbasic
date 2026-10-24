@@ -106,6 +106,8 @@ const char* ErrorMessage(int code) {
     return "Path/File access error";
   case kErrPathNotFound:
     return "Path not found";
+  case kErrStackEmpty:
+    return "Stack empty";
   default:
     return "Unprintable error";
   }

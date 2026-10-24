@@ -89,6 +89,10 @@ struct SdlScreen::Impl {
   bool break_requested = false;
   std::deque<wchar_t> keys;
   std::deque<Screen::MouseClick> clicks;
+  int mouse_x = -1;
+  int mouse_y = -1;
+  int mouse_buttons = 0;
+  int mouse_wheel = 0;
   std::vector<std::uint32_t> frame;
   int frame_width = 0;
   int frame_height = 0;
@@ -300,6 +304,27 @@ void SdlScreen::Present() {
   SDL_RenderPresent(impl_->renderer);
 }
 
+bool SdlScreen::MapMousePoint(int window_x, int window_y, int* canvas_x, int* canvas_y) const {
+  if (impl_ == nullptr || canvas_x == nullptr || canvas_y == nullptr ||
+      !impl_->graphics_rect.valid() || Graphics().Width() <= 0 || Graphics().Height() <= 0) {
+    return false;
+  }
+  int window_width = 1;
+  int window_height = 1;
+  SDL_GetWindowSize(impl_->window, &window_width, &window_height);
+  const int logical_width = Width() * impl_->atlas.glyph_width;
+  const int logical_height = Height() * impl_->atlas.glyph_height;
+  const int x = window_x * logical_width / std::max(1, window_width);
+  const int y = window_y * logical_height / std::max(1, window_height);
+  const FrameRect& rect = impl_->graphics_rect;
+  if (x < rect.x || y < rect.y || x >= rect.x + rect.width || y >= rect.y + rect.height)
+    return false;
+  *canvas_x = std::clamp((x - rect.x) * Graphics().Width() / rect.width, 0, Graphics().Width() - 1);
+  *canvas_y =
+      std::clamp((y - rect.y) * Graphics().Height() / rect.height, 0, Graphics().Height() - 1);
+  return true;
+}
+
 void SdlScreen::PumpMessages() {
   if (impl_ == nullptr)
     return;
@@ -312,6 +337,8 @@ void SdlScreen::PumpMessages() {
     case SDL_WINDOWEVENT:
       if (event.window.event == SDL_WINDOWEVENT_CLOSE)
         impl_->closed = true;
+      else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+        impl_->mouse_buttons = 0;
       break;
     case SDL_TEXTINPUT: {
       const std::wstring text = DecodeUtf8(event.text.text);
@@ -336,28 +363,67 @@ void SdlScreen::PumpMessages() {
       // Printable keys arrive through SDL_TEXTINPUT, which is UTF-8 aware.
       break;
     }
+    case SDL_MOUSEMOTION: {
+      int x = 0;
+      int y = 0;
+      if (MapMousePoint(event.motion.x, event.motion.y, &x, &y)) {
+        impl_->mouse_x = x;
+        impl_->mouse_y = y;
+      } else {
+        impl_->mouse_x = -1;
+        impl_->mouse_y = -1;
+      }
+      break;
+    }
     case SDL_MOUSEBUTTONDOWN: {
-      if (!impl_->graphics_rect.valid() || Graphics().Width() <= 0 || Graphics().Height() <= 0)
-        break;
-      int window_width = 1;
-      int window_height = 1;
-      SDL_GetWindowSize(impl_->window, &window_width, &window_height);
-      const int logical_width = Width() * impl_->atlas.glyph_width;
-      const int logical_height = Height() * impl_->atlas.glyph_height;
-      const int x = event.button.x * logical_width / std::max(1, window_width);
-      const int y = event.button.y * logical_height / std::max(1, window_height);
-      const FrameRect& rect = impl_->graphics_rect;
-      if (x < rect.x || y < rect.y || x >= rect.x + rect.width || y >= rect.y + rect.height)
+      int x = 0;
+      int y = 0;
+      const bool mapped = MapMousePoint(event.button.x, event.button.y, &x, &y);
+      if (mapped) {
+        impl_->mouse_x = x;
+        impl_->mouse_y = y;
+      }
+      int bit = 0;
+      int button = 0;
+      if (event.button.button == SDL_BUTTON_LEFT) {
+        bit = 1;
+        button = 1;
+      } else if (event.button.button == SDL_BUTTON_RIGHT) {
+        bit = 2;
+        button = 2;
+      } else if (event.button.button == SDL_BUTTON_MIDDLE) {
+        bit = 4;
+        button = 3;
+      }
+      if (bit != 0)
+        impl_->mouse_buttons |= bit;
+      if (!mapped || button == 0)
         break;
       Screen::MouseClick click;
-      click.x =
-          std::clamp((x - rect.x) * Graphics().Width() / rect.width, 0, Graphics().Width() - 1);
-      click.y =
-          std::clamp((y - rect.y) * Graphics().Height() / rect.height, 0, Graphics().Height() - 1);
-      click.button = event.button.button == SDL_BUTTON_RIGHT ? 2 : 1;
+      click.x = x;
+      click.y = y;
+      click.button = button;
       impl_->clicks.push_back(click);
       break;
     }
+    case SDL_MOUSEBUTTONUP: {
+      int x = 0;
+      int y = 0;
+      if (MapMousePoint(event.button.x, event.button.y, &x, &y)) {
+        impl_->mouse_x = x;
+        impl_->mouse_y = y;
+      }
+      if (event.button.button == SDL_BUTTON_LEFT)
+        impl_->mouse_buttons &= ~1;
+      else if (event.button.button == SDL_BUTTON_RIGHT)
+        impl_->mouse_buttons &= ~2;
+      else if (event.button.button == SDL_BUTTON_MIDDLE)
+        impl_->mouse_buttons &= ~4;
+      break;
+    }
+    case SDL_MOUSEWHEEL:
+      impl_->mouse_wheel += event.wheel.y;
+      break;
     default:
       break;
     }
@@ -404,6 +470,26 @@ bool SdlScreen::TakeMouseClick(MouseClick* click) {
   return true;
 }
 
+int SdlScreen::MousePositionX() const {
+  return impl_ != nullptr ? impl_->mouse_x : -1;
+}
+
+int SdlScreen::MousePositionY() const {
+  return impl_ != nullptr ? impl_->mouse_y : -1;
+}
+
+int SdlScreen::MouseButtons() const {
+  return impl_ != nullptr ? impl_->mouse_buttons : 0;
+}
+
+int SdlScreen::TakeMouseWheel() {
+  if (impl_ == nullptr)
+    return 0;
+  const int delta = impl_->mouse_wheel;
+  impl_->mouse_wheel = 0;
+  return delta;
+}
+
 void SdlScreen::InjectClick(int canvas_x, int canvas_y, int button) {
   if (impl_ == nullptr)
     return;
@@ -412,6 +498,8 @@ void SdlScreen::InjectClick(int canvas_x, int canvas_y, int button) {
   click.y = canvas_y;
   click.button = button;
   impl_->clicks.push_back(click);
+  impl_->mouse_x = canvas_x;
+  impl_->mouse_y = canvas_y;
 }
 
 void SdlScreen::InjectKeys(const std::wstring& keys) {

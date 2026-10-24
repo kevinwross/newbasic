@@ -105,6 +105,186 @@ Modes `0`–`13` keep an 80×25 text grid. Mode `720` is newbasic’s extension:
 30 END
 ```
 
+<a id="screenh-function"></a>
+## SCREENH Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `SCREENW`, `SCREEN`
+
+### Purpose
+
+Returns the current graphics canvas height in pixels.
+
+### Syntax
+
+```basic
+SCREENH
+```
+
+### Comments
+
+In a text-only mode the canvas has no graphics pixels, so the result is `0`. Use `SCREEN` first to select a graphics mode.
+
+### Examples
+
+```basic
+10 SCREEN 720
+20 PRINT SCREENW; SCREENH
+30 END
+```
+
+Output:
+
+```text
+ 1280  720
+```
+
+<a id="screenw-function"></a>
+## SCREENW Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `SCREENH`, `SCREEN`
+
+### Purpose
+
+Returns the current graphics canvas width in pixels.
+
+### Syntax
+
+```basic
+SCREENW
+```
+
+### Comments
+
+In a text-only mode the canvas has no graphics pixels, so the result is `0`. Use `SCREEN` first to select a graphics mode.
+
+<a id="select-case-statement"></a>
+## SELECT CASE Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `IF`, `GOTO`
+
+### Purpose
+
+Selects one of several statement groups by comparing one selector expression.
+
+### Syntax
+
+```basic
+SELECT CASE expression
+CASE value [, value ...]
+CASE IS comparison expression
+CASE ELSE
+END SELECT
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `expression` | Yes | Numeric or string selector, evaluated once. |
+| `value` | Yes | A literal or expression compared for equality. |
+| `comparison` | Yes | `=`, `<>`, `<`, `<=`, `>`, or `>=` after `CASE IS`. |
+
+### Comments
+
+Only the first matching `CASE` group runs. `CASE value, value` tests equality against each value. `CASE IS` performs one numeric comparison; use `CASE value` equality for strings. `CASE ELSE` runs when nothing matched and must be last. `END SELECT` closes the statement.
+
+Ranges (`CASE 1 TO 5`) are not implemented. `SELECT CASE` is not allowed in direct mode.
+
+A `GOTO` that leaves the active `SELECT CASE` block raises **Illegal function call** at run time with the message `GOTO would leave a SELECT CASE`. This is a runtime check because a computed `GOTO` target is not known when the program is compiled. The check is specifically about leaving the whole block; a `GOTO` to another line in the same active block is not an error, even though jumping between CASE arms is hard to follow. Jumping to the current block's `END SELECT` line is allowed and closes the block normally. Do not jump into a nested `SELECT CASE` that is not active; that raises `SELECT CASE stack mismatch` when the inner CASE or END is reached. `GOSUB` out of a CASE is allowed because `RETURN` comes back to the same block; however, a subroutine that opens a `SELECT CASE` and returns before its `END SELECT` raises `RETURN would leave a SELECT CASE`.
+
+### Examples
+
+#### Example 1 — Value list and ELSE
+
+```basic
+10 X = 2
+20 SELECT CASE X
+30 CASE 1
+40   PRINT "ONE"
+50 CASE 2, 3
+60   PRINT "TWO"
+70 CASE ELSE
+80   PRINT "OTHER"
+90 END SELECT
+```
+
+Output:
+
+```text
+TWO
+```
+
+#### Example 2 — Bad: `GOTO` out of the SELECT
+
+```basic
+10 X = 1
+20 SELECT CASE X
+30 CASE 1
+40   GOTO 100
+50 END SELECT
+60 PRINT "AFTER"
+70 END
+100 PRINT "OUT"
+```
+
+This fails at line 40 with:
+
+```text
+Illegal function call: GOTO would leave a SELECT CASE
+```
+
+#### Example 3 — Good: jump to `END SELECT`
+
+```basic
+10 X = 1
+20 SELECT CASE X
+30 CASE 1
+40   PRINT "ONE"
+50   GOTO 70
+60   PRINT "SKIPPED"
+70 END SELECT
+80 PRINT "AFTER"
+90 END
+```
+
+Output:
+
+```text
+ONE
+AFTER
+```
+
+GOTO to the `END SELECT` line is allowed because it executes the normal close of the block.
+
+#### Example 4 — Good: call outside code with `GOSUB`
+
+```basic
+10 X = 1
+20 SELECT CASE X
+30 CASE 1
+40   GOSUB 100
+50   PRINT "IN CASE"
+60 END SELECT
+70 END
+100 PRINT "SUBROUTINE"
+110 RETURN
+```
+
+Output:
+
+```text
+SUBROUTINE
+IN CASE
+```
+
+`GOSUB` does not leave the block permanently: `RETURN` comes back to line 50, inside the SELECT.
+
 <a id="sgn-function"></a>
 ## SGN Function
 
@@ -225,6 +405,42 @@ Output:
 ```text
  0
  1
+```
+
+<a id="sleep-statement"></a>
+## SLEEP Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `TIMER`
+
+### Purpose
+
+Pauses execution for a number of milliseconds.
+
+### Syntax
+
+```basic
+SLEEP milliseconds
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `milliseconds` | Yes | Non-negative duration. Fractions are rounded. |
+
+### Comments
+
+`SLEEP` blocks the interpreter through the host service. `SLEEP 0` is allowed and does not block. A negative value raises **Illegal function call**. Timer events are not serviced while a synchronous `SLEEP` is in progress; use short sleeps in an animation loop when responsiveness matters.
+
+### Examples
+
+```basic
+10 PRINT "WAIT"
+20 SLEEP 500
+30 PRINT "DONE"
+40 END
 ```
 
 <a id="sound-statement"></a>
@@ -386,6 +602,161 @@ Output:
 ```text
  3
  1.414214
+```
+
+<a id="stack-statement"></a>
+## STACK Statement
+
+**Type:** Statement  
+**Status:** Supported  
+**See also:** `CLEAR`, `SWAP`
+
+### Purpose
+
+Maintains a user-visible LIFO stack of BASIC values, including whole arrays. It is useful for manual parameter passing, recursive algorithms, and temporary value storage.
+
+### Syntax
+
+```basic
+STACK PUSH source [, source]...
+STACK POP target [, target]...
+STACK TOP target [, target]...
+STACK PEEK target [, target]...
+```
+
+Each `source` is an expression or an array name followed by empty parentheses, such as `A()`. Each `target` is a scalar variable, an array element, or an array name followed by empty parentheses.
+
+`STACK PEEK` is an alias for `STACK TOP`.
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `expression` | Yes, for `PUSH` | Scalar value. Sources are evaluated left-to-right and pushed in that order. |
+| `array()` | Yes, for whole arrays | Pushes a copy of the whole array. `A` without parentheses remains the scalar `A`; `A()` is the array. |
+| `variable` | Yes, for `POP`/`TOP` | Assignable scalar variable or array element. Targets are assigned left-to-right. |
+| `array()` target | Yes, for whole arrays | Creates or replaces the target array with a copy of the source array. |
+
+### Comments
+
+`STACK` is a newbasic extension; GW-BASIC has no equivalent. There is one global stack per interpreter, and it is independent of the expression stack used internally by the VM.
+
+`PUSH` evaluates its list left-to-right and pushes in that order, so the last source becomes the top of the stack. `POP` and `TOP` assign their target list left-to-right, with the first target receiving the top. The natural round trip is therefore:
+
+```basic
+STACK PUSH a, b, c
+STACK POP  c, b, a
+```
+
+`POP` removes the values; `TOP`/`PEEK` leaves the stack unchanged.
+
+Scalars keep their BASIC kind on the stack (integer, long, single, double, or string). Assigning to a scalar target uses the normal conversion rules: `A%` rounds and may raise **Overflow**, `A$` raises **Type mismatch** for a numeric value, and so on. Array-element targets work too, and an undeclared array element target creates the array at the default size with the current `OPTION BASE`.
+
+A whole array pushed as `A()` is copied by value: its element type, lower bound, dimensions, and data are captured at the moment of `PUSH`. Changing `A()` afterwards does not change the stack. `PUSH A()` requires an existing array; an undimensioned array raises **Subscript out of range**. `POP B()` and `TOP B()` create or replace the whole array `B()`, preserving the source shape and lower bound. If `B` has a type suffix, each element is converted to that type; a failed element conversion leaves both the stack and `B()` unchanged.
+
+Scalars and whole arrays can be mixed in one list:
+
+```basic
+STACK PUSH 5, A(), "x"
+STACK POP  S$, B(), N%
+```
+
+List operations are **all-or-nothing**. If the stack has too few entries, a target conversion fails, an array subscript is out of range, or a whole-array type is incompatible, the whole statement fails and neither the stack nor any target is changed. All target subscripts are evaluated and checked before any assignment. Arrays that were auto-created during a failed list are removed again.
+
+An underflowing operation raises **Stack empty** (newbasic error 77). The stack is capped at 1,000,000 entries and 1,000,000 total scalar/array elements; exceeding either limit raises **Out of memory**.
+
+`CLEAR`, `RUN`, `LOAD`, `NEW`, and `CHAIN` clear the stack. Direct-mode statements preserve it between commands, so it can be used interactively. `GOSUB`/`RETURN` do not use or clear it.
+
+### Examples
+
+#### Example 1 — LIFO round trip
+
+```basic
+10 STACK PUSH 10, 20, 30
+20 STACK POP C, B, A
+30 PRINT A; B; C
+40 END
+```
+
+Output:
+
+```text
+ 10  20  30
+```
+
+#### Example 2 — Peek without removing
+
+```basic
+10 STACK PUSH "A", "B"
+20 STACK TOP S2$, S1$
+30 PRINT S1$; S2$
+40 END
+```
+
+Output:
+
+```text
+AB
+```
+
+#### Example 3 — Array element targets
+
+```basic
+10 DIM A(2)
+20 STACK PUSH 7, 8
+30 STACK POP A(2), A(1)
+40 PRINT A(1); A(2)
+50 END
+```
+
+Output:
+
+```text
+ 7  8
+```
+
+#### Example 4 — Copy a whole array
+
+```basic
+10 DIM A(10)
+20 FOR I = 1 TO 10 : A(I) = I + 100 : NEXT I
+30 STACK PUSH A()
+40 STACK POP B()
+50 FOR I = 1 TO 10 : PRINT B(I) : NEXT I
+60 END
+```
+
+Output:
+
+```text
+ 101
+ 102
+ 103
+ 104
+ 105
+ 106
+ 107
+ 108
+ 109
+ 110
+```
+
+#### Example 5 — Inspect a whole array without removing it
+
+```basic
+10 DIM A(2)
+20 A(1) = 7 : A(2) = 8
+30 STACK PUSH A()
+40 STACK TOP B()
+50 STACK POP C()
+60 PRINT B(1); B(2); C(1); C(2)
+70 END
+```
+
+Output:
+
+```text
+ 7  8  7  8
 ```
 
 <a id="stick-function"></a>

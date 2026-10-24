@@ -141,6 +141,10 @@ struct D3D11Screen::Impl {
   std::vector<wchar_t> keys;
   // Clicks waiting to be read, in canvas pixels.
   std::vector<Screen::MouseClick> clicks;
+  int mouse_x = -1;
+  int mouse_y = -1;
+  int mouse_buttons = 0;
+  int mouse_wheel = 0;
   bool closed = false;
   bool device_lost = false;
   // Resize is deferred to Present: ResizeBuffers must not run inside the message
@@ -156,6 +160,37 @@ D3D11Screen::Impl* ImplFor(HWND window) {
   return reinterpret_cast<D3D11Screen::Impl*>(GetWindowLongPtrW(window, GWLP_USERDATA));
 }
 
+// Maps a client point through the letterboxed graphics rect to a canvas pixel.
+bool MapCanvasPoint(HWND window, D3D11Screen* owner, int window_x, int window_y, int* canvas_x,
+                    int* canvas_y) {
+  if (owner == nullptr || canvas_x == nullptr || canvas_y == nullptr)
+    return false;
+  RECT client;
+  std::memset(&client, 0, sizeof(client));
+  GetClientRect(window, &client);
+  const int client_width = client.right - client.left;
+  const int client_height = client.bottom - client.top;
+  const Canvas& canvas = owner->Graphics();
+  if (client_width <= 0 || client_height <= 0 || canvas.Width() <= 0 || canvas.Height() <= 0)
+    return false;
+  const float aspect = static_cast<float>(owner->DisplayAspect());
+  int frame_width = client_width;
+  int frame_height = static_cast<int>(static_cast<float>(client_width) / aspect);
+  if (frame_height > client_height) {
+    frame_height = client_height;
+    frame_width = static_cast<int>(static_cast<float>(client_height) * aspect);
+  }
+  const int left = (client_width - frame_width) / 2;
+  const int top = (client_height - frame_height) / 2;
+  const int x = (window_x - left) * canvas.Width() / frame_width;
+  const int y = (window_y - top) * canvas.Height() / frame_height;
+  if (x < 0 || y < 0 || x >= canvas.Width() || y >= canvas.Height())
+    return false;
+  *canvas_x = x;
+  *canvas_y = y;
+  return true;
+}
+
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
   D3D11Screen::Impl* impl = ImplFor(window);
   switch (message) {
@@ -167,6 +202,10 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
   case WM_DESTROY:
     PostQuitMessage(0);
     return 0;
+  case WM_KILLFOCUS:
+    if (impl != nullptr)
+      impl->mouse_buttons = 0;
+    break;
   case WM_SIZE:
     if (impl != nullptr) {
       impl->pending_width = LOWORD(lparam);
@@ -189,40 +228,70 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
       return 0;
     }
     break;
+  case WM_MOUSEMOVE:
+    if (impl != nullptr && impl->owner != nullptr) {
+      const int window_x = static_cast<int>(static_cast<short>(LOWORD(lparam)));
+      const int window_y = static_cast<int>(static_cast<short>(HIWORD(lparam)));
+      int canvas_x = 0;
+      int canvas_y = 0;
+      if (MapCanvasPoint(window, impl->owner, window_x, window_y, &canvas_x, &canvas_y)) {
+        impl->mouse_x = canvas_x;
+        impl->mouse_y = canvas_y;
+      } else {
+        impl->mouse_x = -1;
+        impl->mouse_y = -1;
+      }
+      return 0;
+    }
+    break;
   case WM_LBUTTONDOWN:
   case WM_RBUTTONDOWN:
-    if (impl != nullptr && impl->owner != nullptr) {
-      // Map the client point through the same letterbox the presenter draws into, so a
-      // click lands on the canvas pixel being pointed at.
-      RECT client;
-      std::memset(&client, 0, sizeof(client));
-      GetClientRect(window, &client);
-      const int client_width = client.right - client.left;
-      const int client_height = client.bottom - client.top;
-      const Canvas& canvas = impl->owner->Graphics();
-      if (client_width > 0 && client_height > 0 && canvas.Width() > 0 && canvas.Height() > 0) {
-        const float aspect = static_cast<float>(impl->owner->DisplayAspect());
-        int frame_width = client_width;
-        int frame_height = static_cast<int>(static_cast<float>(client_width) / aspect);
-        if (frame_height > client_height) {
-          frame_height = client_height;
-          frame_width = static_cast<int>(static_cast<float>(client_height) * aspect);
-        }
-        const int left = (client_width - frame_width) / 2;
-        const int top = (client_height - frame_height) / 2;
-        const int click_x = static_cast<int>(static_cast<short>(LOWORD(lparam)));
-        const int click_y = static_cast<int>(static_cast<short>(HIWORD(lparam)));
-        const int canvas_x = (click_x - left) * canvas.Width() / frame_width;
-        const int canvas_y = (click_y - top) * canvas.Height() / frame_height;
-        if (canvas_x >= 0 && canvas_y >= 0 && canvas_x < canvas.Width() &&
-            canvas_y < canvas.Height()) {
-          Screen::MouseClick click;
-          click.x = canvas_x;
-          click.y = canvas_y;
-          click.button = message == WM_RBUTTONDOWN ? 2 : 1;
-          impl->clicks.push_back(click);
-        }
-      }
+  case WM_MBUTTONDOWN:
+  case WM_LBUTTONUP:
+  case WM_RBUTTONUP:
+  case WM_MBUTTONUP: {
+    if (impl == nullptr || impl->owner == nullptr)
+      break;
+    const int window_x = static_cast<int>(static_cast<short>(LOWORD(lparam)));
+    const int window_y = static_cast<int>(static_cast<short>(HIWORD(lparam)));
+    int canvas_x = 0;
+    int canvas_y = 0;
+    const bool mapped =
+        MapCanvasPoint(window, impl->owner, window_x, window_y, &canvas_x, &canvas_y);
+    if (mapped) {
+      impl->mouse_x = canvas_x;
+      impl->mouse_y = canvas_y;
+    }
+    const bool down =
+        message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN;
+    int bit = 0;
+    int button = 0;
+    if (message == WM_LBUTTONDOWN || message == WM_LBUTTONUP) {
+      bit = 1;
+      button = 1;
+    } else if (message == WM_RBUTTONDOWN || message == WM_RBUTTONUP) {
+      bit = 2;
+      button = 2;
+    } else {
+      bit = 4;
+      button = 3;
+    }
+    if (down)
+      impl->mouse_buttons |= bit;
+    else
+      impl->mouse_buttons &= ~bit;
+    if (down && mapped) {
+      Screen::MouseClick click;
+      click.x = canvas_x;
+      click.y = canvas_y;
+      click.button = button;
+      impl->clicks.push_back(click);
+    }
+    return 0;
+  }
+  case WM_MOUSEWHEEL:
+    if (impl != nullptr) {
+      impl->mouse_wheel += GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA;
       return 0;
     }
     break;
@@ -726,6 +795,26 @@ bool D3D11Screen::TakeMouseClick(MouseClick* click) {
   return true;
 }
 
+int D3D11Screen::MousePositionX() const {
+  return impl_ != nullptr ? impl_->mouse_x : -1;
+}
+
+int D3D11Screen::MousePositionY() const {
+  return impl_ != nullptr ? impl_->mouse_y : -1;
+}
+
+int D3D11Screen::MouseButtons() const {
+  return impl_ != nullptr ? impl_->mouse_buttons : 0;
+}
+
+int D3D11Screen::TakeMouseWheel() {
+  if (impl_ == nullptr)
+    return 0;
+  const int delta = impl_->mouse_wheel;
+  impl_->mouse_wheel = 0;
+  return delta;
+}
+
 void D3D11Screen::InjectClick(int canvas_x, int canvas_y, int button) {
   if (impl_ == nullptr)
     return;
@@ -734,6 +823,8 @@ void D3D11Screen::InjectClick(int canvas_x, int canvas_y, int button) {
   click.y = canvas_y;
   click.button = button;
   impl_->clicks.push_back(click);
+  impl_->mouse_x = canvas_x;
+  impl_->mouse_y = canvas_y;
 }
 
 bool D3D11Screen::TakeBreak() {

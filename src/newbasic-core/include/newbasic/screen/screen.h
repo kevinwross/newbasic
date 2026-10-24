@@ -91,6 +91,10 @@ public:
     canvas_.DrawLine(x1, y1, x2, y2, static_cast<std::uint8_t>(colour));
     MarkDirty();
   }
+  // DRAWTEXT: rasterise CP437 text into the canvas with the built-in 8x16 font.
+  // The caller maps the anchor through WINDOW and checks the mode/colour/scale;
+  // this routine only draws clipped pixels and marks the canvas dirty.
+  void DrawGraphicsText(int x, int y, const std::string& text, int colour, int scale);
   void ClearGraphics(std::uint8_t colour = 0) {
     canvas_.Clear(colour);
     MarkDirty();
@@ -103,10 +107,9 @@ public:
       ClearGraphics(0);
       return;
     }
-    const std::uint8_t colour =
-        static_cast<std::uint8_t>(view_fill_ >= 0 ? view_fill_ : 0);
-    canvas_.FillBox(view_x_, view_y_, view_x_ + view_width_ - 1,
-                    view_y_ + view_height_ - 1, colour);
+    const std::uint8_t colour = static_cast<std::uint8_t>(view_fill_ >= 0 ? view_fill_ : 0);
+    canvas_.FillBox(view_x_, view_y_, view_x_ + view_width_ - 1, view_y_ + view_height_ - 1,
+                    colour);
     MarkDirty();
   }
   // PALETTE (M12 phase 3): maps a colour attribute to a CGA colour index. The
@@ -218,6 +221,40 @@ public:
   int ViewWidth() const { return view_width_; }
   int ViewHeight() const { return view_height_; }
   bool HasViewport() const { return viewport_active_; }
+
+  // Saved graphics viewport state for PUSH VIEW/POP VIEW. The border is not part of
+  // the saved state because drawing a border is a one-shot VIEW action.
+  struct GraphicsViewportState {
+    bool active = false;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    int fill = -1;
+  };
+  GraphicsViewportState SaveGraphicsViewport() const {
+    GraphicsViewportState state;
+    state.active = viewport_active_;
+    state.x = view_x_;
+    state.y = view_y_;
+    state.width = view_width_;
+    state.height = view_height_;
+    state.fill = view_fill_;
+    return state;
+  }
+  void RestoreGraphicsViewport(const GraphicsViewportState& state) {
+    viewport_active_ = state.active;
+    view_x_ = state.x;
+    view_y_ = state.y;
+    view_width_ = state.width;
+    view_height_ = state.height;
+    view_fill_ = state.fill;
+    if (viewport_active_)
+      canvas_.SetClip(view_x_, view_y_, view_x_ + view_width_ - 1, view_y_ + view_height_ - 1);
+    else
+      canvas_.ClearClip();
+    MarkDirty();
+  }
 
   // PCOPY (M12): copies one graphics page to another. Page 0 is the displayed canvas;
   // pages 1-7 are snapshots, because the backend has no display-page flipping. Copying
@@ -381,7 +418,7 @@ public:
   // True once when the user asked to interrupt the running program, and the request is
   // consumed so the next run is not broken immediately. The console backend raises its break
   // flag from a control handler; the windowed one looks for Ctrl-C in its key queue.
-  // A click on the drawing, in canvas pixels. Button 1 is the left button, 2 the right.
+  // A click on the drawing, in canvas pixels. Button 1 is left, 2 right, 3 middle.
   struct MouseClick {
     int x = 0;
     int y = 0;
@@ -391,6 +428,14 @@ public:
   // True once per pending click, consuming it. Backends without a pointing device return
   // false, so a program that polls simply never sees a click.
   virtual bool TakeMouseClick(MouseClick*) { return false; }
+
+  // Live pointing-device state, in canvas pixels. Backends without a device leave the
+  // position at 0,0 and the button mask at 0. Button bits are 1 left, 2 right, 4 middle.
+  virtual int MousePositionX() const { return 0; }
+  virtual int MousePositionY() const { return 0; }
+  virtual int MouseButtons() const { return 0; }
+  // Accumulated wheel movement since the last call; consumed by the call.
+  virtual int TakeMouseWheel() { return 0; }
 
   virtual bool TakeBreak() { return false; }
 

@@ -167,3 +167,87 @@ With no arguments, `VIEW` restores the full screen. Drawing is clipped to the vi
 40 END
 ```
 
+<a id="viewx1-function"></a>
+## VIEWX1 Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `VIEW`, `VIEWX2`, `VIEWY1`
+
+### Purpose
+
+Returns the left edge of the current graphics viewport in canvas pixels.
+
+### Syntax
+
+```basic
+VIEWX1
+```
+
+### Comments
+
+When no viewport is active, this is `0`. In a text-only mode the graphics canvas has no pixels and the result is `0`.
+
+<a id="viewx2-function"></a>
+## VIEWX2 Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `VIEW`, `VIEWX1`, `VIEWY2`
+
+### Purpose
+
+Returns the right edge of the current graphics viewport in canvas pixels.
+
+### Syntax
+
+```basic
+VIEWX2
+```
+
+### Comments
+
+The value is `VIEWX1 + viewport width - 1`. When no viewport is active, this is the last canvas column, or `-1` when there is no graphics canvas.
+
+<a id="viewy1-function"></a>
+## VIEWY1 Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `VIEW`, `VIEWX1`, `VIEWY2`
+
+### Purpose
+
+Returns the top edge of the current graphics viewport in canvas pixels.
+
+### Syntax
+
+```basic
+VIEWY1
+```
+
+### Comments
+
+When no viewport is active, this is `0`. In a text-only mode the graphics canvas has no pixels and the result is `0`.
+
+<a id="viewy2-function"></a>
+## VIEWY2 Function
+
+**Type:** Function  
+**Status:** Supported (newbasic extension)  
+**See also:** `VIEW`, `VIEWY1`, `VIEWX2`
+
+### Purpose
+
+Returns the bottom edge of the current graphics viewport in canvas pixels.
+
+### Syntax
+
+```basic
+VIEWY2
+```
+
+### Comments
+
+The value is `VIEWY1 + viewport height - 1`. When no viewport is active, this is the last canvas row, or `-1` when there is no graphics canvas.
+

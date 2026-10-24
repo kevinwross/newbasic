@@ -73,6 +73,7 @@ Calls a subroutine at a specified line.
 
 ```basic
 GOSUB line
+GOSUB expression
 ```
 
 ### Arguments
@@ -80,10 +81,20 @@ GOSUB line
 | Argument | Required | Description |
 |---|---|---|
 | `line` | Yes | Existing line number where the subroutine begins. |
+| `expression` | Yes | newbasic extension: a numeric expression that evaluates to a line number at run time. |
 
 ### Comments
 
 `GOSUB` pushes a return address; the subroutine must finish with `RETURN`. A `GOSUB` without a matching `RETURN` eventually raises **Return without GOSUB** when the stack is misused. Direct-mode `GOSUB` is not allowed.
+
+A literal target is resolved when the program is compiled. Any other expression is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. This makes computed dispatch possible without `ON ... GOSUB`:
+
+```basic
+100 T% = 200
+110 GOSUB T%
+```
+
+A literal target followed by an operator is an expression (`GOSUB 100 + 100`); a bare literal followed by `:`, `ELSE`, a comment, or the end of the line keeps the old compile-time resolution.
 
 ### Examples
 
@@ -104,6 +115,22 @@ SUB
 BACK
 ```
 
+#### Example 2 — Computed target
+
+```basic
+10 T% = 200
+20 GOSUB T%
+30 END
+200 PRINT "DISPATCHED"
+210 RETURN
+```
+
+Output:
+
+```text
+DISPATCHED
+```
+
 <a id="goto-statement"></a>
 ## GOTO Statement
 
@@ -119,6 +146,7 @@ Branches unconditionally to a line number.
 
 ```basic
 GOTO line
+GOTO expression
 ```
 
 ### Arguments
@@ -126,10 +154,15 @@ GOTO line
 | Argument | Required | Description |
 |---|---|---|
 | `line` | Yes | Existing line number. |
+| `expression` | Yes | newbasic extension: a numeric expression that evaluates to a line number at run time. |
 
 ### Comments
 
-`GOTO` is not allowed in direct mode. A target that does not exist raises **Undefined line number** at compile time or load time. Prefer structured loops where possible, but `GOTO` remains useful for menus and error recovery.
+`GOTO` is not allowed in direct mode. A literal target that does not exist raises **Undefined line number** at compile time or load time. A computed target is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. Prefer structured loops where possible, but `GOTO` remains useful for menus and error recovery.
+
+A literal target followed by an operator is an expression (`GOTO 100 + 100`); a bare literal followed by `:`, `ELSE`, a comment, or the end of the line keeps the ordinary compile-time resolution.
+
+`GOTO` out of an active `SELECT CASE` raises **Illegal function call** at run time with the message `GOTO would leave a SELECT CASE`. Jumping to a line inside the same `SELECT CASE` is allowed; jumping to its `END SELECT` line is also allowed and closes it normally. Use structured control flow or `GOSUB` when a CASE body needs to call code outside the block.
 
 ### Examples
 
@@ -146,4 +179,21 @@ Output:
 
 ```text
 HERE
+```
+
+#### Example 2 — Computed target
+
+```basic
+10 T% = 200
+20 GOTO T%
+30 PRINT "SKIPPED"
+40 END
+200 PRINT "TARGET"
+210 END
+```
+
+Output:
+
+```text
+TARGET
 ```

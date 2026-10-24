@@ -31,6 +31,10 @@ public:
   void Present() override;
   bool TakeBreak() override;
   bool TakeMouseClick(MouseClick* click) override;
+  int MousePositionX() const override;
+  int MousePositionY() const override;
+  int MouseButtons() const override;
+  int TakeMouseWheel() override;
   void InjectClick(int canvas_x, int canvas_y, int button) override;
   int GlyphWidth() const override;
   int GlyphHeight() const override;

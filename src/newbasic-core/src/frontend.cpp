@@ -23,9 +23,8 @@ namespace {
 // exist only as direct-mode commands (FILES, KILL, MKDIR, CHDIR, RMDIR) stay,
 // because they are not available inside a program.
 const char* const kUnimplementedStatements[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP", "IOCTL", "KEY", "KILL", "MKDIR",
-    "MOTOR", "NAME", "OUT", "PEN", "POKE", "RMDIR", "STICK", "STRIG", "USR", "VARPTR",
-    "WAIT",
+    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
+    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
 };
 
 // Tab/SPC are only meaningful inside PRINT, so they are handled there.
@@ -77,6 +76,18 @@ const FuncEntry kFuncTable[] = {
     {"TAN", Func::Tan},
     {"TIME$", Func::Time},
     {"TIMER", Func::Timer},
+    {"TEXTWIDTH", Func::TextWidth},
+    {"TEXTHEIGHT", Func::TextHeight},
+    {"MOUSEPOSX", Func::MousePosX},
+    {"MOUSEPOSY", Func::MousePosY},
+    {"MOUSEBUTTONS", Func::MouseButtons},
+    {"MOUSEWHEEL", Func::MouseWheel},
+    {"SCREENW", Func::ScreenWidth},
+    {"SCREENH", Func::ScreenHeight},
+    {"VIEWX1", Func::ViewX1},
+    {"VIEWY1", Func::ViewY1},
+    {"VIEWX2", Func::ViewX2},
+    {"VIEWY2", Func::ViewY2},
     {"VAL", Func::Val},
     {"EOF", Func::Eof},
     // Machine-level functions (M13): recognised so they report a clear refusal
@@ -176,6 +187,17 @@ public:
   const std::vector<LineSpan>& LineSpans() const { return line_spans_; }
 
 private:
+  // SELECT CASE compilation state. Declared early because the inline compilation
+  // methods below instantiate it.
+  struct SelectEntry {
+    int line = 0;
+    int push_index = -1;         // SelectPush instruction, patched with the end line
+    int next_case_jump = -1;     // no-match jump to the next CASE/END SELECT
+    std::vector<int> exit_jumps; // successful case bodies jump to END SELECT
+    bool body_open = false;
+    bool has_else = false;
+  };
+
   // ---------------------------------------------------------------- tokens
   const Token& Cur() const { return tokens_[pos_]; }
 
@@ -505,22 +527,107 @@ private:
     }
     if (keyword == "GOTO") {
       Advance();
-      return CompileLineTarget(Op::Jump);
+      return CompileGotoTarget();
     }
     if (keyword == "GOSUB") {
       Advance();
-      return CompileLineTarget(Op::Gosub);
+      return CompileGosubTarget();
     }
     if (keyword == "RETURN") {
       Advance();
       Emit(Op::Return);
       return true;
     }
+    if (keyword == "PUSH") {
+      Advance();
+      if (!TakeKeyword("VIEW"))
+        return Syntax("Expected VIEW after PUSH");
+      Emit(Op::PushView);
+      return true;
+    }
+    if (keyword == "POP") {
+      Advance();
+      if (!TakeKeyword("VIEW"))
+        return Syntax("Expected VIEW after POP");
+      Emit(Op::PopView);
+      return true;
+    }
+    if (keyword == "STACK") {
+      // STACK PUSH expr[, expr]... / STACK POP var[, var]... /
+      // STACK TOP var[, var]... (PEEK is accepted as an alias for TOP).
+      Advance();
+      if (TakeWord("PUSH")) {
+        const std::int32_t start = static_cast<std::int32_t>(out_->stack_sources_.size());
+        int count = 0;
+        do {
+          if (AtWholeArrayRef()) {
+            StackSource source;
+            source.name = TypeName(Cur().text);
+            source.whole_array = true;
+            Advance(); // name
+            Advance(); // (
+            Advance(); // )
+            out_->stack_sources_.push_back(std::move(source));
+          } else {
+            if (!ParseExpression())
+              return false;
+            out_->stack_sources_.push_back(StackSource{});
+          }
+          ++count;
+        } while (TakeOp(","));
+        Instr in;
+        in.op = Op::StackPush;
+        in.a = start;
+        in.b = count;
+        out_->instrs_.push_back(in);
+        return true;
+      }
+      bool pop = false;
+      if (TakeWord("POP")) {
+        pop = true;
+      } else if (!TakeWord("TOP") && !TakeWord("PEEK")) {
+        return Syntax("Expected PUSH, POP, or TOP after STACK");
+      }
+      const std::int32_t start = static_cast<std::int32_t>(out_->stack_targets_.size());
+      int count = 0;
+      do {
+        if (!ParseStackTarget())
+          return false;
+        ++count;
+      } while (TakeOp(","));
+      Instr in;
+      in.op = pop ? Op::StackPop : Op::StackTop;
+      in.a = start;
+      in.b = count;
+      out_->instrs_.push_back(in);
+      return true;
+    }
+    if (keyword == "SLEEP") {
+      Advance();
+      if (!ParseExpression())
+        return false;
+      Emit(Op::Sleep);
+      return true;
+    }
+    if (keyword == "SELECT") {
+      Advance();
+      return CompileSelectCase();
+    }
+    if (keyword == "CASE") {
+      Advance();
+      return CompileCase();
+    }
     if (keyword == "ON") {
       Advance();
       return CompileOn();
     }
     if (keyword == "END") {
+      if (pos_ + 1 < tokens_.size() && tokens_[pos_ + 1].kind == Tok::Keyword &&
+          tokens_[pos_ + 1].text == "SELECT") {
+        Advance(); // END
+        Advance(); // SELECT
+        return CompileEndSelect();
+      }
       Advance();
       Emit(Op::End);
       return true;
@@ -1008,6 +1115,52 @@ private:
       if (!ParseExpression())
         return false;
       Emit(Op::Draw);
+      return true;
+    }
+    if (keyword == "DRAWTEXT") {
+      // DRAWTEXT [STEP](x,y), text$[, colour][, size]. The default colour is 1
+      // (the PSET default) and the default scale is 1.
+      Advance();
+      const bool relative = TakeKeyword("STEP");
+      if (!ExpectOp("("))
+        return false;
+      if (!ParseExpression()) // x
+        return false;
+      if (!TakeOp(","))
+        return Syntax("Expected ',' between DRAWTEXT coordinates");
+      if (!ParseExpression()) // y
+        return false;
+      if (!ExpectOp(")"))
+        return false;
+      if (!TakeOp(","))
+        return Syntax("Expected ',' before the DRAWTEXT string");
+      if (!ParseExpression()) // text
+        return false;
+      // Empty slots (`, ,`) mean "use the default" for colour and size.
+      const auto omitted = [&] {
+        return Cur().kind == Tok::EndOfLine || IsOp(",") || IsOp(":");
+      };
+      if (TakeOp(",")) {
+        if (omitted())
+          EmitPush(Value::Int(1));
+        else if (!ParseExpression()) // colour
+          return false;
+        if (TakeOp(",")) {
+          if (omitted())
+            EmitPush(Value::Int(1));
+          else if (!ParseExpression()) // size
+            return false;
+        } else {
+          EmitPush(Value::Int(1));
+        }
+      } else {
+        EmitPush(Value::Int(1));
+        EmitPush(Value::Int(1));
+      }
+      Instr in;
+      in.op = Op::DrawText;
+      in.a = relative ? 1 : 0;
+      out_->instrs_.push_back(in);
       return true;
     }
     if (keyword == "PCOPY") {
@@ -1719,6 +1872,43 @@ private:
     return true;
   }
 
+  // A() in STACK context means the whole array, not a zero-subscript element.
+  bool AtWholeArrayRef() const {
+    return Cur().kind == Tok::Ident && pos_ + 2 < tokens_.size() &&
+           tokens_[pos_ + 1].kind == Tok::Op && tokens_[pos_ + 1].text == "(" &&
+           tokens_[pos_ + 2].kind == Tok::Op && tokens_[pos_ + 2].text == ")";
+  }
+
+  // STACK POP/TOP target: a scalar, array element, or whole array. ParseVariableRef
+  // has already emitted element subscript expressions in target order.
+  bool ParseStackTarget() {
+    if (AtWholeArrayRef()) {
+      StackTarget target;
+      target.name = TypeName(Cur().text);
+      target.whole_array = true;
+      target.base = base_;
+      Advance(); // name
+      Advance(); // (
+      Advance(); // )
+      out_->stack_targets_.push_back(std::move(target));
+      return true;
+    }
+    std::string name;
+    bool array = false;
+    int subscripts = 0;
+    if (!ParseVariableRef(&name, &array, &subscripts))
+      return false;
+    if (array && subscripts == 0)
+      return Syntax("Expected a subscript in a STACK target");
+    StackTarget target;
+    target.name = std::move(name);
+    target.array = array;
+    target.subscripts = subscripts;
+    target.base = base_;
+    out_->stack_targets_.push_back(std::move(target));
+    return true;
+  }
+
   bool CompileLet() {
     std::string name;
     bool array = false;
@@ -1894,8 +2084,12 @@ private:
       if (direct_)
         return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
       const int false_jump = EmitPlaceholder(Op::JumpIfFalse);
-      if (!CompileLineTarget(plain_gosub ? Op::Gosub : Op::Jump))
+      if (plain_gosub) {
+        if (!CompileGosubTarget())
+          return false;
+      } else if (!CompileGotoTarget()) {
         return false;
+      }
       PatchTarget(false_jump, Pc());
       return true;
     }
@@ -1908,7 +2102,7 @@ private:
         return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
       const int line = static_cast<int>(std::lround(Cur().number.AsNumber()));
       Advance();
-      AddLineFixup(EmitPlaceholder(Op::Jump), line);
+      AddLineFixup(EmitPlaceholder(Op::Goto), line);
     } else if (!CompileStatementList(true)) {
       return false;
     }
@@ -2021,6 +2215,126 @@ private:
     return true;
   }
 
+  // ---------------------------------------------------------------- SELECT CASE
+  bool CompileSelectCase() {
+    if (!TakeKeyword("CASE"))
+      return Syntax("Expected CASE after SELECT");
+    if (!ParseExpression())
+      return false;
+    SelectEntry entry;
+    entry.line = line_;
+    entry.push_index = EmitPlaceholder(Op::SelectPush);
+    out_->instrs_[static_cast<std::size_t>(entry.push_index)].a = line_;
+    select_stack_.push_back(entry);
+    return true;
+  }
+
+  void EmitSelectLoad() {
+    const int index = EmitPlaceholder(Op::SelectLoad);
+    out_->instrs_[static_cast<std::size_t>(index)].a = select_stack_.back().line;
+  }
+
+  bool EmitCaseValue(std::vector<int>* success_jumps) {
+    EmitSelectLoad();
+    if (!ParseExpression())
+      return false;
+    Emit(Op::Eq);
+    const int false_jump = EmitPlaceholder(Op::JumpIfFalse);
+    success_jumps->push_back(EmitPlaceholder(Op::Jump));
+    PatchTarget(false_jump, Pc());
+    return true;
+  }
+
+  bool EmitCaseComparison(Op comparison, std::vector<int>* success_jumps) {
+    EmitSelectLoad();
+    if (!ParseExpression())
+      return false;
+    Emit(comparison);
+    const int false_jump = EmitPlaceholder(Op::JumpIfFalse);
+    success_jumps->push_back(EmitPlaceholder(Op::Jump));
+    PatchTarget(false_jump, Pc());
+    return true;
+  }
+
+  bool CompileCase() {
+    if (select_stack_.empty())
+      return Syntax("CASE without SELECT CASE");
+    SelectEntry& entry = select_stack_.back();
+    if (entry.has_else)
+      return Syntax("CASE after CASE ELSE");
+
+    // Close the previous case body and make its "no match" jump land here.
+    if (entry.body_open)
+      entry.exit_jumps.push_back(EmitPlaceholder(Op::Jump));
+    if (entry.next_case_jump >= 0) {
+      PatchTarget(entry.next_case_jump, Pc());
+      entry.next_case_jump = -1;
+    }
+
+    if (TakeKeyword("ELSE")) {
+      entry.has_else = true;
+      entry.body_open = true;
+      return true;
+    }
+
+    std::vector<int> success_jumps;
+    for (;;) {
+      if (TakeWord("IS")) {
+        Op comparison = Op::Eq;
+        if (TakeOp(">="))
+          comparison = Op::Ge;
+        else if (TakeOp("<="))
+          comparison = Op::Le;
+        else if (TakeOp("<>"))
+          comparison = Op::Ne;
+        else if (TakeOp(">"))
+          comparison = Op::Gt;
+        else if (TakeOp("<"))
+          comparison = Op::Lt;
+        else if (TakeOp("="))
+          comparison = Op::Eq;
+        else
+          return Syntax("Expected a comparison after CASE IS");
+        if (!EmitCaseComparison(comparison, &success_jumps))
+          return false;
+      } else {
+        if (!EmitCaseValue(&success_jumps))
+          return false;
+      }
+      if (!TakeOp(","))
+        break;
+    }
+
+    // No case matched: fall through to the next CASE or END SELECT while the
+    // selector remains on the selector stack.
+    entry.next_case_jump = EmitPlaceholder(Op::Jump);
+    const int body_start = Pc();
+    for (int jump : success_jumps)
+      PatchTarget(jump, body_start);
+    entry.body_open = true;
+    return true;
+  }
+
+  bool CompileEndSelect() {
+    if (select_stack_.empty())
+      return Syntax("END SELECT without SELECT CASE");
+    SelectEntry entry = select_stack_.back();
+    if (entry.next_case_jump >= 0)
+      PatchTarget(entry.next_case_jump, Pc());
+    out_->instrs_[static_cast<std::size_t>(entry.push_index)].b = line_;
+    // Emit the pop at the very start of END SELECT so a GOTO to this line
+    // closes the block instead of skipping the pop via a case-body exit jump.
+    const int pop_index = EmitPlaceholder(Op::SelectPop);
+    out_->instrs_[static_cast<std::size_t>(pop_index)].a = entry.line;
+    if (entry.body_open)
+      entry.exit_jumps.push_back(EmitPlaceholder(Op::Jump));
+    const int end = Pc();
+    for (int jump : entry.exit_jumps)
+      PatchTarget(jump, end);
+    select_stack_.pop_back();
+    return true;
+  }
+
   // ---------------------------------------------------------------- jumps
   bool CompileLineTarget(Op op) {
     if (Cur().kind != Tok::Number)
@@ -2030,6 +2344,43 @@ private:
     if (direct_)
       return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
     AddLineFixup(EmitPlaceholder(op), target_line);
+    return true;
+  }
+
+  // True when the token after the current one ends the statement. GOTO/GOSUB use
+  // this to keep literal targets compile-time-resolved while allowing expressions.
+  bool NextIsStatementEnd() const {
+    if (pos_ + 1 >= tokens_.size())
+      return true;
+    const Token& next = tokens_[pos_ + 1];
+    return next.kind == Tok::EndOfLine ||
+           (next.kind == Tok::Op && (next.text == ":" || next.text == "'")) ||
+           (next.kind == Tok::Keyword && next.text == "ELSE");
+  }
+
+  // GOTO target: a literal line keeps the old compile-time fixup; any other
+  // expression is evaluated at run time and resolved through the line table.
+  bool CompileGotoTarget() {
+    if (direct_)
+      return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    if (Cur().kind == Tok::Number && NextIsStatementEnd())
+      return CompileLineTarget(Op::Goto);
+    if (!ParseExpression())
+      return false;
+    Emit(Op::GotoIndirect);
+    return true;
+  }
+
+  // GOSUB target: a literal line keeps the old compile-time fixup; any other
+  // expression is evaluated at run time and resolved through the line table.
+  bool CompileGosubTarget() {
+    if (direct_)
+      return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
+    if (Cur().kind == Tok::Number && NextIsStatementEnd())
+      return CompileLineTarget(Op::Gosub);
+    if (!ParseExpression())
+      return false;
+    Emit(Op::GosubIndirect);
     return true;
   }
 
@@ -2474,6 +2825,9 @@ private:
             return Syntax("RND takes at most 1 argument");
           if (func == Func::String && argc != 2)
             return Syntax("STRING$ takes 2 arguments");
+          if ((func == Func::TextWidth || func == Func::TextHeight) && (argc < 1 || argc > 2)) {
+            return Syntax(std::string(FuncName(func)) + " takes 1 or 2 arguments");
+          }
         }
         Instr in;
         in.op = Op::CallFunc;
@@ -2546,6 +2900,12 @@ private:
       error_->message = ErrorMessage(kErrWhileWithoutWend);
       return false;
     }
+    if (!select_stack_.empty()) {
+      error_->line = select_stack_.back().line;
+      error_->code = kErrSyntax;
+      error_->message = "SELECT CASE without END SELECT";
+      return false;
+    }
     Emit(Op::End); // implicit END when execution falls off the program
     for (const Fixup& fixup : fixups_) {
       int target = -1;
@@ -2592,6 +2952,7 @@ private:
   int line_ = 0;
   std::vector<ForEntry> for_stack_;
   std::vector<WhileEntry> while_stack_;
+  std::vector<SelectEntry> select_stack_;
   std::vector<Fixup> fixups_;
   std::vector<LineSpan> line_spans_;
   std::map<int, int> line_starts_;
@@ -2601,8 +2962,8 @@ private:
 
 bool IsIllegalDirect(const std::string& keyword) {
   static const char* const kIllegalDirect[] = {
-      "DATA", "DEF",  "DIM",    "DELETE", "ERASE", "FOR",   "GOSUB",
-      "GOTO", "NEXT", "RESUME", "RETURN", "WEND",  "WHILE",
+      "CASE", "DATA", "DEF",    "DIM",    "DELETE", "ERASE", "FOR",   "GOSUB",
+      "GOTO", "NEXT", "RESUME", "RETURN", "SELECT", "WEND",  "WHILE",
   };
   return InList(kIllegalDirect, sizeof(kIllegalDirect) / sizeof(kIllegalDirect[0]), keyword);
 }

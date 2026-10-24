@@ -35,6 +35,9 @@ add_executable(newbasic-tests
   test_renum.cpp
   test_printer.cpp
   test_graphics.cpp
+  test_drawtext.cpp
+  test_new_features.cpp
+  test_stack.cpp
   test_sound.cpp
   test_text_render.cpp
   test_properties.cpp

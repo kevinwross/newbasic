@@ -20,9 +20,7 @@ public:
   virtual std::string TimeString() { return "00:00:00"; }
   // Environment snapshot for ENVIRON$. Names are returned as the host spells
   // them; the VM normalises them to uppercase for lookup.
-  virtual std::vector<std::pair<std::string, std::string>> EnvironmentSnapshot() {
-    return {};
-  }
+  virtual std::vector<std::pair<std::string, std::string>> EnvironmentSnapshot() { return {}; }
   // Runs a SHELL command line through the operating system's command
   // interpreter (an empty command starts an interactive session). Returns
   // the exit code, or -1 when the interpreter could not be started.
@@ -43,6 +41,9 @@ public:
   // Printer output (LLIST and LPRINT). The base host discards it, so headless runs
   // and tests stay silent; SystemHost appends to a file and ScriptedHost records it.
   virtual void WriteToPrinter(const std::string& text) { (void)text; }
+  // SLEEP: block for the requested number of milliseconds. The base host does
+  // nothing so headless tests stay fast; SystemHost sleeps for real.
+  virtual void SleepMilliseconds(int milliseconds) { (void)milliseconds; }
 };
 
 // Real clock-backed host used by newbasic.exe.
@@ -55,6 +56,7 @@ public:
   int RunShell(const std::string& command) override;
   bool CanRunInteractiveShell() const override;
   void PlayTone(int frequency_hz, int duration_ms) override;
+  void SleepMilliseconds(int milliseconds) override;
   // Appends to the file named by NEWBASIC_PRINTER, or newbasic.prn in the working
   // directory. GW-BASIC sends this to LPT1; a hosted interpreter cannot assume a
   // printer exists, so a file is the honest equivalent.
@@ -91,6 +93,13 @@ public:
   // Records printer output instead of writing it (tests).
   std::string printer;
   void WriteToPrinter(const std::string& text) override { printer += text; }
+
+  // Records sleep requests instead of blocking (tests).
+  int slept_ms = 0;
+  void SleepMilliseconds(int milliseconds) override {
+    if (milliseconds > 0)
+      slept_ms += milliseconds;
+  }
 
   // Scripted clock: every read advances `timer` by `timer_step`, so timer
   // event tests are deterministic.

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -69,6 +70,19 @@ enum class Func : std::int32_t {
   Time,
   Timer,
   Val,
+  // newbasic extensions for the baslib control framework (2026-10-24).
+  TextWidth,
+  TextHeight,
+  MousePosX,
+  MousePosY,
+  MouseButtons,
+  MouseWheel,
+  ScreenWidth,
+  ScreenHeight,
+  ViewX1,
+  ViewY1,
+  ViewX2,
+  ViewY2,
   // Machine-level functions (M13): recognised so they produce a clear refusal
   // instead of a syntax error. There is no machine model to expose.
   Fre,
@@ -152,9 +166,12 @@ enum class Op : std::uint8_t {
   Circle,      // CIRCLE (x,y),r[,...]: pop aspect, end, start, colour, r, y, x
   Paint,       // PAINT (x,y)[,fill[,border]]: pop border, fill, y, x
   Draw,        // DRAW macro$: pop the macro and interpret it
+  DrawText,    // DRAWTEXT (x,y), text$[, colour[, size]]: pop size, colour, text, y, x
   Palette,     // PALETTE [attribute, colour]: a = 1 when arguments were given
   Window,      // WINDOW [[SCREEN](x1,y1)-(x2,y2)]: a = 1 for SCREEN, 0 for no args
   View,        // VIEW [[SCREEN](x1,y1)-(x2,y2)[,[fill][,[border]]]]: a = 0 for no args
+  PushView,    // PUSH VIEW: save the current graphics viewport
+  PopView,     // POP VIEW: restore the last saved graphics viewport
   GetImage,    // GET (x1,y1)-(x2,y2), array: name = array
   PutImage,    // PUT (x,y), array [, action]: name = array, a = action
   Pcopy,       // PCOPY source, destination: copies a graphics page
@@ -186,16 +203,26 @@ enum class Op : std::uint8_t {
   Beep,  // 800 Hz for a quarter second
   Sound, // pops duration (clock ticks) then frequency (Hz) and plays it
   Play,  // pops a PLAY string and plays the tones it describes
+  Sleep, // pops a sleep duration in milliseconds
   // control flow
-  Jump,        // a = target pc
-  JumpIfFalse, // a = target pc
-  Gosub,       // a = target pc
+  Jump,          // a = target pc (compiler-internal)
+  JumpIfFalse,   // a = target pc
+  Goto,          // a = target pc (user GOTO; checks SELECT CASE scope)
+  GotoIndirect,  // pop a line number, resolve it, and check SELECT CASE scope
+  Gosub,         // a = target pc
+  GosubIndirect, // pop a line number and resolve it through the program's line table
   Return,
   ForStart,   // name; a = pc to skip to when the loop body is skipped
   ForNext,    // name (empty = innermost frame)
   OnJump,     // a = jump-table index, b = 0 GOTO / 1 GOSUB
+  SelectPush, // SELECT CASE: pop the selector into the selector stack
+  SelectLoad, // push a copy of the current selector for a CASE comparison
+  SelectPop,  // remove the current selector
   Randomize,  // b = 0 seed from the stack, 1 seed from the host clock
   Swap,       // name = "A,B"
+  StackPush,  // a = first StackSource, b = item count; push copies left-to-right
+  StackPop,   // a = first StackTarget, b = target count; assign top-down and pop
+  StackTop,   // a = first StackTarget, b = target count; assign top-down without pop
   Read,       // name = comma-separated variable list
   ReadArray,  // name = array, a = subscript count already pushed, value from DATA
   Restore,    // a = line number, 0 = first DATA item
@@ -255,6 +282,24 @@ struct UserFunc {
   int body_pc = 0;
 };
 
+// One source of STACK PUSH. A whole-array source has no expression on the
+// operand stack; the VM copies the named array when the instruction runs.
+struct StackSource {
+  std::string name;          // canonical array name when whole_array
+  bool whole_array = false;  // A() rather than a scalar expression
+};
+
+// One target of STACK POP/TOP: a scalar, an array element, or a whole array.
+// The subscript expressions are compiled onto the VM operand stack in target
+// order; a whole-array target has no subscripts.
+struct StackTarget {
+  std::string name;         // canonical variable name
+  bool array = false;       // an element, not a scalar
+  bool whole_array = false; // B()
+  int subscripts = 0;       // expressions already on the operand stack
+  int base = 0;             // OPTION BASE at compile time (for a missing array)
+};
+
 class Program {
 public:
   const std::vector<Instr>& Instrs() const { return instrs_; }
@@ -273,6 +318,8 @@ public:
   std::vector<DataItem> data_items_;   // DATA values in program order
   std::map<int, int> line_data_index_; // line with DATA -> first item index
   std::vector<UserFunc> user_funcs_;   // DEF FN definitions
+  std::vector<StackSource> stack_sources_; // STACK PUSH source descriptors
+  std::vector<StackTarget> stack_targets_; // STACK POP/TOP target descriptors
   // First pc of every statement, ascending: ON ERROR/RESUME work at
   // statement granularity (RESUME retries a statement, RESUME NEXT skips it).
   std::vector<int> statement_pcs_;
@@ -295,6 +342,14 @@ struct ForFrame {
   int body_pc = 0; // pc just after ForStart
 };
 
+// One active SELECT CASE. The frame stays alive through every CASE body, so a
+// user GOTO can be checked against the lexical start/end lines of the SELECT.
+struct SelectFrame {
+  Value selector{};
+  int start_line = 0;
+  int end_line = 0;
+};
+
 // Array storage (M2): typed by the variable's type suffix, with a per-array
 // lower bound (OPTION BASE) and an upper bound of 10 per dimension when first
 // used without DIM.
@@ -303,6 +358,15 @@ struct ArrayValue {
   int base = 0;
   std::vector<int> dims; // upper bounds
   std::vector<Value> data;
+};
+
+// A user-stack entry: one scalar or one whole array. Whole arrays are copied
+// when pushed, so later changes to the source array do not affect the entry.
+struct StackItem {
+  bool is_array = false;
+  Value scalar;
+  ArrayValue array;
+  std::size_t Elements() const { return is_array ? array.data.size() : 1; }
 };
 
 // Canonical variable key: upper-cased, with the default type character (!)
@@ -438,10 +502,14 @@ public:
   struct Snapshot {
     int pc = 0;
     std::vector<Value> stack;
+    std::vector<StackItem> user_stack;
+    std::size_t user_stack_elements = 0;
     std::map<std::string, Value> vars;
     std::map<std::string, ArrayValue> arrays;
     std::vector<ForFrame> for_stack;
     std::vector<int> gosub_stack;
+    std::vector<SelectFrame> select_stack;
+    std::vector<screen::Screen::GraphicsViewportState> view_stack;
     // DEF FN frames flattened to basic types (FuncFrame is declared below).
     std::vector<std::pair<int, std::vector<std::pair<std::string, Value>>>> func_stack;
     std::size_t data_index = 0;
@@ -464,10 +532,14 @@ public:
     Snapshot state;
     state.pc = pc_;
     state.stack = stack_;
+    state.user_stack = user_stack_;
+    state.user_stack_elements = user_stack_elements_;
     state.vars = vars_;
     state.arrays = arrays_;
     state.for_stack = for_stack_;
     state.gosub_stack = gosub_stack_;
+    state.select_stack = select_stack_;
+    state.view_stack = view_stack_;
     for (const FuncFrame& frame : func_stack_) {
       state.func_stack.emplace_back(frame.return_pc, frame.saved);
     }
@@ -491,10 +563,14 @@ public:
   void RestoreState(const Snapshot& state) {
     pc_ = state.pc;
     stack_ = state.stack;
+    user_stack_ = state.user_stack;
+    user_stack_elements_ = state.user_stack_elements;
     vars_ = state.vars;
     arrays_ = state.arrays;
     for_stack_ = state.for_stack;
     gosub_stack_ = state.gosub_stack;
+    select_stack_ = state.select_stack;
+    view_stack_ = state.view_stack;
     func_stack_.clear();
     for (const auto& entry : state.func_stack) {
       FuncFrame frame;
@@ -519,6 +595,8 @@ public:
   }
 
   const std::vector<Value>& Stack() const { return stack_; }
+  // The user-visible STACK PUSH/POP/TOP values (debugger/test seam).
+  const std::vector<StackItem>& UserStack() const { return user_stack_; }
   int LineAtPc(int pc) const;
   const Program& ProgramRef() const { return program_; }
   // The stored source lines, needed by the program-editing statements (LIST,
@@ -584,10 +662,15 @@ private:
   std::atomic<bool>* break_flag_;
   Program program_;
   std::vector<Value> stack_;
+  // User-visible STACK PUSH/POP/TOP values; separate from the expression stack_.
+  std::vector<StackItem> user_stack_;
+  std::size_t user_stack_elements_ = 0;
   std::map<std::string, Value> vars_;
   std::map<std::string, ArrayValue> arrays_;
   std::vector<ForFrame> for_stack_;
   std::vector<int> gosub_stack_;
+  std::vector<SelectFrame> select_stack_;
+  std::vector<screen::Screen::GraphicsViewportState> view_stack_;
   std::size_t data_index_ = 0; // next DATA item for READ
   // Active DEF FN calls: return address plus the parameters' saved values.
   struct FuncFrame {
@@ -671,6 +754,8 @@ private:
   double window_y2_ = 0.0;
   // Maps a world coordinate to a canvas pixel; the identity when no WINDOW is set.
   void MapGraphicsPoint(double x, double y, int* sx, int* sy) const;
+  // True when a user jump to target_pc would leave the innermost active SELECT.
+  bool LeavesSelect(int target_pc) const;
   // TRON state: printing a line number when execution enters a new line.
   bool trace_ = false;
   int traced_line_ = -1;

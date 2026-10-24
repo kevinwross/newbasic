@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 
+#include "cp437_font8x16.h"
 #include "newbasic/screen/palette.h"
 
 namespace newbasic::screen {
@@ -162,6 +163,50 @@ void Screen::SetGraphicsMode(int mode) {
   }
   ResetPaletteForMode(mode);
   ResetGraphicsViewport(); // a new mode starts with the whole canvas as the viewport
+  MarkDirty();
+}
+
+// DRAWTEXT renders with a fixed CP437 bitmap rather than the backend's system font
+// atlas. Keeping the bitmap in core makes the pixels deterministic on every platform
+// (and in headless tests), and writing through Canvas::SetPixel automatically obeys
+// VIEW clipping. The caller has already validated the mode, colour and scale.
+void Screen::DrawGraphicsText(int x, int y, const std::string& text, int colour, int scale) {
+  if (scale < 1)
+    return;
+  const int advance = detail::kCp437GlyphWidth * scale;
+  const int line_height = detail::kCp437GlyphHeight * scale;
+  const std::uint8_t ink = static_cast<std::uint8_t>(colour & 0xFF);
+  const int start_x = x;
+  int cursor_x = x;
+  int cursor_y = y;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const unsigned char ch = static_cast<unsigned char>(text[i]);
+    if (ch == '\r' || ch == '\n') {
+      // A CRLF pair is one line break; a bare CR or LF also ends the line.
+      if (ch == '\r' && i + 1 < text.size() && text[i + 1] == '\n')
+        ++i;
+      cursor_x = start_x;
+      cursor_y += line_height;
+      continue;
+    }
+    const std::uint8_t* rows = detail::kCp437Font8x16[ch];
+    for (int row = 0; row < detail::kCp437GlyphHeight; ++row) {
+      const std::uint8_t bits = rows[row];
+      if (bits == 0)
+        continue;
+      for (int column = 0; column < detail::kCp437GlyphWidth; ++column) {
+        if ((bits & (0x80u >> column)) == 0)
+          continue;
+        const int pixel_x = cursor_x + column * scale;
+        const int pixel_y = cursor_y + row * scale;
+        for (int sy = 0; sy < scale; ++sy) {
+          for (int sx = 0; sx < scale; ++sx)
+            canvas_.SetPixel(pixel_x + sx, pixel_y + sy, ink);
+        }
+      }
+    }
+    cursor_x += advance;
+  }
   MarkDirty();
 }
 

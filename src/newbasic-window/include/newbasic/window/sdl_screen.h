@@ -33,6 +33,10 @@ public:
   bool Closed() const override;
   bool TakeBreak() override;
   bool TakeMouseClick(MouseClick* click) override;
+  int MousePositionX() const override;
+  int MousePositionY() const override;
+  int MouseButtons() const override;
+  int TakeMouseWheel() override;
 
   void InjectClick(int canvas_x, int canvas_y, int button) override;
   void InjectKeys(const std::wstring& keys) override;
@@ -43,6 +47,9 @@ public:
 
 private:
   SdlScreen();
+  // Maps a window client point through the letterboxed graphics rect to a canvas
+  // pixel. Returns false when the point is outside the graphics canvas.
+  bool MapMousePoint(int window_x, int window_y, int* canvas_x, int* canvas_y) const;
   std::unique_ptr<Impl> impl_;
 };
 
