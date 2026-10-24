@@ -597,7 +597,7 @@
 504420 LABEL blPaintSlider
 504421 blFace% = blUser#(blH%,8)
 504422 blAccent% = blUser#(blH%,9)
-504423 LINE (blX%,blY% + blHH% / 2)-(blX% + blW% - 1,blY% + blHH% / 2), blFace%, BF
+504423 LINE (blX%,blY% + blHH% / 2)-(blX% + blW% - 1,blY% + blHH% / 2), blText%, BF
 504424 blPos% = blX% + (blW% - 8) * (blUser#(blH%,2) - blUser#(blH%,3)) / (blUser#(blH%,4) - blUser#(blH%,3) + 0.000001)
 504425 LINE (blPos%,blY% + 2)-(blPos% + 7,blY% + blHH% - 2), blAccent%, BF
 504426 RETURN
@@ -611,9 +611,17 @@
 504460 LABEL blPaintDial
 504461 blFace% = blUser#(blH%,8)
 504462 blAccent% = blUser#(blH%,9)
-504463 CIRCLE (blX% + blW% / 2,blY% + blHH% / 2), blW% / 2 - 2, blFace%
-504464 CIRCLE (blX% + blW% / 2,blY% + blHH% / 2), blW% / 2 - 3, blAccent%
-504465 RETURN
+504463 blR% = blHH% / 2 - 2
+504464 IF blW% < blHH% THEN blR% = blW% / 2 - 2
+504465 blCx% = blX% + blW% / 2
+504466 blCy% = blY% + blHH% / 2
+504467 CIRCLE (blCx%,blCy%), blR%, blFace%
+504468 CIRCLE (blCx%,blCy%), blR% - 1, blAccent%
+504469 blA# = 3.14159265 * (1 - (blUser#(blH%,2) - blUser#(blH%,3)) / (blUser#(blH%,4) - blUser#(blH%,3) + 0.000001))
+504470 blEx% = blCx% + COS(blA#) * (blR% - 4)
+504471 blEy% = blCy% - SIN(blA#) * (blR% - 4)
+504472 LINE (blCx%,blCy%)-(blEx%,blEy%), blAccent%
+504473 RETURN
 505000 LABEL blHitTest
 505001 blHitHandle% = 0
 505002 FOR blH% = blMaxControls% TO 1 STEP -1

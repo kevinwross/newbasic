@@ -110,7 +110,7 @@ If a block overruns, first move only within its semantic block and re-check the
 adjacent boundaries. If the total approaches 20,000, stop feature work and
 reduce code duplication before consuming the reserve.
 
-Current implementation: `baslib.bas` is 1,027 lines, all within
+Current implementation: `baslib.bas` is 1,035 lines, all within
 `500000–519999`. Per-block counts are not split yet; the important gate is the
 hard range and the 20,000-line ceiling.
 
@@ -882,7 +882,7 @@ Update this table as work proceeds.
 | M6 Paint/text | `[x]` | 2026-10-24 | 2026-10-24 | Pixel probes, host viewport, label/button paint |
 | M7 Input/events | `[x]` | 2026-10-24 | 2026-10-24 | Hit test, hover/click/capture, event ring |
 | M8 Classes/API | `[x]` | 2026-10-24 | 2026-10-24 | All public API labels; v0.1 classes |
-| M9 Demo/polish | `[x]` | 2026-10-24 | 2026-10-24 | `baslib/demo.bas`, action dispatch, theme defaults |
+| M9 Demo/polish | `[x]` | 2026-10-24 | 2026-10-24 | `baslib/demo.bas`, `baslib/demo-controls.bas`, action dispatch, theme defaults |
 | M10 v0.1 acceptance | `[~]` | 2026-10-24 | | Windowed demo verified: initial paint, button click, target click, ESC. Clean build, CLI fixtures, and ERL-500000 test pending |
 | M11 v0.2 | `[~]` | 2026-10-24 | | Slider/gauge/wrap/registration done; dial angle/quantization and full v0.2 matrix pending |
 | M12 Deferred | `[x]` | 2026-10-24 | 2026-10-24 | Intentionally not implemented; listed as backlog |
@@ -898,6 +898,20 @@ Update this table as work proceeds.
 - [x] `Esc` exits the running program normally.
 - [ ] Re-run reset (`RUN` after a click) verified manually.
 - [ ] Direct-mode invariant dump rechecked after the final click fix.
+
+**2026-10-24 — windowed `baslib/demo-controls.bas`**
+
+- [x] Panel, header label, button, section labels, slider, gauge, dial, value
+      readout, and invisible click target all render.
+- [x] Button click writes `Button clicked` plus timestamp to the readout.
+- [x] Click target writes `Target clicked` plus timestamp to the readout.
+- [x] Slider click updates its thumb; readout changes from `Slider 25` to
+      `Slider 50`.
+- [x] Dial click updates its needle and readout from `Dial 35` to `Dial 50`.
+- [x] Gauge remains read-only at `Gauge 60`.
+- [x] `Esc` exits normally.
+- [ ] Slider/dial drag with a real held mouse button (current real-input path
+      handles clicks; synthetic drag test covers capture).
 
 Correct handle/class mapping for the demo:
 
@@ -923,6 +937,12 @@ Defects found and fixed during manual testing:
    queued click events.
 4. The demo’s action table pointed at REM-only lines `1000`/`2000`; handlers are
    now at `1010`/`2010`.
+5. The control-gallery action IDs for slider/dial were initially `300`/`400`,
+   outside the action-line table’s `0–255` range; they are now `150`/`160`.
+6. The gallery initially used REM-only handler lines; it now targets executable
+   lines `1010`, `2010`, `3010`, and `4010`.
+7. The dial radius was based on the control width, producing an oversized
+   circle; it now uses the smaller of width/height and draws a value needle.
 
 ---
 

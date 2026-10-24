@@ -36,16 +36,20 @@ build-wsl/tests/newbasic-tests
 | `baslib: destroy, re-init, layout, and host sentinel` | M3/M5/M10 |
 | `baslib: root uses the current canvas size` | M1/M10 |
 | `baslib: v0.2 value controls` | M11 |
+| `baslib: slider drag updates its value` | M11 |
 | `baslib: dynamic class registration` | M11 |
 | `baslib: paint preserves the host viewport` | M6/M10 |
 | `baslib: demo.bas compiles` | M9 |
+| `baslib: demo-controls.bas compiles` | M9/M11 |
 | `baslib: labels survive RENUM` | M10 |
 | `baslib: source stays inside its line block` | M1/M10 |
 
 Tests are headless and deterministic: no window, GPU, timers, or real mouse are
 required. `RunHost` in `tests/test_baslib.cpp` is the shared fixture loader.
 
-## Manual demo
+## Manual demos
+
+Basic click/action demo:
 
 ```text
 LOAD "baslib/demo.bas"
@@ -53,5 +57,18 @@ MERGE "baslib/baslib.bas"
 RUN
 ```
 
-The demo is a host fragment with lines below 500000; merging `baslib.bas` adds
-the library lines at 500000+. Use `Esc` to exit.
+All-control gallery:
+
+```text
+LOAD "baslib/demo-controls.bas"
+MERGE "baslib/baslib.bas"
+RUN
+```
+
+Both demos are host fragments with lines below 500000; merging `baslib.bas`
+adds the library lines at 500000+. Use `Esc` to exit.
+
+The gallery shows a panel, button, labels, click target, slider, gauge, and
+dial. Click the slider or dial at a position to change its value; the readout
+updates. The gauge is read-only. The button and invisible click target write to
+the readout and demonstrate action dispatch.

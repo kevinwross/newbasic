@@ -123,6 +123,7 @@ baslib/
     baslib-imp.md           implementation milestones and test checklist
     baslib.bas              the library fragment (500000-519999)
     demo.bas                a host program (1-499999)
+    demo-controls.bas       all-control gallery host program (1-499999)
     tests/                  BASIC test programs and expected output
 
 samples/baslib/
@@ -1780,6 +1781,7 @@ baslib/
     baslib-imp.md
     baslib.bas
     demo.bas
+    demo-controls.bas
     tests/
 ```
 

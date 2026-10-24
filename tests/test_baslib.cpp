@@ -322,6 +322,20 @@ TEST_CASE("baslib: demo.bas compiles", "[baslib]") {
     INFO("demo compile error at " << error.line << ": " << error.message);
 }
 
+TEST_CASE("baslib: demo-controls.bas compiles", "[baslib]") {
+  std::string source = ReadAll(std::string(NEWBASIC_BASLIB_DIR) + "/demo-controls.bas");
+  source += "\n";
+  source += ReadAll(std::string(NEWBASIC_BASLIB_DIR) + "/baslib.bas");
+  newbasic::LineStore store;
+  std::string parse_error;
+  REQUIRE(newbasic::LineStore::ParseTextBas(source, &store, &parse_error));
+  newbasic::Program program;
+  newbasic::CompileError error;
+  CHECK(newbasic::Compile(store, &program, &error));
+  if (error.code != 0)
+    INFO("demo-controls compile error at " << error.line << ": " << error.message);
+}
+
 TEST_CASE("baslib: labels survive RENUM", "[baslib]") {
   const std::string host = "10 SCREEN 720\n"
                            "20 GOSUB blApiInit\n"
