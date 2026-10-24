@@ -153,7 +153,7 @@ Both use the same platform-neutral extension and locate the platform's
 - **Named labels.** `LABEL name` gives a line a symbolic target for
   `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are
   compile-time, RENUM-safe, and documented in the reference manual. They are
-  used by the baslib host API (`GOSUB BlApiCreate`, etc.).
+  used by the baslib host API (`GOSUB blApiCreate`, etc.).
 - **Integer width.** `%` and `&` are both signed 32-bit integers
   (`-2147483648` to `2147483647`). `MKI$`/`CVI` remain two-byte field
   conversions by definition. RENUM and line-number references also use the
