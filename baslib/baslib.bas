@@ -671,7 +671,8 @@
 505208 blEvWheelVal%(blEvTail%) = blWheelValue%
 505209 blEvTail% = (blEvTail% + 1) MOD blMaxEvents%
 505210 blEvCount% = blEvCount% + 1
-505211 RETURN
+505211 blEventCount% = blEvCount%
+505212 RETURN
 505300 LABEL blReadEvent
 505301 IF blEvCount% = 0 THEN blStatus% = blStatusEventQueueEmpty% : blEventType% = 0 : blEventCtl% = 0 : blEventAction% = 0 : blEventX% = 0 : blEventY% = 0 : blEventButton% = 0 : blEventWheel% = 0 : blEventCount% = 0 : RETURN
 505302 blEventType% = blEvType%(blEvHead%)

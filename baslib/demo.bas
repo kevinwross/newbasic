@@ -27,8 +27,8 @@
 270 GOSUB blApiCreate : blTarget% = blRetHandle%
 280 GOSUB blApiPaintAll
 290 REM --- action lines ---
-300 blReqActionId% = 100 : blReqLine& = 1000 : GOSUB blApiSetActionLine
-310 blReqActionId% = 200 : blReqLine& = 2000 : GOSUB blApiSetActionLine
+300 blReqActionId% = 100 : blReqLine& = 1010 : GOSUB blApiSetActionLine
+310 blReqActionId% = 200 : blReqLine& = 2010 : GOSUB blApiSetActionLine
 320 REM --- main loop ---
 330 GOSUB blApiPollInput
 340 WHILE blEventCount% > 0

@@ -121,6 +121,7 @@ TEST_CASE("baslib: action-line dispatch reaches host code", "[baslib]") {
       "40 GOSUB blApiCreate\n"
       "50 blReqActionId% = 100 : blReqLine& = 1000 : GOSUB blApiSetActionLine\n"
       "60 blReqX% = 20 : blReqY% = 20 : blReqButton% = 1 : GOSUB blApiTestClickAt\n"
+      "65 PRINT blEventCount%\n"
       "70 GOSUB blApiNextEvent\n"
       "80 IF blEventAction% <> blActionNone% THEN GOSUB blActionLine&(blEventAction%)\n"
       "90 END\n"
@@ -130,7 +131,8 @@ TEST_CASE("baslib: action-line dispatch reaches host code", "[baslib]") {
   newbasic::RunResult result;
   REQUIRE(RunHost(host, &screen, &result));
   CHECK(result.status == newbasic::RunResult::Status::Done);
-  CHECK(Row(screen, 0) == "ACTION 2");
+  CHECK(Row(screen, 0) == " 1");
+  CHECK(Row(screen, 1) == "ACTION 2");
 }
 
 TEST_CASE("baslib: destroy, re-init, layout, and host sentinel", "[baslib]") {
