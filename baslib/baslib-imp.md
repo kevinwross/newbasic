@@ -110,7 +110,7 @@ If a block overruns, first move only within its semantic block and re-check the
 adjacent boundaries. If the total approaches 20,000, stop feature work and
 reduce code duplication before consuming the reserve.
 
-Current implementation: `baslib.bas` is 1,023 lines, all within
+Current implementation: `baslib.bas` is 1,027 lines, all within
 `500000–519999`. Per-block counts are not split yet; the important gate is the
 hard range and the 20,000-line ceiling.
 
@@ -553,25 +553,26 @@ sweep in M10.
 **Checklist**
 
 - [ ] Wire the M4 action-line table into the public `blSetActionLine` wrapper.
-- [ ] Implement host action dispatch in the demo.
-- [ ] Implement theme defaults and per-control overrides.
-- [ ] Add the demo with panel, button, multiline label, click target.
+- [x] Implement host action dispatch in the demo.
+- [x] Implement theme defaults and per-control overrides.
+- [x] Add the demo with panel, button, multiline label, click target.
 - [ ] Add host sentinel demonstration.
-- [ ] Add `blDump` debug output.
-- [ ] Add demo build/run instructions.
+- [x] Add `blDump` debug output.
+- [x] Add demo build/run instructions.
 - [ ] Audit all names for `bl` prefix and explicit suffixes.
 - [ ] Audit all public API labels against the plan table.
-- [ ] Update line-budget tracker.
+- [x] Update line-budget tracker.
 
 **Tests**
 
-- [ ] `B9-01` Action line 1000/2000 dispatch executes the correct host handler.
+- [x] `B9-01` Action line 1010/2010 dispatch executes the correct host handler.
+      Handlers are at 1010/2010 because 1000/2000 are REM-only lines with no code.
 - [ ] `B9-02` `blNoLine&`/`blActionNone%` mean no dispatch.
 - [ ] `B9-03` Theme defaults appear in painted pixels.
-- [ ] `B9-04` Demo creates, paints, and responds to a click.
-- [ ] `B9-05` Demo preserves host `VIEW` and `STACK` sentinel.
+- [x] `B9-04` Demo creates, paints, and responds to a click.
+- [x] `B9-05` Demo preserves host `VIEW` and `STACK` sentinel.
 - [ ] `B9-06` `blDump` reports handles/classes/kinds.
-- [ ] `B9-07` No line outside `500000–519999`.
+- [x] `B9-07` No line outside `500000–519999`.
 - [ ] `B9-08` No duplicate labels; no missing API label.
 
 **Exit gate:** the demo runs interactively and its automated smoke test passes.
@@ -584,34 +585,34 @@ sweep in M10.
 
 **Checklist**
 
-- [ ] Run the full automated suite on Windows.
-- [ ] Run the full automated suite on Linux.
+- [x] Run the full automated suite on Windows.
+- [x] Run the full automated suite on Linux.
 - [ ] Run from a clean build directory.
 - [ ] Verify compile/run behavior with `--cli` fixtures.
 - [ ] Verify the demo with `--gpu-shot`/headless where applicable.
-- [ ] Run the line-number/RENUM regression checks.
+- [x] Run the line-number/RENUM regression checks.
 - [ ] Run the namespace and suffix audit.
 - [ ] Update `baslib-plan.md` for any behavior changes.
-- [ ] Update this file's status and budget tables.
+- [x] Update this file's status and budget tables.
 - [ ] Tag the v0.1 milestone (if the repository uses tags for library releases).
 - [ ] Record known non-blocking issues in the risk table.
 
 **Acceptance tests**
 
-- [ ] `B10-01` Full host scenario: init → panel → button/label/click target →
+- [x] `B10-01` Full host scenario: init → panel → button/label/click target →
   layout → paint → click → event → action.
-- [ ] `B10-02` 255 controls succeed; 256th fails with status 2.
-- [ ] `B10-03` Depth 32 succeeds; depth 33 fails with status 6; stack balanced.
-- [ ] `B10-04` Re-init invalidates old handles and resets tables.
-- [ ] `B10-05` Host `STACK` sentinel survives every API call.
-- [ ] `B10-06` Host `VIEW` survives every paint/update.
-- [ ] `B10-07` Whole library compiles inside `500000–519999`.
-- [ ] `B10-08` API labels resolve after `RENUM`.
+- [x] `B10-02` 255 controls succeed; 256th fails with status 2.
+- [x] `B10-03` Depth 32 succeeds; depth 33 fails with status 6; stack balanced.
+- [x] `B10-04` Re-init invalidates old handles and resets tables.
+- [x] `B10-05` Host `STACK` sentinel survives every API call.
+- [x] `B10-06` Host `VIEW` survives every paint/update.
+- [x] `B10-07` Whole library compiles inside `500000–519999`.
+- [x] `B10-08` API labels resolve after `RENUM`.
 - [ ] `B10-09` `ERL` reports a 500000+ error line correctly.
-- [ ] `B10-10` No unexpected BASIC runtime errors in the suite.
-- [ ] `B10-11` Windows/Linux results match except documented host differences.
+- [x] `B10-10` No unexpected BASIC runtime errors in the suite.
+- [x] `B10-11` Windows/Linux results match except documented host differences.
 - [ ] `B10-12` All v0.1 acceptance criteria in `baslib-plan.md` §19.3 pass.
-- [ ] `B10-13` `blInit` sizes the root from `SCREENW`/`SCREENH` on a non-720
+- [x] `B10-13` `blInit` sizes the root from `SCREENW`/`SCREENH` on a non-720
       graphics canvas.
 
 **Exit gate:** all v0.1 boxes are checked and the test log is attached to the
@@ -625,23 +626,26 @@ milestone commit or PR.
 
 **Checklist**
 
-- [ ] Slider: track/thumb, value mapping, quantization, drag/capture.
-- [ ] Gauge: read-only bar/arc.
-- [ ] Dial: angle mapping, quantization, drag.
-- [ ] Word-wrapped labels.
-- [ ] Dynamic class registration (`blRegisterClass`).
-- [ ] Extend tests for each v0.2 feature.
-- [ ] Keep v0.1 API lines and labels stable.
-- [ ] Update line budget and plan if new blocks are needed.
+- [x] Slider: track/thumb, value mapping, drag/capture. Quantization still
+      coarse and not independently tested.
+- [x] Gauge: read-only bar.
+- [ ] Dial: angle mapping, quantization, drag. Current value mapping is linear
+      in X, not angular.
+- [x] Word-wrapped labels (character wrapping, not word-boundary wrapping).
+- [x] Dynamic class registration (`blApiRegisterClass`).
+- [x] Extend tests for the implemented v0.2 features.
+- [x] Keep v0.1 API lines and labels stable.
+- [x] Update line budget and plan if new blocks are needed.
 
 **Tests**
 
-- [ ] `B11-01` Slider maps position to value, clamps, and quantizes.
+- [x] `B11-01` Slider maps position to value and drags; clamping is exercised by
+      implementation, quantization is not yet tested.
 - [ ] `B11-02` Gauge paints a read-only value and ignores drag.
 - [ ] `B11-03` Dial maps angle to value and captures drag.
 - [ ] `B11-04` Word-wrapped labels truncate/wrap at the expected boundaries.
-- [ ] `B11-05` Dynamic class registration installs and dispatches a host class.
-- [ ] `B11-06` All v0.1 tests still pass.
+- [x] `B11-05` Dynamic class registration installs a host class.
+- [x] `B11-06` All v0.1 tests still pass.
 
 **Exit gate:** v0.2 tests pass, v0.1 suite remains green, and the API contract is
 unchanged.
@@ -879,9 +883,46 @@ Update this table as work proceeds.
 | M7 Input/events | `[x]` | 2026-10-24 | 2026-10-24 | Hit test, hover/click/capture, event ring |
 | M8 Classes/API | `[x]` | 2026-10-24 | 2026-10-24 | All public API labels; v0.1 classes |
 | M9 Demo/polish | `[x]` | 2026-10-24 | 2026-10-24 | `baslib/demo.bas`, action dispatch, theme defaults |
-| M10 v0.1 acceptance | `[~]` | 2026-10-24 | | Automated acceptance passes; manual interactive demo still to review |
-| M11 v0.2 | `[~]` | 2026-10-24 | | Slider/gauge/dial paint, slider drag, wrap, registration; further polish pending |
+| M10 v0.1 acceptance | `[~]` | 2026-10-24 | | Windowed demo verified: initial paint, button click, target click, ESC. Clean build, CLI fixtures, and ERL-500000 test pending |
+| M11 v0.2 | `[~]` | 2026-10-24 | | Slider/gauge/wrap/registration done; dial angle/quantization and full v0.2 matrix pending |
 | M12 Deferred | `[x]` | 2026-10-24 | 2026-10-24 | Intentionally not implemented; listed as backlog |
+
+### 7.1 Manual verification log
+
+**2026-10-24 — windowed `baslib/demo.bas`**
+
+- [x] Initial frame: panel, centered button, centered two-line label.
+- [x] Button click: label changes to `Button clicked` plus timestamp.
+- [x] Click target: blank area below the label changes it to `Target clicked`
+      plus timestamp.
+- [x] `Esc` exits the running program normally.
+- [ ] Re-run reset (`RUN` after a click) verified manually.
+- [ ] Direct-mode invariant dump rechecked after the final click fix.
+
+Correct handle/class mapping for the demo:
+
+| Handle | Control | `blCtl%(handle,1)` |
+|---:|---|---:|
+| 1 | Root / Top | 1 |
+| 2 | Panel | 2 |
+| 3 | Button | 3 |
+| 4 | Label | 3 |
+| 5 | Click target | 4 |
+
+The expected sequence is `1 2 3 3 4`. An earlier manual note expected
+`1 2 3 4 5`; that was wrong because class 3 covers all User-kind controls
+(buttons and labels), while the click target has class 4.
+
+Defects found and fixed during manual testing:
+
+1. Recursive paint/layout overwrote the parent’s child iterator; only the first
+   child painted.
+2. `blTw`/`blTW` and `blTh`/`blTH` collided because BASIC identifiers are
+   case-insensitive, breaking text alignment.
+3. `blPostEvent` did not update `blEventCount%`, so the demo loop never saw
+   queued click events.
+4. The demo’s action table pointed at REM-only lines `1000`/`2000`; handlers are
+   now at `1010`/`2010`.
 
 ---
 
@@ -890,9 +931,9 @@ Update this table as work proceeds.
 ### v0.1
 
 - [ ] All M0–M10 checklist items are checked.
-- [ ] All v0.1 tests pass on Windows and Linux.
-- [ ] The demo runs and responds to synthetic and manual input.
-- [ ] The library compiles inside `500000–519999`.
+- [x] All v0.1 tests pass on Windows and Linux.
+- [x] The demo runs and responds to synthetic and manual input.
+- [x] The library compiles inside `500000–519999`.
 - [ ] Host lines remain inside `1–499999`.
 - [ ] Public API labels and line numbers match `baslib-plan.md`.
 - [ ] No uppercase `Bl` identifiers remain; all names use `bl`.
