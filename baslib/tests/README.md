@@ -1,0 +1,57 @@
+# baslib tests
+
+The executable baslib harness is integrated into the repository's Catch2 test
+binary rather than a separate executable. It loads `baslib/baslib.bas`, merges
+it with a host fragment, and runs the result on a `HeadlessScreen`.
+
+## Commands
+
+```text
+# Windows
+cmake --build out --config Release --target newbasic-tests
+out/tests/Release/newbasic-tests.exe "[baslib]"
+
+# Linux / WSL
+cmake --build build-wsl --target newbasic-tests -j4
+build-wsl/tests/newbasic-tests "[baslib]"
+```
+
+The full suite remains:
+
+```text
+out/tests/Release/newbasic-tests.exe
+build-wsl/tests/newbasic-tests
+```
+
+## Coverage map
+
+| Test | Covers |
+|---|---|
+| `baslib: init, constants, and labels` | M1 constants, init, API labels |
+| `baslib: create, layout, paint, hit-test, and click event` | M3/M5/M6/M7/M8 |
+| `baslib: frame depth and balance` | M2 |
+| `baslib: blSend uses the frame protocol` | M2/M4 |
+| `baslib: 255-control ceiling` | M3 |
+| `baslib: action-line dispatch reaches host code` | M4/M9 |
+| `baslib: destroy, re-init, layout, and host sentinel` | M3/M5/M10 |
+| `baslib: root uses the current canvas size` | M1/M10 |
+| `baslib: v0.2 value controls` | M11 |
+| `baslib: dynamic class registration` | M11 |
+| `baslib: paint preserves the host viewport` | M6/M10 |
+| `baslib: demo.bas compiles` | M9 |
+| `baslib: labels survive RENUM` | M10 |
+| `baslib: source stays inside its line block` | M1/M10 |
+
+Tests are headless and deterministic: no window, GPU, timers, or real mouse are
+required. `RunHost` in `tests/test_baslib.cpp` is the shared fixture loader.
+
+## Manual demo
+
+```text
+LOAD "baslib/demo.bas"
+MERGE "baslib/baslib.bas"
+RUN
+```
+
+The demo is a host fragment with lines below 500000; merging `baslib.bas` adds
+the library lines at 500000+. Use `Esc` to exit.

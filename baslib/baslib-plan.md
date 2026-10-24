@@ -2,6 +2,7 @@
 
 **Status:** Draft 0.2 — planning only. No library code has been written yet.  
 **Target:** newbasic (GW-BASIC-compatible dialect in this repository)  
+**Implementation plan:** [`baslib-imp.md`](baslib-imp.md)  
 **Last updated:** 2026-10-24
 
 This document records the design agreed so far. The existing sketches are in [`stackish.bas`](../samples/baslib/stackish.bas) and [`windows.bas`](../samples/baslib/windows.bas); they are prototypes, not the final implementation. The real library, demo, tests, and this plan live in the top-level `baslib/` directory.
@@ -119,6 +120,7 @@ The language `GOSUB` stack handles return addresses. `STACK` handles data.
 ```
 baslib/
     baslib-plan.md          this document
+    baslib-imp.md           implementation milestones and test checklist
     baslib.bas              the library fragment (500000-519999)
     demo.bas                a host program (1-499999)
     tests/                  BASIC test programs and expected output
@@ -1775,6 +1777,7 @@ v0.1 ships the **button, label, and click target**, plus Top and Panel. Slider, 
 ```
 baslib/
     baslib-plan.md
+    baslib-imp.md
     baslib.bas
     demo.bas
     tests/

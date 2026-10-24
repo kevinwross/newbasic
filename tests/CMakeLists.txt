@@ -8,6 +8,7 @@ add_executable(newbasic-tests
   test_statements.cpp
   test_arrays.cpp
   test_data.cpp
+  test_baslib.cpp
   test_const.cpp
   test_userfuncs.cpp
   test_errors.cpp
@@ -54,6 +55,7 @@ target_link_libraries(newbasic-tests PRIVATE
 target_compile_definitions(newbasic-tests PRIVATE
   NEWBASIC_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../fixtures"
   NEWBASIC_SAMPLES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../samples"
+  NEWBASIC_BASLIB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../baslib"
 )
 if(MSVC)
   target_compile_options(newbasic-tests PRIVATE /WX)
