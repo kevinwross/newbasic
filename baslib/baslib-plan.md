@@ -8,10 +8,12 @@ This document records the design agreed so far. The existing sketches are in [`s
 
 > **Draft 0.2.** newbasic now has computed `GOTO`/`GOSUB`, a user-visible
 > `STACK`, `SELECT CASE`, `SLEEP`, live mouse state, `TEXTWIDTH`/`TEXTHEIGHT`,
-> `SCREENW`/`SCREENH`, viewport queries, and `PUSH VIEW`/`POP VIEW`. These remove
-> the old static-dispatch, click-only, fixed-screen and text-cell constraints.
-> The frame stack, dispatch, input, painting and layout sections below have been
-> redesigned around them. Draft 0.1 details that no longer apply were removed.
+> `SCREENW`/`SCREENH`, viewport queries, `PUSH VIEW`/`POP VIEW`, symbolic
+> `LABEL` targets, read-only `CONST` values, and signed 32-bit integers and line
+> numbers. These remove the old static-dispatch, click-only, fixed-screen and
+> text-cell constraints. The frame stack, dispatch, input, painting and layout
+> sections below have been redesigned around them. Draft 0.1 details that no
+> longer apply were removed.
 
 ---
 
@@ -26,7 +28,9 @@ Create a reusable BASIC source library that manages a tree of graphical controls
 
 Each control has a class. Every instance of a class shares one class handler. Instances have independent state, stored in arrays. Parameters and return values travel through the language `STACK`; class and verb handlers are reached through computed `GOSUB` and computed `GOTO`.
 
-The library is a *source fragment*, not an interpreter extension. A host program merges it with its own source and calls fixed line-number entry points.
+The library is a *source fragment*, not an interpreter extension. A host
+program merges it with its own source and calls labelled entry points backed by
+stable line numbers.
 
 ### Non-goals for v0.1
 
@@ -50,8 +54,10 @@ These are facts from the current implementation and reference manual. They drive
 | Capability / constraint | Consequence |
 |---|---|
 | No `INCLUDE` or import statement. `MERGE` is direct-mode only. | baslib is a plain source fragment with fixed line numbers. It is merged or concatenated before `RUN`. |
-| `GOSUB` accepts a literal line or a numeric expression. Literal targets keep compile-time resolution. | The public API remains a line-number contract, but class/verb dispatch can fetch a method line from a table and `GOSUB` it. |
-| `GOTO` accepts a literal line or a numeric expression. `GOTO` out of an active `SELECT CASE` is a runtime error. | Computed `GOTO` is used for tail dispatch inside a method (the pending `GOSUB` return is preserved). Do not use it to leave a `SELECT CASE`; use computed `GOSUB` where a return is needed. |
+| `GOSUB` accepts a literal line, a `LABEL`, or a numeric expression. Literal/label targets keep compile-time resolution. | The public API is a line-number contract plus symbolic labels, but class/verb dispatch can fetch a method line from a table and `GOSUB` it. |
+| `GOTO` accepts a literal line, a `LABEL`, or a numeric expression. `GOTO` out of an active `SELECT CASE` is a runtime error. | Computed `GOTO` is used for tail dispatch inside a method (the pending `GOSUB` return is preserved). Do not use it to leave a `SELECT CASE`; use computed `GOSUB` where a return is needed. |
+| `LABEL name` declares a symbolic line target; labels are case-insensitive, compile-time, and survive `RENUM`. | Public API entry points get labels; host code uses `GOSUB BlApiCreate` instead of a literal line. Method tables still store numeric lines because computed `GOSUB` needs a value. |
+| `CONST name = literal` declares a read-only global initialized before the first instruction. | Version, limits, status codes, enum IDs, and flag bits are `CONST`; host or library code cannot overwrite them. |
 | `STACK PUSH` / `STACK POP` / `STACK TOP` / `STACK PEEK` maintain one global LIFO stack of BASIC values. Whole arrays are copied by value. List operations are all-or-nothing. There is no stack-depth query. | baslib uses `STACK` as its call-frame transport and work stack. It must keep exact push/pop discipline and must never assume the stack is otherwise empty. |
 | `STACK` is cleared by `CLEAR`, `RUN`, `LOAD`, `NEW`, and `CHAIN`, but is preserved between direct-mode commands and is not touched by `GOSUB`/`RETURN`. | A host may use `STACK` too. baslib frames must be balanced and transparent to values below them. `BlInit` is required after any operation that clears the stack. |
 | `STACK` underflow raises **Stack empty** (error 77). The stack is capped at 1,000,000 entries and elements. | Frame and work-stack code validates its own counts; it never relies on underflow as control flow. |
@@ -148,7 +154,7 @@ samples/baslib/
 | 42000–48999 | Debug/test helpers and example-only code if needed. |
 | 49000–49999 | Reserved for future public API. |
 
-Line assignment inside each block is flexible; the block boundaries are the contract. Public API line numbers from §14 are stable once v0.1 ships.
+Line assignment inside each block is flexible; the block boundaries are the contract. Public API line numbers from §14 are stable once v0.1 ships, and each entry line carries a `LABEL` (`BlApiInit`, `BlApiCreate`, …).
 
 The line space is partitioned:
 
@@ -161,6 +167,98 @@ The line space is partitioned:
 newbasic’s line store and `RENUM` now accept signed 32-bit line numbers, but baslib still keeps its static lines at or below **65529** for GW-BASIC compatibility and headroom.
 
 `RENUM` moves the numeric entry points. Symbolic calls (`GOSUB BlApiCreate`) and the `LABEL` definitions survive, so a renumbered merged program still runs; tools that rely on the published numeric map still break. Do not run `RENUM` after merging if anything depends on those numbers; renumber the host before merging, or leave the merged program unrenumbered.
+
+#### 4.2.1 Named constants
+
+The 30010–30099 block uses `CONST` for every published number and string. The
+values are installed before the program starts, so no initialization order
+matters, and host or library code cannot assign to them.
+
+```basic
+30010 CONST BlVersion$ = "0.2"
+30011 CONST BlVersionNum# = 0.2
+30012 CONST BlMaxControls% = 255
+30013 CONST BlMaxFrames% = 32
+30014 CONST BlMaxArgs% = 8
+30015 CONST BlMaxStrArgs% = 2
+30016 CONST BlMaxClasses% = 16
+30017 CONST BlMaxVerbs% = 20
+30018 CONST BlMaxKinds% = 8
+30019 CONST BlMaxEvents% = 64
+30020 CONST BlHandleRoot% = 1
+30021 CONST BlActionNone% = 0
+30022 CONST BlStatusOk% = 0
+30023 CONST BlStatusNotInit% = 1
+30024 CONST BlStatusControlTableFull% = 2
+30025 CONST BlStatusInvalidHandle% = 3
+30026 CONST BlStatusInvalidClass% = 4
+30027 CONST BlStatusInvalidVerb% = 5
+30028 CONST BlStatusFrameOverflow% = 6
+30029 CONST BlStatusInvalidParent% = 7
+30030 CONST BlStatusCannotDestroyRoot% = 8
+30031 CONST BlStatusInvalidGeometry% = 9
+30032 CONST BlStatusInvalidValue% = 10
+30033 CONST BlStatusInvalidLayout% = 11
+30034 CONST BlStatusEventQueueFull% = 12
+30035 CONST BlStatusEventQueueEmpty% = 13
+30036 CONST BlStatusNoGraphics% = 14
+30037 CONST BlStatusFrameProtocol% = 15
+30038 CONST BlStatusMissingActionHandler% = 16
+30039 CONST BlStatusClassTableFull% = 17
+30040 CONST BlClassTop% = 1
+30041 CONST BlClassPanel% = 2
+30042 CONST BlClassUser% = 3
+30043 CONST BlClassClickTarget% = 4
+30044 CONST BlVerbPaint% = 1
+30045 CONST BlVerbUpdate% = 2
+30046 CONST BlVerbShow% = 3
+30047 CONST BlVerbHide% = 4
+30048 CONST BlVerbLayout% = 5
+30049 CONST BlVerbClick% = 6
+30050 CONST BlVerbHitTest% = 7
+30051 CONST BlVerbMouseDown% = 8
+30052 CONST BlVerbMouseUp% = 9
+30053 CONST BlVerbMouseMove% = 10
+30054 CONST BlVerbMouseEnter% = 11
+30055 CONST BlVerbMouseLeave% = 12
+30056 CONST BlVerbWheel% = 13
+30057 CONST BlVerbCaptureLost% = 14
+30058 CONST BlVerbDestroy% = 15
+30059 CONST BlVerbKey% = 16
+30060 CONST BlVerbFocus% = 17
+30061 CONST BlKindButton% = 1
+30062 CONST BlKindSlider% = 2
+30063 CONST BlKindGauge% = 3
+30064 CONST BlKindDial% = 4
+30065 CONST BlKindLabel% = 5
+30066 CONST BlEvClick% = 1
+30067 CONST BlEvChange% = 2
+30068 CONST BlEvMove% = 3
+30069 CONST BlEvEnter% = 4
+30070 CONST BlEvLeave% = 5
+30071 CONST BlEvDown% = 6
+30072 CONST BlEvUp% = 7
+30073 CONST BlEvWheel% = 8
+30074 CONST BlEvKey% = 9
+30075 CONST BlEvFocus% = 10
+30076 CONST BlEvCaptureLost% = 11
+30077 CONST BlFlagVisible% = 1
+30078 CONST BlFlagEnabled% = 2
+30079 CONST BlFlagClip% = 4
+30080 CONST BlFlagDirty% = 8
+30081 CONST BlFlagHot% = 16
+30082 CONST BlFlagPressed% = 32
+30083 CONST BlFlagClickable% = 64
+30084 CONST BlFlagFocusable% = 128
+30085 CONST BlFlagTransparent% = 256
+30086 CONST BlFlagLayoutDirty% = 512
+30087 CONST BlFlagCaptured% = 1024
+30088 CONST BlNoLine& = 0
+```
+
+The numbers are illustrative within the 30010–30099 block; the names are the
+contract. Method tables store numeric line values because computed `GOSUB`
+needs a number, but every public API entry point has a `LABEL` (see §14.2).
 
 ### 4.3 Host workflow
 
@@ -178,6 +276,9 @@ The host must also honor these rules:
 
 - Do not use `OPTION BASE 1`. baslib requires the default base 0.
 - Do not define variables beginning with `Bl` (case-insensitive). That is the baslib namespace.
+- Do not assign to `Bl...` `CONST` names; they are read-only. Reading them is fine.
+- Call public routines with labels (`GOSUB BlApiCreate`), not literal lines. The numeric lines remain the compatibility contract.
+- A host `LABEL` name is allowed; labels are a separate namespace from variables. Do not name a host label `Bl...`.
 - Do not rely on default numeric types inside baslib; the library uses explicit suffixes, and host code should use matching types in request variables.
 - End the host’s main flow with `END` or a loop. The `30000 END` guard is a safety net, not a substitute.
 - Select a graphics screen (for example `SCREEN 720`) before `BlInit`. baslib reads `SCREENW`/`SCREENH`; it does not change the screen mode or palette.
@@ -278,7 +379,7 @@ Verbs:
 | 16 | Key | Reserved for keyboard input. |
 | 17 | Focus | Reserved for focus changes. |
 
-`BlMaxVerbs% = 20` leaves room for future verbs without changing the table shape. Every method slot in `BlMethod&` and `BlUserMethod&` is initialized to a class-local no-op line; a missing implementation is explicit, not accidental fall-through.
+The verb IDs are exposed as `BlVerbPaint%`…`BlVerbFocus%` constants. `CONST BlMaxVerbs% = 20` leaves room for future verbs without changing the table shape. Every method slot in `BlMethod&` and `BlUserMethod&` is initialized to a class-local no-op line; a missing implementation is explicit, not accidental fall-through.
 
 ### 7.2 Built-in classes
 
@@ -290,7 +391,7 @@ Verbs:
 | 4 | ClickTarget | HitTest, Click, MouseDown/Up/Enter/Leave, Wheel | Invisible hotspot; can also be a transparent overlay child. |
 | 5–16 | Reserved | — | Method table points to the no-op line. |
 
-Class IDs 1–4 are defined for v0.1. The shipped v0.1 methods are Top, Panel, User (button and label kinds), and ClickTarget; the slider/gauge/dial branches are added in v0.2. Adding a built-in class means filling its method table row and adding method lines; there is no static `ON` list to edit.
+Class IDs 1–4 are defined for v0.1 and exposed as `BlClassTop%`…`BlClassClickTarget%` constants. The shipped v0.1 methods are Top, Panel, User (button and label kinds), and ClickTarget; the slider/gauge/dial branches are added in v0.2. Adding a built-in class means filling its method table row and adding method lines; there is no static `ON` list to edit.
 
 Class metadata:
 
@@ -329,7 +430,7 @@ Shared behavior (bevel drawing, text layout, value mapping) lives in ordinary he
 | 5 | Label | Yes | Multiline static text with alignment, padding, optional border, auto-size, and no click. |
 | 6–8 | Reserved | — | Kind methods point to the no-op line. |
 
-Label remains a User kind rather than a separate class. It shares the User handler, needs no new class table row, and leaves class IDs 5–16 free.
+Label remains a User kind rather than a separate class. It shares the User handler, needs no new class table row, and leaves class IDs 5–16 free. The kind values are exposed as `BlKindButton%`…`BlKindLabel%` constants.
 
 ---
 
@@ -350,7 +451,7 @@ Label remains a User kind rather than a separate class. It shares the User handl
 
 A 255-handle limit keeps the control table bounded and matches the event action ID range. Class and verb counts are no longer tied to the `ON ... GOSUB` 255 limit; 16 × 20 is a table, not a list. Raising a limit is a source edit plus rechecking the table initialization.
 
-The limits are declared with `CONST` in the 30010–30099 initialization block, for example `30010 CONST BlMaxControls% = 255`. They are installed before the program starts, read like ordinary scalars, and cannot be assigned by host or library code.
+These are the `CONST` declarations in §4.2.1 (`30012`–`30019`). They are installed before the program starts, read like ordinary scalars, and cannot be assigned by host or library code.
 
 ### 8.2 Common control table
 
@@ -409,6 +510,9 @@ Flags:
 | 256 | `BlFlagTransparent%` | Paint is a no-op; hit test still applies. |
 | 512 | `BlFlagLayoutDirty%` | Subtree needs layout. |
 | 1024 | `BlFlagCaptured%` | This control owns mouse capture. |
+
+The flag bits are `CONST` declarations in §4.2.1; they cannot be reassigned by
+host or library code.
 
 ### 8.3 Class-specific tables
 
@@ -526,7 +630,11 @@ BlPanelLayoutLine&(0..3)                          panel mode → layout branch
 BlActionLine&(0..255)                             host action ID → line
 ```
 
-`BlInit` fills every method slot with the class-local no-op line, installs the built-in rows, and clears `BlActionLine&`. The no-op line closes the current frame, returns a default result, and returns.
+`BlInit` fills every method slot with the class-local no-op line, installs the built-in rows, and clears `BlActionLine&`. The no-op line closes the current frame, returns a default result, and returns. Method tables store numeric lines, not labels, because computed `GOSUB` needs a value; literal API calls use `BlApi...` labels.
+
+Internal routines that are called literally also carry labels: `BlDispatch`,
+`BlFramePush`, `BlFrameLoad`, `BlFrameClose`, `BlFrameDrop`, and `BlSend`.
+These are library-private; only the `BlApi...` labels in §14.2 are public.
 
 Adding a built-in class or verb is a table write. A v0.2 `BlRegisterClass` can install host-provided method lines at runtime; class-specific storage is still limited to the common table plus the generic host-data columns.
 
@@ -534,14 +642,14 @@ Adding a built-in class or verb is a table write. A v0.2 `BlRegisterClass` can i
 
 ```
 32000 REM BlDispatch: dispatch the frame already pushed on STACK
-32010 IF BlFp% >= BlMaxFrames% THEN BlStatus% = 6 : GOTO 32090
+32010 IF BlFp% >= BlMaxFrames% THEN BlStatus% = BlStatusFrameOverflow% : GOTO 32090
 32020 STACK TOP BlArgcS%, BlArgcN%, BlDispVerb%, BlDispCtl%
-32030 IF BlDispCtl% < 1 OR BlDispCtl% > BlMaxControls% THEN BlStatus% = 3 : GOTO 32090
+32030 IF BlDispCtl% < 1 OR BlDispCtl% > BlMaxControls% THEN BlStatus% = BlStatusInvalidHandle% : GOTO 32090
 32040 BlDispClass% = BlCtl%(BlDispCtl%, BlFClass%)
-32050 IF BlDispClass% < 1 OR BlDispClass% > BlMaxClasses% THEN BlStatus% = 4 : GOTO 32090
-32060 IF BlDispVerb% < 1 OR BlDispVerb% > BlMaxVerbs% THEN BlStatus% = 5 : GOTO 32090
+32050 IF BlDispClass% < 1 OR BlDispClass% > BlMaxClasses% THEN BlStatus% = BlStatusInvalidClass% : GOTO 32090
+32060 IF BlDispVerb% < 1 OR BlDispVerb% > BlMaxVerbs% THEN BlStatus% = BlStatusInvalidVerb% : GOTO 32090
 32070 BlMethodLine& = BlMethod&(BlDispClass%, BlDispVerb%)
-32080 IF BlMethodLine& = 0 THEN BlStatus% = 5 : GOTO 32090
+32080 IF BlMethodLine& = BlNoLine& THEN BlStatus% = BlStatusInvalidVerb% : GOTO 32090
 32082 BlFp% = BlFp% + 1
 32084 GOSUB BlFrameLoad          ' cache the 14-slot frame at BlFp%
 32086 GOSUB BlMethodLine&        ' method closes the frame and pushes the result
@@ -596,10 +704,10 @@ A method must not decrement `BlFp%` or manipulate another frame. It may call ano
 
 ```
 GOSUB BlApiNextEvent                    ' BlNextEvent
-IF BlEventAction% <> 0 AND BlActionLine&(BlEventAction%) <> 0 THEN GOSUB BlActionLine&(BlEventAction%)
+IF BlEventAction% <> BlActionNone% AND BlActionLine&(BlEventAction%) <> BlNoLine& THEN GOSUB BlActionLine&(BlEventAction%)
 ```
 
-The library does not call host code itself; the host performs the computed `GOSUB`. A zero line means “no handler” and must be checked. Action IDs are 0–255; 0 remains “no action” by convention.
+The library does not call host code itself; the host performs the computed `GOSUB`. `BlNoLine&` means “no handler” and must be checked. Action IDs are 0–255; `BlActionNone%` remains “no action” by convention.
 
 ### 9.6 Dynamic class registration (v0.2)
 
@@ -1127,7 +1235,7 @@ Event types:
 | 10 | `BlEvFocus%` | Reserved. |
 | 11 | `BlEvCaptureLost%` | Capture was released by hide/destroy. |
 
-Move events are coalesced per poll; the queue is bounded at 64. If the queue fills, the newest non-click event is dropped and `BlStatus%`/`BlError%` indicate a full queue; clicks take priority. `BlPollInput` drains at most eight queued clicks per call.
+These event numbers are `CONST` declarations in §4.2.1 (`BlEv...%`). Move events are coalesced per poll; the queue is bounded at 64. If the queue fills, the newest non-click event is dropped and `BlStatus%`/`BlError%` indicate a full queue; clicks take priority. `BlPollInput` drains at most eight queued clicks per call.
 
 ### 13.7 Action IDs and action lines
 
@@ -1135,10 +1243,15 @@ Move events are coalesced per poll; the queue is bounded at 64. If the queue fil
 
 ```
 BlActionLine&(action%) = handler line
-IF BlActionLine&(BlEventAction%) <> 0 THEN GOSUB BlActionLine&(BlEventAction%)
+IF BlActionLine&(BlEventAction%) <> BlNoLine& THEN GOSUB BlActionLine&(BlEventAction%)
 ```
 
-`BlSetActionLine(action%, line&)` fills the table. Action 0 is valid but should be reserved for “no action”; a zero line means no handler.
+`BlSetActionLine(action%, line&)` fills the table. Action 0 is valid but should be reserved for “no action”; `BlNoLine&` means no handler.
+
+Action IDs are ordinary request values; host code can declare them with `CONST`
+(for example `CONST ActButton% = 100`). The handler **line** must be numeric
+because `BlSetActionLine` stores a line value for later computed `GOSUB`;
+`LABEL` is for direct `GOTO`/`GOSUB` calls, not for a value stored in a table.
 
 This is the BASIC substitute for a callback function pointer. The library never calls host code directly; it posts an event and returns. The host may call the line explicitly, which keeps the host in control of its own stack.
 
@@ -1161,7 +1274,7 @@ Out of scope for v0.1. The `Key` and `Focus` verb slots and `BlFlagFocusable%` a
 
 ## 14. Public API
 
-All calls are `GOSUB <literal line>`. Set request globals, call, then check `BlStatus%` and read `BlRet...`. Internal methods use `STACK` frames; the host API does not.
+All public calls use `GOSUB BlApi...` labels; internal method dispatch uses numeric table lines. Set request globals, call, then check `BlStatus%` and read `BlRet...`. Internal methods use `STACK` frames; the host API does not.
 
 ### 14.1 Common request/return globals
 
@@ -1237,36 +1350,36 @@ BlActionLine&(0..255)  host action ID → handler line
 
 ### 14.2 Entry points
 
-| Line | Routine | Inputs | Outputs |
-|---:|---|---|---|
-| 40000 | `BlInit` | `BlReqW%`, `BlReqH%` (0 → canvas) | `BlRoot%`, `BlStatus%` |
-| 40100 | `BlCreate` | class, parent, local x/y/w/h, flags, action, tag, kind, button mask, text, value, mode, pad, gap, text properties | `BlRetHandle%` |
-| 40200 | `BlDestroy` | `BlReqHandle%` | `BlStatus%` |
-| 40300 | `BlSetBounds` | handle, local x/y/w/h | `BlStatus%` |
-| 40400 | `BlShow` | handle | `BlStatus%` |
-| 40500 | `BlHide` | handle | `BlStatus%` |
-| 40600 | `BlSetText` | handle, `BlReqText$` | `BlStatus%` |
-| 40700 | `BlSetValue` | handle, `BlReqValue#` | `BlStatus%` |
-| 40800 | `BlGetValue` | handle | `BlRetValue#` |
-| 40900 | `BlSetLayout` | handle, mode, pad, gap, cols | `BlStatus%` |
-| 41000 | `BlSetAction` | handle, action | `BlStatus%` |
-| 41100 | `BlInvalidate` | handle | `BlStatus%` |
-| 41200 | `BlLayoutAll` | — | `BlStatus%` |
-| 41300 | `BlPaintAll` | — | `BlStatus%` |
-| 41400 | `BlUpdate` | handle | `BlStatus%` |
-| 41500 | `BlPollInput` | — | count in `BlRetN%` |
-| 41550 | `BlPollMouse` | — | alias for `BlPollInput` |
-| 41600 | `BlNextEvent` | — | `BlEvent...`, `BlEventCount%` |
-| 41700 | `BlFindAt` | absolute `BlReqX%`, `BlReqY%` | `BlRetHandle%` |
-| 41800 | `BlTestClickAt` | absolute `BlReqX%`, `BlReqY%`, `BlReqButton%` | `BlRetN%` |
-| 41810 | `BlTestMouseMove` | absolute x/y | `BlRetN%` |
-| 41820 | `BlTestMouseButton` | button, down, x/y | `BlRetN%` |
-| 41830 | `BlTestWheel` | delta | `BlRetN%` |
-| 41900 | `BlDump` | optional handle | debug print |
-| 41910 | `BlAutoSize` | handle | `BlStatus%` |
-| 41920 | `BlSetActionLine` | action ID, line | `BlStatus%` |
-| 41930 | `BlRegisterClass` | class ID, method lines (v0.2) | `BlStatus%` |
-| 41950 | `BlSetEnabled` | handle, `BlReqEnabled%` | `BlStatus%` |
+| Line | Label | Routine | Inputs | Outputs |
+|---:|---|---|---|---|
+| 40000 | `BlApiInit` | `BlInit` | `BlReqW%`, `BlReqH%` (0 → canvas) | `BlRoot%`, `BlStatus%` |
+| 40100 | `BlApiCreate` | `BlCreate` | class, parent, local x/y/w/h, flags, action, tag, kind, button mask, text, value, mode, pad, gap, text properties | `BlRetHandle%` |
+| 40200 | `BlApiDestroy` | `BlDestroy` | `BlReqHandle%` | `BlStatus%` |
+| 40300 | `BlApiSetBounds` | `BlSetBounds` | handle, local x/y/w/h | `BlStatus%` |
+| 40400 | `BlApiShow` | `BlShow` | handle | `BlStatus%` |
+| 40500 | `BlApiHide` | `BlHide` | handle | `BlStatus%` |
+| 40600 | `BlApiSetText` | `BlSetText` | handle, `BlReqText$` | `BlStatus%` |
+| 40700 | `BlApiSetValue` | `BlSetValue` | handle, `BlReqValue#` | `BlStatus%` |
+| 40800 | `BlApiGetValue` | `BlGetValue` | handle | `BlRetValue#` |
+| 40900 | `BlApiSetLayout` | `BlSetLayout` | handle, mode, pad, gap, cols | `BlStatus%` |
+| 41000 | `BlApiSetAction` | `BlSetAction` | handle, action | `BlStatus%` |
+| 41100 | `BlApiInvalidate` | `BlInvalidate` | handle | `BlStatus%` |
+| 41200 | `BlApiLayoutAll` | `BlLayoutAll` | — | `BlStatus%` |
+| 41300 | `BlApiPaintAll` | `BlPaintAll` | — | `BlStatus%` |
+| 41400 | `BlApiUpdate` | `BlUpdate` | handle | `BlStatus%` |
+| 41500 | `BlApiPollInput` | `BlPollInput` | — | count in `BlRetN%` |
+| 41550 | `BlApiPollMouse` | `BlPollMouse` | — | alias for `BlPollInput` |
+| 41600 | `BlApiNextEvent` | `BlNextEvent` | — | `BlEvent...`, `BlEventCount%` |
+| 41700 | `BlApiFindAt` | `BlFindAt` | absolute `BlReqX%`, `BlReqY%` | `BlRetHandle%` |
+| 41800 | `BlApiTestClickAt` | `BlTestClickAt` | absolute `BlReqX%`, `BlReqY%`, `BlReqButton%` | `BlRetN%` |
+| 41810 | `BlApiTestMouseMove` | `BlTestMouseMove` | absolute x/y | `BlRetN%` |
+| 41820 | `BlApiTestMouseButton` | `BlTestMouseButton` | button, down, x/y | `BlRetN%` |
+| 41830 | `BlApiTestWheel` | `BlTestWheel` | delta | `BlRetN%` |
+| 41900 | `BlApiDump` | `BlDump` | optional handle | debug print |
+| 41910 | `BlApiAutoSize` | `BlAutoSize` | handle | `BlStatus%` |
+| 41920 | `BlApiSetActionLine` | `BlSetActionLine` | action ID, line | `BlStatus%` |
+| 41930 | `BlApiRegisterClass` | `BlRegisterClass` | class ID, method lines (v0.2) | `BlStatus%` |
+| 41950 | `BlApiSetEnabled` | `BlSetEnabled` | handle, `BlReqEnabled%` | `BlStatus%` |
 
 Every public entry line begins with a `LABEL`:
 
@@ -1295,7 +1408,7 @@ Line numbers are the API contract. New routines can be added at unused lines; ex
 SCREEN 720                    ' any graphics mode
 BlReqW% = 0 : BlReqH% = 0     ' 0 means use SCREENW/SCREENH
 GOSUB BlApiInit                   ' BlInit
-IF BlStatus% <> 0 THEN ...    ' handle failure
+IF BlStatus% <> BlStatusOk% THEN ...    ' handle failure
 
 ... create panels and controls with GOSUB BlApiCreate ...
 
@@ -1305,7 +1418,7 @@ loop:
   GOSUB BlApiPollInput                 ' BlPollInput
   WHILE BlEventCount% > 0
     GOSUB BlApiNextEvent               ' BlNextEvent
-    IF BlEventAction% <> 0 AND BlActionLine&(BlEventAction%) <> 0 THEN GOSUB BlActionLine&(BlEventAction%)
+    IF BlEventAction% <> BlActionNone% AND BlActionLine&(BlEventAction%) <> BlNoLine& THEN GOSUB BlActionLine&(BlEventAction%)
   WEND
   IF BlNeedsPaint% THEN GOSUB BlApiPaintAll
   K$ = INKEY$ : IF K$ = CHR$(27) THEN END
@@ -1313,7 +1426,7 @@ loop:
   GOTO loop
 ```
 
-`BlPaintAll` must precede the first poll so `BlCtlZ%` is valid. `BlPollInput` can mark controls dirty; the host decides whether to call `BlUpdate` or `BlPaintAll`.
+`BlPaintAll` must precede the first poll so `BlCtlZ%` is valid. `BlPollInput` can mark controls dirty; the host decides whether to call `BlUpdate` or `BlPaintAll`. The `Bl...` constants are already available because `CONST` is initialized before the first program instruction; no constant initialization call is needed.
 
 ### 14.4 Host skeleton
 
@@ -1321,42 +1434,43 @@ The following is illustrative; line numbers below 30000 are the host’s.
 
 ```basic
 10  REM baslib demo host
+15  CONST ActButton% = 100 : CONST ActTarget% = 200
 20  SCREEN 720
 30  BlReqW% = 0 : BlReqH% = 0
 40  GOSUB BlApiInit
-50  IF BlStatus% <> 0 THEN PRINT "init failed"; BlStatus%: END
+50  IF BlStatus% <> BlStatusOk% THEN PRINT "init failed"; BlStatus%: END
 60  REM --- panel ---
-80  BlReqClass% = 2 : BlReqParent% = BlRoot%
+80  BlReqClass% = BlClassPanel% : BlReqParent% = BlRoot%
 90  BlReqX% = 40 : BlReqY% = 40 : BlReqW% = 520 : BlReqH% = 360
 100 BlReqMode% = 1 : BlReqPad% = 12 : BlReqGap% = 8
 110 GOSUB BlApiCreate : BlPanel% = BlRetHandle%
 120 REM --- button ---
-130 BlReqClass% = 3 : BlReqParent% = BlPanel%
-140 BlReqKind% = 1 : BlReqX% = 0 : BlReqY% = 0 : BlReqW% = 220 : BlReqH% = 32
-150 BlReqText$ = "Ready" : BlReqAction% = 100
+130 BlReqClass% = BlClassUser% : BlReqParent% = BlPanel%
+140 BlReqKind% = BlKindButton% : BlReqX% = 0 : BlReqY% = 0 : BlReqW% = 220 : BlReqH% = 32
+150 BlReqText$ = "Ready" : BlReqAction% = ActButton%
 160 GOSUB BlApiCreate : BlButton% = BlRetHandle%
 170 REM --- label (multiline) ---
-180 BlReqClass% = 3 : BlReqParent% = BlPanel%
-190 BlReqKind% = 5 : BlReqX% = 0 : BlReqY% = 40 : BlReqW% = 300 : BlReqH% = 40
+180 BlReqClass% = BlClassUser% : BlReqParent% = BlPanel%
+190 BlReqKind% = BlKindLabel% : BlReqX% = 0 : BlReqY% = 40 : BlReqW% = 300 : BlReqH% = 40
 200 BlReqText$ = "Ready" + CHR$(13) + "second line"
 205 BlReqAlign% = 0 : BlReqVAlign% = 1 : BlReqTextScale% = 1
 210 BlReqTransparent% = 1 : BlReqTextColor% = -1 : BlReqFace% = -1
 215 BlReqPad% = 4 : BlReqBorderStyle% = 0
 220 GOSUB BlApiCreate : BlLabel% = BlRetHandle%
 230 REM --- click target (invisible hotspot) ---
-240 BlReqClass% = 4 : BlReqParent% = BlPanel%
+240 BlReqClass% = BlClassClickTarget% : BlReqParent% = BlPanel%
 250 BlReqX% = 0 : BlReqY% = 90 : BlReqW% = 300 : BlReqH% = 24
-260 BlReqText$ = "" : BlReqAction% = 200
+260 BlReqText$ = "" : BlReqAction% = ActTarget%
 270 GOSUB BlApiCreate : BlClickTarget% = BlRetHandle%
 280 GOSUB BlApiPaintAll
 290 REM --- action lines ---
-300 BlReqActionId% = 100 : BlReqLine& = 1000 : GOSUB BlApiSetActionLine
-310 BlReqActionId% = 200 : BlReqLine& = 2000 : GOSUB BlApiSetActionLine
+300 BlReqActionId% = ActButton% : BlReqLine& = 1000 : GOSUB BlApiSetActionLine
+310 BlReqActionId% = ActTarget% : BlReqLine& = 2000 : GOSUB BlApiSetActionLine
 320 REM --- main loop ---
 330 GOSUB BlApiPollInput
 340 WHILE BlEventCount% > 0
 350   GOSUB BlApiNextEvent
-360   IF BlEventAction% <> 0 AND BlActionLine&(BlEventAction%) <> 0 THEN GOSUB BlActionLine&(BlEventAction%)
+360   IF BlEventAction% <> BlActionNone% AND BlActionLine&(BlEventAction%) <> BlNoLine& THEN GOSUB BlActionLine&(BlEventAction%)
 370 WEND
 380 K$ = INKEY$ : IF K$ = CHR$(27) THEN END
 390 SLEEP 16
@@ -1518,7 +1632,7 @@ Helpers use `BlPaintOX%`/`BlPaintOY%` and the current clip. They do not assume t
 
 ## 16. Errors and validation
 
-`BlStatus%` is the primary result. `BlError%` is a numeric code; `BlError$` is a short message. The library does not raise BASIC runtime errors for expected failures (bad handle, full table, bad class), so a host `ON ERROR` handler is not surprised by library-internal errors.
+`BlStatus%` is the primary result. `BlError%` is a numeric code; `BlError$` is a short message. The library does not raise BASIC runtime errors for expected failures (bad handle, full table, bad class), so a host `ON ERROR` handler is not surprised by library-internal errors. The status numbers below are published as the `BlStatus...%` constants in §4.2.1; use the names in host code.
 
 | Code | Meaning |
 |---:|---|
@@ -1726,7 +1840,7 @@ Each step ends with a runnable test and a short note in this file. No step depen
 | Capture points at destroyed control | Crash or wrong drag target. | Clear capture on destroy/hide; post `CaptureLost`. |
 | Text measurement mismatch | Bad centering/truncation at scale. | Use `TEXTWIDTH`/`TEXTHEIGHT` for all layout; avoid `LEN*8` assumptions. |
 | Screen mode changed at runtime | Root and clips stale. | `BlInit` requires a stable graphics mode; re-init after `SCREEN`. |
-| Host forgets `BlInit` after `RUN`/`LOAD` | Stack/variables empty; status 1. | Document; `BlStatus% = 1` guard. |
+| Host forgets `BlInit` after `RUN`/`LOAD` | Stack/variables empty; status 1. | Document; `BlStatus% = BlStatusNotInit%` guard. |
 | `MERGE` workflow forgotten | API lines absent. | Demo build script and README. |
 | Library too large | Long compile/run times. | Shared class code; avoid duplicated per-kind boilerplate; measure line count per milestone. |
 | `ERL` width | Errors in library lines above 32767 could report the wrong `ERL`. | **Fixed 2026-10-24:** newbasic `ERL` returns a 32-bit Long. Keep `BlStatus%`/`BlError%` for expected failures. |
