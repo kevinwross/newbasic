@@ -466,7 +466,7 @@
 503209 blCY% = blPY% + blPad%
 503210 blChild% = blCtl%(blH%,3)
 503211 WHILE blChild% <> 0
-503212   IF (blCtl%(blChild%,13) AND blFlagVisible%) <> 0 THEN GOSUB blPlaceChild
+503212   IF (blCtl%(blChild%,13) AND blFlagVisible%) <> 0 THEN STACK PUSH blChild% : GOSUB blPlaceChild : STACK POP blChild%
 503213   blChild% = blCtl%(blChild%,6)
 503214 WEND
 503215 RETURN
@@ -490,9 +490,11 @@
 503317 blCtlClipT%(blChild%) = blCt%
 503318 blCtlClipR%(blChild%) = blCr%
 503319 blCtlClipB%(blChild%) = blCb%
-503320 blLayoutH% = blChild%
-503321 GOSUB blLayoutControl
-503322 RETURN
+503320 STACK PUSH blChild%
+503321 blLayoutH% = blChild%
+503322 GOSUB blLayoutControl
+503323 STACK POP blChild%
+503324 RETURN
 503400 LABEL blPlaceV
 503401 blCtl%(blChild%,7) = blPad%
 503402 blCtl%(blChild%,8) = blCY% - blPY%
@@ -519,11 +521,13 @@
 504105 GOSUB blPaintOne
 504106 blChild% = blCtl%(blH%,3)
 504107 WHILE blChild% <> 0
-504108   blPaintH% = blChild%
-504109   GOSUB blPaintTree
-504110   blChild% = blCtl%(blChild%,6)
-504111 WEND
-504112 RETURN
+504108   STACK PUSH blChild%
+504109   blPaintH% = blChild%
+504110   GOSUB blPaintTree
+504111   STACK POP blChild%
+504112   blChild% = blCtl%(blChild%,6)
+504113 WEND
+504114 RETURN
 504200 LABEL blPaintOne
 504201 blH% = blPaintH%
 504202 blX% = blCtl%(blH%,11)
@@ -532,13 +536,12 @@
 504205 blHH% = blCtl%(blH%,10)
 504206 IF blW% <= 0 OR blHH% <= 0 THEN RETURN
 504207 PUSH VIEW
-504208 VIEW (blX%,blY%)-(blX% + blW% - 1,blY% + blHH% - 1)
-504209 blCls% = blCtl%(blH%,1)
-504210 IF blCls% = blClassTop% OR blCls% = blClassPanel% THEN GOSUB blPaintPanel : GOTO blPaintDone
-504211 IF blCls% = blClassUser% THEN GOSUB blPaintUser
-504212 LABEL blPaintDone
-504213 POP VIEW
-504214 RETURN
+504208 blCls% = blCtl%(blH%,1)
+504209 IF blCls% = blClassTop% OR blCls% = blClassPanel% THEN GOSUB blPaintPanel : GOTO blPaintDone
+504210 IF blCls% = blClassUser% THEN GOSUB blPaintUser
+504211 LABEL blPaintDone
+504212 POP VIEW
+504213 RETURN
 504300 LABEL blPaintPanel
 504301 blFace% = blPanel%(blH%,6)
 504302 blBorder% = blPanel%(blH%,7)
@@ -563,8 +566,8 @@
 504347 blText$ = blCtlText$(blH%)
 504348 blTx% = blX%
 504349 blTy% = blY%
-504350 blTw% = blW%
-504351 blTh% = blHH%
+504350 blBoxW% = blW%
+504351 blBoxH% = blHH%
 504352 blColor% = blText%
 504353 blScale% = blUser#(blH%,20)
 504354 blAlign% = 1
@@ -582,8 +585,8 @@
 504387 IF blBorder% >= 0 THEN LINE (blX%,blY%)-(blX% + blW% - 1,blY% + blHH% - 1), blBorder%, B
 504388 blTx% = blX%
 504389 blTy% = blY%
-504390 blTw% = blW%
-504391 blTh% = blHH%
+504390 blBoxW% = blW%
+504391 blBoxH% = blHH%
 504392 blColor% = blText%
 504393 blScale% = blUser#(blH%,20)
 504394 blAlign% = blUser#(blH%,14)
@@ -794,14 +797,14 @@
 509001 RETURN
 509500 LABEL blDrawText
 509501 IF blText$ = "" THEN RETURN
-509502 blTW% = TEXTWIDTH(blText$, blScale%)
-509503 blTH% = TEXTHEIGHT(blText$, blScale%)
+509502 blTextW% = TEXTWIDTH(blText$, blScale%)
+509503 blTextH% = TEXTHEIGHT(blText$, blScale%)
 509504 blDX% = blTx% + blPad%
 509505 blDY% = blTy% + blPad%
-509506 IF blAlign% = 1 THEN blDX% = blTx% + (blTw% - blTW%) / 2
-509507 IF blAlign% = 2 THEN blDX% = blTx% + blTw% - blTW% - blPad%
-509508 IF blVAlign% = 1 THEN blDY% = blTy% + (blTh% - blTH%) / 2
-509509 IF blVAlign% = 2 THEN blDY% = blTy% + blTh% - blTH% - blPad%
+509506 IF blAlign% = 1 THEN blDX% = blTx% + (blBoxW% - blTextW%) / 2
+509507 IF blAlign% = 2 THEN blDX% = blTx% + blBoxW% - blTextW% - blPad%
+509508 IF blVAlign% = 1 THEN blDY% = blTy% + (blBoxH% - blTextH%) / 2
+509509 IF blVAlign% = 2 THEN blDY% = blTy% + blBoxH% - blTextH% - blPad%
 509510 DRAWTEXT (blDX%,blDY%), blText$, blColor%, blScale%
 509511 RETURN
 509600 LABEL blAutoSizeH
