@@ -2071,9 +2071,14 @@ bool Vm::StepImpl() {
     double aspect = aspect_value.AsNumber();
     const screen::Canvas& canvas = screen_.Graphics();
     if (aspect == 0.0) {
-      aspect = canvas.Width() > 0 ? (4.0 / 3.0) * static_cast<double>(canvas.Height()) /
-                                        static_cast<double>(canvas.Width())
-                                  : 1.0;
+      // aspect is the y radius divided by the x radius, so it is the display
+      // aspect times the canvas height/width. SCREEN 720 is 1280x720 on a 16:9
+      // display, giving aspect 1; the 4:3 modes still need their pixel-aspect
+      // correction.
+      aspect = canvas.Width() > 0
+                   ? screen_.DisplayAspect() * static_cast<double>(canvas.Height()) /
+                         static_cast<double>(canvas.Width())
+                   : 1.0;
     }
     if (aspect <= 0.0)
       return Fail(kErrIllegalFunctionCall);

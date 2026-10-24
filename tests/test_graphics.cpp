@@ -143,6 +143,23 @@ TEST_CASE("Graphics: CIRCLE uses the mode aspect for a visual circle", "[graphic
   CHECK(screen.Graphics().Pixel(160, 100 - 60) == 0);
 }
 
+TEST_CASE("Graphics: SCREEN 720 CIRCLE defaults to a round square-pixel circle",
+          "[graphics]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 SCREEN 720");
+  repl.Process("20 CIRCLE (640,360),100,7");
+  repl.Process("RUN");
+  // SCREEN 720 is 1280x720 on a 16:9 display: display aspect * height / width
+  // is 1, so the default aspect must not squash the circle vertically.
+  CHECK(screen.Graphics().Pixel(540, 360) == 7);  // left
+  CHECK(screen.Graphics().Pixel(740, 360) == 7);  // right
+  CHECK(screen.Graphics().Pixel(640, 260) == 7);  // top
+  CHECK(screen.Graphics().Pixel(640, 460) == 7);  // bottom
+  CHECK(screen.Graphics().Pixel(640, 460 + 1) == 0);
+}
+
 TEST_CASE("Graphics: CIRCLE honours start and end angles", "[graphics]") {
   newbasic::screen::HeadlessScreen screen;
   newbasic::ScriptedHost host;
