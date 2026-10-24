@@ -1,0 +1,10 @@
+10 OPEN "O", #1, "result.txt"
+20 STACK PUSH 12345
+30 SCREEN 720
+40 blReqW% = 640 : blReqH% = 400
+50 GOSUB blApiInit
+60 GOSUB blApiPaintAll
+70 STACK POP X%
+80 PRINT #1, "STACK"; X%
+90 CLOSE #1
+100 END

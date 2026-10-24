@@ -771,11 +771,16 @@
 505800 LABEL blPollInput
 505801 blRetN% = 0
 505802 blB% = MOUSEB
-505803 IF blB% <> 0 THEN blTestX% = MOUSEX : blTestY% = MOUSEY : blTestButton% = blB% : GOSUB blTestClick : blRetN% = 1 : RETURN
-505804 blTestX% = MOUSEPOSX
-505805 blTestY% = MOUSEPOSY
-505806 IF blTestX% >= 0 THEN GOSUB blTestMove
-505807 RETURN
+505803 blTestX% = MOUSEPOSX
+505804 blTestY% = MOUSEPOSY
+505805 IF blTestX% >= 0 THEN GOSUB blTestMove
+505806 blBM% = MOUSEBUTTONS AND 1
+505807 IF blBM% <> 0 AND blPressed% = 0 THEN blTestButton% = 1 : blTestDown% = 1 : GOSUB blTestButton
+505808 IF blBM% = 0 AND blPressed% <> 0 THEN blTestButton% = blPressed% : blTestDown% = 0 : GOSUB blTestButton
+505809 blWh% = MOUSEWHEEL
+505810 IF blWh% <> 0 THEN blTestWheelDelta% = blWh% : GOSUB blTestWheel
+505811 IF blB% <> 0 THEN blTestX% = MOUSEX : blTestY% = MOUSEY : blTestButton% = blB% : GOSUB blTestClick : blRetN% = 1
+505812 RETURN
 505900 LABEL blPointerValue
 505901 blKind% = blUser#(blClickH%,1)
 505902 IF blKind% <> blKindSlider% AND blKind% <> blKindDial% THEN RETURN
@@ -806,16 +811,17 @@
 509001 RETURN
 509500 LABEL blDrawText
 509501 IF blText$ = "" THEN RETURN
-509502 blTextW% = TEXTWIDTH(blText$, blScale%)
-509503 blTextH% = TEXTHEIGHT(blText$, blScale%)
-509504 blDX% = blTx% + blPad%
-509505 blDY% = blTy% + blPad%
-509506 IF blAlign% = 1 THEN blDX% = blTx% + (blBoxW% - blTextW%) / 2
-509507 IF blAlign% = 2 THEN blDX% = blTx% + blBoxW% - blTextW% - blPad%
-509508 IF blVAlign% = 1 THEN blDY% = blTy% + (blBoxH% - blTextH%) / 2
-509509 IF blVAlign% = 2 THEN blDY% = blTy% + blBoxH% - blTextH% - blPad%
-509510 DRAWTEXT (blDX%,blDY%), blText$, blColor%, blScale%
-509511 RETURN
+509502 GOSUB blFitText
+509503 blTextW% = TEXTWIDTH(blText$, blScale%)
+509504 blTextH% = TEXTHEIGHT(blText$, blScale%)
+509505 blDX% = blTx% + blPad%
+509506 blDY% = blTy% + blPad%
+509507 IF blAlign% = 1 THEN blDX% = blTx% + (blBoxW% - blTextW%) / 2
+509508 IF blAlign% = 2 THEN blDX% = blTx% + blBoxW% - blTextW% - blPad%
+509509 IF blVAlign% = 1 THEN blDY% = blTy% + (blBoxH% - blTextH%) / 2
+509510 IF blVAlign% = 2 THEN blDY% = blTy% + blBoxH% - blTextH% - blPad%
+509511 DRAWTEXT (blDX%,blDY%), blText$, blColor%, blScale%
+509512 RETURN
 509600 LABEL blAutoSizeH
 509601 blS% = blUser#(blCheckH%,20)
 509602 blP% = blUser#(blCheckH%,13)
@@ -836,6 +842,25 @@
 509709 NEXT blI%
 509710 blText$ = blWrapOut$ + blWrapLine$
 509711 RETURN
+509800 LABEL blFitText
+509801 IF blText$ = "" THEN RETURN
+509802 blFitMax% = blBoxW% - 2 * blPad%
+509803 IF blFitMax% < 1 THEN blFitMax% = 1
+509804 blFitIn$ = blText$ : blFitOut$ = "" : blFitLine$ = ""
+509805 FOR blFitI% = 1 TO LEN(blFitIn$)
+509806   blFitCh$ = MID$(blFitIn$,blFitI%,1)
+509807   IF blFitCh$ = CHR$(13) OR blFitCh$ = CHR$(10) THEN GOSUB blFitTrim : blFitOut$ = blFitOut$ + blFitLine$ + CHR$(13) + CHR$(10) : blFitLine$ = "" : GOTO blFitNext
+509808   blFitLine$ = blFitLine$ + blFitCh$
+509809 LABEL blFitNext
+509810 NEXT blFitI%
+509811 GOSUB blFitTrim
+509812 blText$ = blFitOut$ + blFitLine$
+509813 RETURN
+509870 LABEL blFitTrim
+509871 WHILE LEN(blFitLine$) > 0 AND TEXTWIDTH(blFitLine$,blScale%) > blFitMax%
+509872   blFitLine$ = LEFT$(blFitLine$,LEN(blFitLine$) - 1)
+509873 WEND
+509874 RETURN
 510000 LABEL blApiInit
 510001 GOSUB blInit
 510002 blStatus% = blStatusOk%
@@ -1032,4 +1057,7 @@
 511958 blStatus% = blStatusOk%
 511959 RETURN
 512000 REM debug/test helper area
-512001 END
+512010 LABEL blTestErl
+512020 ERROR 5
+512030 RETURN
+512031 END

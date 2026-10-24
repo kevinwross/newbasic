@@ -110,7 +110,7 @@ If a block overruns, first move only within its semantic block and re-check the
 adjacent boundaries. If the total approaches 20,000, stop feature work and
 reduce code duplication before consuming the reserve.
 
-Current implementation: `baslib.bas` is 1,035 lines, all within
+Current implementation: `baslib.bas` is 1,063 lines, all within
 `500000–519999`. Per-block counts are not split yet; the important gate is the
 hard range and the 20,000-line ceiling.
 
@@ -587,15 +587,15 @@ sweep in M10.
 
 - [x] Run the full automated suite on Windows.
 - [x] Run the full automated suite on Linux.
-- [ ] Run from a clean build directory.
-- [ ] Verify compile/run behavior with `--cli` fixtures.
-- [ ] Verify the demo with `--gpu-shot`/headless where applicable.
+- [x] Run from a clean build directory.
+- [x] Verify compile/run behavior with `--cli` fixtures.
+- [x] Verify the demo with `--gpu-shot`/headless where applicable.
 - [x] Run the line-number/RENUM regression checks.
-- [ ] Run the namespace and suffix audit.
-- [ ] Update `baslib-plan.md` for any behavior changes.
+- [x] Run the namespace and suffix audit.
+- [x] Update `baslib-plan.md` for any behavior changes.
 - [x] Update this file's status and budget tables.
-- [ ] Tag the v0.1 milestone (if the repository uses tags for library releases).
-- [ ] Record known non-blocking issues in the risk table.
+- [x] Tag the v0.1 milestone as `baslib-v0.1`.
+- [x] Record known non-blocking issues in the risk table.
 
 **Acceptance tests**
 
@@ -608,10 +608,10 @@ sweep in M10.
 - [x] `B10-06` Host `VIEW` survives every paint/update.
 - [x] `B10-07` Whole library compiles inside `500000–519999`.
 - [x] `B10-08` API labels resolve after `RENUM`.
-- [ ] `B10-09` `ERL` reports a 500000+ error line correctly.
+- [x] `B10-09` `ERL` reports a 500000+ error line correctly.
 - [x] `B10-10` No unexpected BASIC runtime errors in the suite.
 - [x] `B10-11` Windows/Linux results match except documented host differences.
-- [ ] `B10-12` All v0.1 acceptance criteria in `baslib-plan.md` §19.3 pass.
+- [x] `B10-12` All v0.1 acceptance criteria in `baslib-plan.md` §19.3 pass.
 - [x] `B10-13` `blInit` sizes the root from `SCREENW`/`SCREENH` on a non-720
       graphics canvas.
 
@@ -865,6 +865,16 @@ working commands used on Windows and Linux.
 | Test harness needs GPU | Headless screen only in automated tests | `[ ]` |
 | v0.2 destabilizes v0.1 | New milestone, v0.1 suite must stay green | `[ ]` |
 
+### 6.1 Known non-blocking issues
+
+| Issue | Milestone | Check |
+|---|---|---|
+| Dial value mapping is linear in X, not angular | M11 | `[ ]` |
+| Slider/dial quantization is not implemented | M11 | `[ ]` |
+| Word wrapping breaks on characters, not words | M11 | `[ ]` |
+| Live mouse drag/capture is wired but not in the automated matrix | M11 | `[ ]` |
+| Gauge read-only behavior lacks a dedicated test | M11 | `[ ]` |
+
 ---
 
 ## 7. Milestone status
@@ -883,7 +893,7 @@ Update this table as work proceeds.
 | M7 Input/events | `[x]` | 2026-10-24 | 2026-10-24 | Hit test, hover/click/capture, event ring |
 | M8 Classes/API | `[x]` | 2026-10-24 | 2026-10-24 | All public API labels; v0.1 classes |
 | M9 Demo/polish | `[x]` | 2026-10-24 | 2026-10-24 | `baslib/demo.bas`, `baslib/demo-controls.bas`, action dispatch, theme defaults |
-| M10 v0.1 acceptance | `[~]` | 2026-10-24 | | Windowed demo verified: initial paint, button click, target click, ESC. Clean build, CLI fixtures, and ERL-500000 test pending |
+| M10 v0.1 acceptance | `[x]` | 2026-10-24 | 2026-10-24 | Clean Windows/Linux builds, 3 CLI fixtures, ERL 512020 test, source/API audit, windowed demo and gallery |
 | M11 v0.2 | `[~]` | 2026-10-24 | | Slider/gauge/wrap/registration done; dial angle/quantization and full v0.2 matrix pending |
 | M12 Deferred | `[x]` | 2026-10-24 | 2026-10-24 | Intentionally not implemented; listed as backlog |
 
@@ -953,17 +963,17 @@ Defects found and fixed during manual testing:
 
 ### v0.1
 
-- [ ] All M0–M10 checklist items are checked.
+- [x] All M0–M10 checklist items are checked.
 - [x] All v0.1 tests pass on Windows and Linux.
 - [x] The demo runs and responds to synthetic and manual input.
 - [x] The library compiles inside `500000–519999`.
-- [ ] Host lines remain inside `1–499999`.
-- [ ] Public API labels and line numbers match `baslib-plan.md`.
-- [ ] No uppercase `Bl` identifiers remain; all names use `bl`.
-- [ ] Every variable/array has an explicit suffix.
-- [ ] Line-budget tracker is current.
-- [ ] `baslib-plan.md` and this file record any design deviations.
-- [ ] Known non-blocking issues are listed in the risk table.
+- [x] Host lines remain inside `1–499999`.
+- [x] Public API labels and line numbers match `baslib-plan.md`.
+- [x] No uppercase `Bl` identifiers remain; all names use `bl`.
+- [x] Every variable/array has an explicit suffix.
+- [x] Line-budget tracker is current.
+- [x] `baslib-plan.md` and this file record any design deviations.
+- [x] Known non-blocking issues are listed in the risk table.
 
 ### v0.2
 

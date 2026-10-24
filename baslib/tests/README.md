@@ -23,6 +23,19 @@ out/tests/Release/newbasic-tests.exe
 build-wsl/tests/newbasic-tests
 ```
 
+CLI fixtures merge each `fixtures/*.bas` with `baslib.bas`, run it with
+`--gpu-shot`, and compare `result.txt` against `expected/`:
+
+```powershell
+.\baslib\tests\run_cli.ps1
+.\baslib\tests\run_cli.ps1 -Newbasic .\out-clean\src\newbasic-cli\Release\newbasic.exe
+```
+
+```bash
+bash baslib/tests/run_cli.sh
+NEWBASIC=/path/to/newbasic bash baslib/tests/run_cli.sh
+```
+
 ## Coverage map
 
 | Test | Covers |
@@ -42,10 +55,20 @@ build-wsl/tests/newbasic-tests
 | `baslib: demo.bas compiles` | M9 |
 | `baslib: demo-controls.bas compiles` | M9/M11 |
 | `baslib: labels survive RENUM` | M10 |
+| `baslib: ERL reports a 500000+ library line` | M10/B10-09 |
+| `baslib: namespace, suffix, and API-label audit` | M10 |
 | `baslib: source stays inside its line block` | M1/M10 |
 
 Tests are headless and deterministic: no window, GPU, timers, or real mouse are
 required. `RunHost` in `tests/test_baslib.cpp` is the shared fixture loader.
+
+CLI fixtures:
+
+| Fixture | Covers |
+|---|---|
+| `api_smoke` | init, create, paint, find, click, event |
+| `layout_paint` | panel layout, child placement, pixel probe |
+| `stack_sentinel` | host `STACK` survives init/paint |
 
 ## Manual demos
 

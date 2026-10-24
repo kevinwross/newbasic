@@ -4,6 +4,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <fstream>
+#include <map>
+#include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -276,6 +279,49 @@ TEST_CASE("baslib: slider drag updates its value", "[baslib]") {
   CHECK(Row(screen, 0) == " 50");
 }
 
+TEST_CASE("baslib: hover, press, release, and wheel events", "[baslib]") {
+  const std::string host =
+      "10 SCREEN 720\n"
+      "20 GOSUB blApiInit\n"
+      "30 blReqClass% = 3 : blReqParent% = 1 : blReqKind% = 1\n"
+      "40 blReqX% = 10 : blReqY% = 10 : blReqW% = 100 : blReqH% = 24 : GOSUB blApiCreate\n"
+      "50 blReqX% = 20 : blReqY% = 20 : GOSUB blApiTestMouseMove\n"
+      "60 GOSUB blApiNextEvent : PRINT blEventType%\n"
+      "70 GOSUB blApiNextEvent : PRINT blEventType%\n"
+      "80 blReqX% = 20 : blReqY% = 20 : blReqButton% = 1 : blReqDown% = 1 : GOSUB blApiTestMouseButton\n"
+      "90 GOSUB blApiNextEvent : PRINT blEventType%\n"
+      "100 blReqDown% = 0 : GOSUB blApiTestMouseButton\n"
+      "110 GOSUB blApiNextEvent : PRINT blEventType%\n"
+      "120 blReqX% = 20 : blReqY% = 20 : blReqWheel% = 3 : GOSUB blApiTestWheel\n"
+      "130 GOSUB blApiNextEvent : PRINT blEventType%; blEventWheel%\n"
+      "140 END\n";
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::RunResult result;
+  REQUIRE(RunHost(host, &screen, &result));
+  CHECK(result.status == newbasic::RunResult::Status::Done);
+  CHECK(Row(screen, 0) == " 4");
+  CHECK(Row(screen, 1) == " 3");
+  CHECK(Row(screen, 2) == " 6");
+  CHECK(Row(screen, 3) == " 7");
+  CHECK(Row(screen, 4) == " 8  3");
+}
+
+TEST_CASE("baslib: ERL reports a 500000+ library line", "[baslib]") {
+  const std::string host =
+      "10 ON ERROR GOTO 900\n"
+      "20 SCREEN 720\n"
+      "30 GOSUB blApiInit\n"
+      "40 GOSUB blTestErl\n"
+      "50 END\n"
+      "900 PRINT \"ERR\"; ERR; \"ERL\"; ERL\n"
+      "910 END\n";
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::RunResult result;
+  REQUIRE(RunHost(host, &screen, &result));
+  CHECK(result.status == newbasic::RunResult::Status::Done);
+  CHECK(Row(screen, 0) == "ERR 5 ERL 512020");
+}
+
 TEST_CASE("baslib: dynamic class registration", "[baslib]") {
   const std::string host =
       "10 SCREEN 720\n"
@@ -346,6 +392,65 @@ TEST_CASE("baslib: labels survive RENUM", "[baslib]") {
   REQUIRE(RunHost(host, &screen, &result, true));
   CHECK(result.status == newbasic::RunResult::Status::Done);
   CHECK(Row(screen, 0) == " 0");
+}
+
+TEST_CASE("baslib: namespace, suffix, and API-label audit", "[baslib]") {
+  std::istringstream input(ReadAll(std::string(NEWBASIC_BASLIB_DIR) + "/baslib.bas"));
+  std::string line;
+  std::set<std::string> labels;
+  std::map<int, std::string> api_labels;
+  std::vector<std::string> lines;
+  const std::regex label_re(R"(^(\d+)\s+LABEL\s+([A-Za-z_][A-Za-z0-9_]*))");
+  while (std::getline(input, line)) {
+    lines.push_back(line);
+    std::smatch match;
+    if (std::regex_match(line, match, label_re)) {
+      labels.insert(match[2].str());
+      const std::string label_name = match[2].str();
+      if (std::stoi(match[1].str()) >= 510000 && std::stoi(match[1].str()) <= 511999 &&
+          label_name.rfind("blApi", 0) == 0)
+        api_labels[std::stoi(match[1].str())] = label_name;
+    }
+  }
+
+  const std::map<int, std::string> expected_api = {
+      {510000, "blApiInit"},       {510100, "blApiCreate"},
+      {510200, "blApiDestroy"},    {510300, "blApiSetBounds"},
+      {510400, "blApiShow"},       {510500, "blApiHide"},
+      {510600, "blApiSetText"},    {510700, "blApiSetValue"},
+      {510800, "blApiGetValue"},   {510900, "blApiSetLayout"},
+      {511000, "blApiSetAction"},  {511100, "blApiInvalidate"},
+      {511200, "blApiLayoutAll"},  {511300, "blApiPaintAll"},
+      {511400, "blApiUpdate"},     {511500, "blApiPollInput"},
+      {511550, "blApiPollMouse"},  {511600, "blApiNextEvent"},
+      {511700, "blApiFindAt"},     {511800, "blApiTestClickAt"},
+      {511810, "blApiTestMouseMove"}, {511820, "blApiTestMouseButton"},
+      {511830, "blApiTestWheel"},  {511900, "blApiDump"},
+      {511910, "blApiAutoSize"},   {511920, "blApiSetActionLine"},
+      {511930, "blApiRegisterClass"}, {511950, "blApiSetEnabled"}};
+  CHECK(api_labels == expected_api);
+
+  const std::regex token_re(R"(\b(bl[A-Za-z0-9_]+)([%#$&]?))");
+  for (const std::string& source_line : lines) {
+    const std::size_t rem = source_line.find("REM");
+    const std::string code = rem == std::string::npos ? source_line : source_line.substr(0, rem);
+    for (std::sregex_iterator it(code.begin(), code.end(), token_re), end; it != end; ++it) {
+      const std::string name = (*it)[1].str();
+      const std::string suffix = (*it)[2].str();
+      if (suffix.empty() && labels.count(name) == 0) {
+        INFO("unsuffixed baslib token: " << name << " in: " << source_line);
+        CHECK(false);
+      }
+    }
+  }
+
+  const std::regex upper_re(R"(\bBl)");
+  for (const std::string& source_line : lines) {
+    if (std::regex_search(source_line, upper_re)) {
+      INFO("uppercase Bl identifier in: " << source_line);
+      CHECK(false);
+    }
+  }
 }
 
 TEST_CASE("baslib: source stays inside its line block", "[baslib]") {
