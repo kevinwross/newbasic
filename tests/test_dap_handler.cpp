@@ -174,6 +174,63 @@ TEST_CASE("DAP: Step Over skips a GOSUB and Step Out returns from it", "[dap]") 
   CHECK(stepped.debugger.Variable("A")->AsNumber() == 1.0);
 }
 
+TEST_CASE("DAP: SUB frames expose locals and step out", "[dap]") {
+  Adapter adapter;
+  adapter.Request(
+      "{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+      "{\"programText\":\"10 X%=1\\n20 CALL Foo(X%)\\n30 PRINT X%\\n40 END\\n"
+      "100 SUB Foo(N%)\\n110 LOCAL Y%\\n120 Y%=N%+1\\n130 PRINT Y%\\n140 END SUB\\n\"}}");
+  adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
+                  "\"arguments\":{\"breakpoints\":[{\"line\":8}]}}");
+  const std::vector<Json> configured =
+      adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
+  REQUIRE(FirstEvent(configured, "stopped") != nullptr);
+  CHECK(adapter.debugger.CurrentLine() == 130);
+
+  const std::vector<Json> trace =
+      adapter.Request("{\"seq\":4,\"type\":\"request\",\"command\":\"stackTrace\"}");
+  const Json* frames = trace[0].Find("body")->Find("stackFrames");
+  REQUIRE(frames != nullptr);
+  REQUIRE(frames->Size() == 2);
+  CHECK(frames->Items()[1].Find("name")->AsString().find("SUB FOO") != std::string::npos);
+
+  const std::vector<Json> scopes =
+      adapter.Request("{\"seq\":5,\"type\":\"request\",\"command\":\"scopes\"}");
+  const Json* scope_items = scopes[0].Find("body")->Find("scopes");
+  REQUIRE(scope_items != nullptr);
+  REQUIRE(scope_items->Size() == 2);
+  CHECK(scope_items->Items()[0].Find("name")->AsString() == "Locals");
+  CHECK(scope_items->Items()[0].Find("variablesReference")->AsNumber() == 2.0);
+
+  const std::vector<Json> locals =
+      adapter.Request("{\"seq\":6,\"type\":\"request\",\"command\":\"variables\","
+                      "\"arguments\":{\"variablesReference\":2}}");
+  const Json* local_items = locals[0].Find("body")->Find("variables");
+  REQUIRE(local_items != nullptr);
+  bool found_y = false;
+  for (const Json& item : local_items->Items()) {
+    if (item.Find("name")->AsString() == "Y%") {
+      found_y = true;
+      CHECK(item.Find("value")->AsString() == "2");
+    }
+  }
+  CHECK(found_y);
+
+  const std::vector<Json> edit =
+      adapter.Request("{\"seq\":7,\"type\":\"request\",\"command\":\"setVariable\","
+                      "\"arguments\":{\"variablesReference\":2,\"name\":\"Y%\","
+                      "\"value\":\"9\"}}");
+  REQUIRE(edit[0].Find("success")->AsBool());
+  REQUIRE(adapter.debugger.LocalVariable("Y%").has_value());
+  CHECK(adapter.debugger.LocalVariable("Y%")->AsNumber() == 9.0);
+
+  const std::vector<Json> out =
+      adapter.Request("{\"seq\":8,\"type\":\"request\",\"command\":\"stepOut\"}");
+  REQUIRE(!out.empty());
+  CHECK(FirstEvent(out, "stopped") != nullptr);
+  CHECK(adapter.debugger.CurrentLine() == 30);
+}
+
 TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
   Adapter adapter;
   adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"

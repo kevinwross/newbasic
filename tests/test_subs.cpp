@@ -264,3 +264,45 @@ TEST_CASE("SUB: call depth, locals, and stepping are visible to the debugger", "
   const newbasic::debug::StopState out = debugger.StepOut();
   CHECK(out.line == 30);
 }
+
+TEST_CASE("SUB: debugger Step Over skips a CALL and snapshots keep locals", "[subs][debug]") {
+  const std::string source =
+      "10 X% = 1\n"
+      "20 CALL Foo(X%)\n"
+      "30 PRINT X%\n"
+      "40 END\n"
+      "100 SUB Foo(N%)\n"
+      "110 LOCAL Y%\n"
+      "120 Y% = N% + 1\n"
+      "130 PRINT Y%\n"
+      "140 END SUB\n";
+
+  newbasic::Program program;
+  newbasic::CompileError error;
+  REQUIRE(lwtest::CompileSource(source, &program, &error));
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::Vm vm(screen);
+  vm.Load(std::move(program));
+  newbasic::debug::Debugger over(vm);
+  over.SetBreakpoint(20);
+  CHECK(over.Continue().line == 20);
+  const newbasic::debug::StopState after_over = over.StepOver();
+  CHECK(after_over.line == 30);
+  CHECK(over.CallFrames().empty());
+
+  newbasic::Program program2;
+  REQUIRE(lwtest::CompileSource(source, &program2, &error));
+  newbasic::Vm vm2(screen);
+  vm2.Load(std::move(program2));
+  newbasic::debug::Debugger snap(vm2);
+  snap.SetBreakpoint(130);
+  CHECK(snap.Continue().line == 130);
+  REQUIRE(snap.LocalVariable("Y%").has_value());
+  CHECK(snap.LocalVariable("Y%")->AsNumber() == 2.0);
+  CHECK(snap.StepLine().line == 140);
+  const newbasic::debug::StopState back = snap.StepBack();
+  CHECK(back.line == 130);
+  REQUIRE(snap.LocalVariable("Y%").has_value());
+  CHECK(snap.LocalVariable("Y%")->AsNumber() == 2.0);
+  CHECK(snap.CallFrames().size() == 1);
+}
