@@ -42,7 +42,7 @@ foreach ($r in $reqs) {
   [void]$sb.Append("Content-Length: $len`r`n`r`n$r")
 }
 [System.IO.File]::WriteAllText("dap_in.txt", $sb.ToString(), (New-Object System.Text.UTF8Encoding($false)))
-Start-Process -FilePath "out\src\newbasic-dap\Release\newbasic-dap.exe" `
+Start-Process -FilePath "bin\Release\newbasic-dap.exe" `
   -ArgumentList "--nowindow" `
   -RedirectStandardInput dap_in.txt -RedirectStandardOutput dap_out.txt -PassThru -Wait
 Get-Content dap_out.txt
@@ -85,7 +85,7 @@ shows the later frame.
 local dap = require("dap")
 dap.adapters.newbasic = {
   type = "executable",
-  command = "C:/Users/kevin/repos/newbasic/out/src/newbasic-dap/Release/newbasic-dap.exe",
+  command = "C:/Users/kevin/repos/newbasic/bin/Release/newbasic-dap.exe",
   args = {}, -- add "--nowindow" for a headless session
 }
 dap.configurations.basic = {

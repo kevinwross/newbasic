@@ -33,9 +33,11 @@ worth having even though A and B already exist.
 
 A successful run produces all of the following:
 
-- `build-vs2026\src\newbasic-cli\Release\newbasic.exe`
-- `build-vs2026\src\newbasic-dap\Release\newbasic-dap.exe`
+- `bin\Release\newbasic.exe`
+- `bin\Release\newbasic-dap.exe`
 - `build-vs2026\tests\Release\newbasic-tests.exe`
+- Only those two executables are placed in `bin`; PDBs and intermediate files stay
+  under the build directory.
 - `ctest`: 7 of 7 tests pass, 0 failures.
 - A headless `--gpu-shot` run of `fixtures\m0\hello.bas` exits 0 and writes a
   valid binary PPM.
@@ -292,8 +294,8 @@ Expected output ends with the project files, for example:
 newbasic-core.vcxproj -> ...\build-vs2026\src\newbasic-core\Release\newbasic-core.lib
 newbasic-screen.vcxproj -> ...\build-vs2026\src\newbasic-screen\Release\newbasic-screen.lib
 newbasic-window.vcxproj -> ...\build-vs2026\src\newbasic-window\Release\newbasic-window.lib
-newbasic-cli.vcxproj -> ...\build-vs2026\src\newbasic-cli\Release\newbasic.exe
-newbasic-dap.vcxproj -> ...\build-vs2026\src\newbasic-dap\Release\newbasic-dap.exe
+newbasic-cli.vcxproj -> ...\bin\Release\newbasic.exe
+newbasic-dap.vcxproj -> ...\bin\Release\newbasic-dap.exe
 newbasic-tests.vcxproj -> ...\build-vs2026\tests\Release\newbasic-tests.exe
 ```
 
@@ -397,7 +399,7 @@ For an unattended check, force the console path and still request a capture, so
 the CLI falls back to the headless screen when no terminal is available:
 
 ```powershell
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe `
+& .\bin\Release\newbasic.exe `
     --gpu-shot build-vs2026\hello.ppm --cli fixtures\m0\hello.bas
 "EXIT=$LASTEXITCODE"
 ```
@@ -428,8 +430,8 @@ open a window. Do not reorder these flags casually.
 Other useful CLI checks:
 
 ```powershell
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --help
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --bench
+& .\bin\Release\newbasic.exe --help
+& .\bin\Release\newbasic.exe --bench
 ```
 
 `--bench` is headless by design and runs four fixed workloads. It does not
@@ -443,7 +445,7 @@ draws one frame, reads pixels back from the back buffer, prints the result and
 sleeps for about three seconds:
 
 ```powershell
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --gpu-check
+& .\bin\Release\newbasic.exe --gpu-check
 "GPU_CHECK_EXIT=$LASTEXITCODE"
 ```
 
@@ -468,13 +470,13 @@ own back buffer, not the separate `--gpu-shot` model.
 With a desktop, the default windowed path is:
 
 ```powershell
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe samples\Beethoven.bas
+& .\bin\Release\newbasic.exe samples\Beethoven.bas
 ```
 
 Headless equivalent:
 
 ```powershell
-& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe `
+& .\bin\Release\newbasic.exe `
     --gpu-shot build-vs2026\beethoven.ppm --cli samples\Beethoven.bas
 ```
 
@@ -686,8 +688,8 @@ Copy this into the handoff note and fill in what you observed.
 - [ ] Located the VS-bundled `cmake.exe` and `ctest.exe`; versions recorded.
 - [ ] Configure exited 0 with `MSVC 19.5x` and a Windows SDK line.
 - [ ] Release build exited 0.
-- [ ] `newbasic.exe`, `newbasic-dap.exe` and `newbasic-tests.exe` exist under
-      `build-vs2026\...\Release\`.
+- [ ] `bin\Release\newbasic.exe` and `bin\Release\newbasic-dap.exe` exist, and
+      `build-vs2026\tests\Release\newbasic-tests.exe` exists.
 - [ ] CTest: 7 of 7 passed, 0 failed.
 - [ ] Direct `newbasic-tests.exe` run: all tests passed, 0 failures.
 - [ ] Headless `hello.bas` run exited 0 and wrote a `P6` PPM of 768015 bytes.
@@ -832,9 +834,9 @@ Assumes the discovery block from section 4 has been run in the current shell.
 | List tests | `& $ctest --test-dir build-vs2026 --build-config Release -N` |
 | Run one test verbosely | `& $ctest --test-dir build-vs2026 --build-config Release -R dap-smoke -V` |
 | Run the whole Catch2 suite | `& .\build-vs2026\tests\Release\newbasic-tests.exe` |
-| Headless hello capture | `& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --gpu-shot build-vs2026\hello.ppm --cli fixtures\m0\hello.bas` |
-| Headless benchmark | `& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --bench` |
-| D3D11 readback check | `& .\build-vs2026\src\newbasic-cli\Release\newbasic.exe --gpu-check` |
+| Headless hello capture | `& .\bin\Release\newbasic.exe --gpu-shot build-vs2026\hello.ppm --cli fixtures\m0\hello.bas` |
+| Headless benchmark | `& .\bin\Release\newbasic.exe --bench` |
+| D3D11 readback check | `& .\bin\Release\newbasic.exe --gpu-check` |
 | Kill stray test processes | `Get-Process newbasic-tests, newbasic-dap -ErrorAction SilentlyContinue \| Stop-Process -Force` |
 | Show build-file diff | `git diff -- CMakeLists.txt ":(glob)src/*/CMakeLists.txt" tests/CMakeLists.txt .github/workflows/ci.yml tools/verify.ps1 tools/verify.sh` |
 | Remove the build directory | `Remove-Item -Recurse -Force build-vs2026` |

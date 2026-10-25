@@ -3,6 +3,7 @@ out/
 build/
 build-*/
 cmake-build-*/
+bin/
 .vs/
 CMakeUserPresets.json
 *.user

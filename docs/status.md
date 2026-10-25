@@ -39,9 +39,9 @@ Visual Studio generator it lists.
 
 ## Try it
 
-    out\src\newbasic-cli\Release\newbasic.exe samples\Beethoven.bas
-    out\src\newbasic-cli\Release\newbasic.exe samples\FamousBirthdays.bas
-    out\src\newbasic-cli\Release\newbasic.exe samples\playme.bas
+    bin\Release\newbasic.exe samples\Beethoven.bas
+    bin\Release\newbasic.exe samples\FamousBirthdays.bas
+    bin\Release\newbasic.exe samples\playme.bas
 
 `--gpu-shot FILE` writes the screen to a PPM; `--gpu-pixel X,Y` reads one pixel back from the
 window itself, which is the only way to check what the display actually did (the dump is written

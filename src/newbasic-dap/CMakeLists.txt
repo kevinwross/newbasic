@@ -1,4 +1,5 @@
 add_executable(newbasic-dap main.cpp)
+newbasic_set_binary_output(newbasic-dap)
 if(WIN32)
   target_sources(newbasic-dap PRIVATE socket_win32.cpp)
   target_link_libraries(newbasic-dap PRIVATE ws2_32)

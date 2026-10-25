@@ -17,7 +17,7 @@ public class LwWin {
 }
 '@
 
-$exe = "out\src\newbasic-cli\Release\newbasic.exe"
+$exe = "bin\Release\newbasic.exe"
 $program = "docs\verify-graphics.bas"
 $png = (Join-Path (Get-Location) "docs\newbasic-verify.png")
 

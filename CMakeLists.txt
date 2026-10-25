@@ -76,6 +76,16 @@ function(newbasic_target_warnings target)
   endif()
 endfunction()
 
+# Keep the user-facing executables in one predictable place. The generator
+# expression makes multi-config generators produce bin/Release and bin/Debug
+# directly instead of appending another configuration directory. Debug symbols
+# stay with the rest of the build output; only the two executables belong in bin.
+function(newbasic_set_binary_output target)
+  set_target_properties(${target} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/$<IF:$<CONFIG:Debug>,Debug,Release>"
+    PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/pdb/$<IF:$<CONFIG:Debug>,Debug,Release>")
+endfunction()
+
 add_subdirectory(third_party/catch2)
 add_subdirectory(src/newbasic-core)
 add_subdirectory(src/newbasic-debug)
