@@ -48,16 +48,16 @@
 480   IF ActionId% <> blActionNone% THEN GOSUB blActionLine&(ActionId%)
 490 WEND
 500 KeyChar$ = INKEY$ : IF KeyChar$ = CHR$(27) THEN END
-510 CALL blPaintAll
+510 CALL blUpdateAll
 520 SLEEP 16
 530 GOTO 440
 1000 REM --- button action ---
 1010 CALL blSetText(ReadoutH%, "Button clicked" + CHR$(13) + "at " + TIME$)
-1020 CALL blPaintAll
+1020 CALL blUpdateAll
 1030 RETURN
 2000 REM --- click-target action ---
 2010 CALL blSetText(ReadoutH%, "Target clicked" + CHR$(13) + "at " + TIME$)
-2020 CALL blPaintAll
+2020 CALL blUpdateAll
 2030 RETURN
 3000 REM --- slider action ---
 3010 GOSUB 8000
@@ -70,6 +70,6 @@
 8020 GaugeVal# = blGetValue#(GaugeH%)
 8030 DialVal# = blGetValue#(DialH%)
 8040 CALL blSetText(ReadoutH%, "Slider " + STR$(INT(SlideVal#)) + CHR$(13) + "Gauge " + STR$(INT(GaugeVal#)) + CHR$(13) + "Dial " + STR$(INT(DialVal#)))
-8050 CALL blPaintAll
+8050 CALL blUpdateAll
 8060 RETURN
 9000 PRINT "Control gallery failed at status"; blStatus% : END

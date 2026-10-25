@@ -327,8 +327,21 @@ enforce the mask; host code can filter on `blEventButton%()`.
 
 | Call | Effect |
 |---|---|
-| `blPaintAll` | Lay out if needed, clear paint flag, paint whole tree |
-| `blUpdate(Handle%)` | Paint `Handle%` and descendants |
+| `blPaintAll` | Lay out if needed, paint whole tree, clear dirty flags |
+| `blUpdate(Handle%)` | Paint `Handle%` and descendants unconditionally |
+| `blUpdateAll` | Repaint only the smallest dirty subtrees |
+
+`blUpdateAll` is the incremental option. Setters mark the changed control and
+its parent dirty. `blUpdateAll` walks from the root, and when it reaches a dirty
+control it repaints that control and its descendants, then clears the dirty
+flags. Descendants are repainted deliberately: repainting a parent clears its
+background, so its children must be restored.
+
+This is **dirty-subtree** repainting, not per-control damage tracking. If a
+control moves or is hidden, its parent is marked dirty so the old area is
+cleared. Unrelated clean subtrees are not touched. If you already know exactly
+which control changed, `blUpdate(Handle%)` avoids the tree walk but paints that
+subtree unconditionally.
 
 Painting preserves the host viewport through `PUSH VIEW`/`POP VIEW`.
 
@@ -540,13 +553,14 @@ Loop:
   WEND
   KeyChar$ = INKEY$
   IF KeyChar$ = CHR$(27) THEN END
-  CALL blPaintAll
+  CALL blUpdateAll
   SLEEP 16
   GOTO Loop
 ```
 
-`blPaintAll` every frame is simple and safe. `blUpdate(Handle%)` repaints one
-subtree; call it after changing that subtree and before presenting.
+The first `blPaintAll` establishes the frame. After that, `blUpdateAll` repaints
+only dirty subtrees. Use `blUpdate(Handle%)` when the host already knows exactly
+which subtree changed and wants to skip the dirty-tree walk.
 
 ---
 
@@ -580,7 +594,9 @@ parent, it returns the action owner. Read `blEventCtl%()` after
   local to its activation.
 - **Clipping is computed but not applied during paint.** Keep children inside
   parents.
-- **No double buffering or damage compositor.** Repaint the frame or subtree.
+- **Dirty-subtree repainting, but no damage compositor or double buffering.**
+  `blUpdateAll` repaints the smallest dirty subtrees; clean subtrees are skipped.
+  It does not track individual damaged pixels or overlapping-sibling regions.
 - **Grid mode is not implemented.** Modes other than 1/2 behave absolute.
 - **Word wrap is opt-in.** Set `blUser#(h,16)` and size the control.
 - **Mouse polling tracks left button** for down/up; `MOUSEB` drives clicks.
@@ -620,6 +636,7 @@ Public procedures occupy `510000–510552`; the debug helper is at `512010`.
 | 510330 | `blPaintAll` |
 | 510340 | `blUpdate` |
 | 510350 | `blAutoSize` |
+| 510362 | `blUpdateAll` |
 | 510370 | `blPollInput%` |
 | 510390 | `blNextEvent%` |
 | 510410 | `blEventCtl%` |

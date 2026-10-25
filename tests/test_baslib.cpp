@@ -338,6 +338,31 @@ TEST_CASE("baslib: dynamic class registration", "[baslib]") {
   CHECK(Row(screen, 0) == " 0  502999");
 }
 
+TEST_CASE("baslib: blUpdateAll repaints only dirty subtrees", "[baslib]") {
+  const std::string host =
+      "10 SCREEN 720\n"
+      "20 CALL blInit(640, 400)\n"
+      "30 P1% = blCreate%(1, 2, 0, 10, 10, 300, 200, \"\", 0, 0, 0)\n"
+      "40 CALL blSetLayout(P1%, 1, 4, 4)\n"
+      "50 B1% = blCreate%(P1%, 3, 1, 0, 0, 100, 24, \"A\", 0, 0, 0)\n"
+      "60 P2% = blCreate%(1, 2, 0, 400, 10, 100, 100, \"\", 0, 0, 0)\n"
+      "70 CALL blPaintAll\n"
+      "80 PSET (12,12), 3\n"
+      "90 PSET (402,12), 3\n"
+      "100 CALL blUpdateAll\n"
+      "110 PRINT POINT(12,12); POINT(402,12)\n"
+      "120 CALL blSetText(B1%, \"B\")\n"
+      "130 CALL blUpdateAll\n"
+      "140 PRINT POINT(12,12); POINT(402,12)\n"
+      "150 END\n";
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::RunResult result;
+  REQUIRE(RunHost(host, &screen, &result));
+  CHECK(result.status == newbasic::RunResult::Status::Done);
+  CHECK(Row(screen, 0) == " 3  3");
+  CHECK(Row(screen, 1) == " 7  3");
+}
+
 TEST_CASE("baslib: paint preserves the host viewport", "[baslib]") {
   const std::string host =
       "10 SCREEN 720\n"

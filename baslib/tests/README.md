@@ -52,6 +52,7 @@ NEWBASIC=/path/to/newbasic bash baslib/tests/run_cli.sh
 | `baslib: slider drag updates its value` | pointer values |
 | `baslib: hover, press, release, and wheel events` | event queue |
 | `baslib: dynamic class registration` | metadata |
+| `baslib: blUpdateAll repaints only dirty subtrees` | dirty-subtree painting |
 | `baslib: paint preserves the host viewport` | viewport preservation |
 | `baslib: demo.bas compiles` | demo |
 | `baslib: demo-controls.bas compiles` | controls demo |

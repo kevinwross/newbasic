@@ -113,6 +113,15 @@
 500148 blCtl%(Handle%,5) = 0
 500149 blCtl%(Handle%,6) = 0
 500150 END SUB
+500151 SUB blMarkDirty(Handle%)
+500152 LOCAL Parent%
+500153 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
+500154 IF blCtl%(Handle%,1) = 0 THEN EXIT SUB
+500155 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagDirty%
+500156 Parent% = blCtl%(Handle%,2)
+500157 IF Parent% >= 1 AND Parent% <= blMaxControls% THEN blCtl%(Parent%,13) = blCtl%(Parent%,13) OR blFlagDirty%
+500158 blNeedsPaint% = 1
+500159 END SUB
 500160 SUB blInitTables
 500161 LOCAL Index%, ClassId%, VerbId%
 500162 IF blInitDone% <> 0 THEN GOTO blInitClear
@@ -175,6 +184,12 @@
 500219   blEvWheelVal%(Index%) = 0
 500220 NEXT Index%
 500221 END SUB
+500222 SUB blClearDirtyTree
+500223 LOCAL Index%
+500224 FOR Index% = 1 TO blMaxControls%
+500225   blCtl%(Index%,13) = blCtl%(Index%,13) AND (blFlagDirty% XOR 32767)
+500226 NEXT Index%
+500227 END SUB
 500230 SUB blLayoutControl(Handle%)
 500231 LOCAL ClassId%
 500232 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
@@ -471,7 +486,7 @@
 500637 Value# = blClamp#(Value#,blUser#(Handle%,3),blUser#(Handle%,4))
 500638 blUser#(Handle%,2) = Value#
 500639 CALL blPostEvent(blEvChange%,Handle%,blCtl%(Handle%,15),PosX%,PosY%,Button%,0)
-500640 blNeedsPaint% = 1
+500640 CALL blMarkDirty(Handle%)
 500641 END SUB
 500650 FUNCTION blClickAt%(PosX%, PosY%, Button%)
 500651 LOCAL Handle%, Action%, Parent%
@@ -519,6 +534,19 @@
 500721 IF blHover% = 0 THEN EXIT SUB
 500722 CALL blPostEvent(blEvWheel%,blHover%,0,PosX%,PosY%,0,Delta%)
 500723 END SUB
+500730 SUB blRepaintDirty(Handle%)
+500731 LOCAL Child%, NextSib%
+500732 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
+500733 IF blCtl%(Handle%,1) = 0 THEN EXIT SUB
+500734 IF (blCtl%(Handle%,13) AND blFlagVisible%) = 0 THEN EXIT SUB
+500735 IF (blCtl%(Handle%,13) AND blFlagDirty%) <> 0 THEN CALL blPaintTree(Handle%) : EXIT SUB
+500736 Child% = blCtl%(Handle%,3)
+500737 WHILE Child% <> 0
+500738   NextSib% = blCtl%(Child%,6)
+500739   CALL blRepaintDirty(Child%)
+500740   Child% = NextSib%
+500741 WEND
+500742 END SUB
 502999 LABEL blNoop
 503000 RETURN
 510000 SUB blInit(Width%, Height%)
@@ -572,7 +600,8 @@
 510048 blPanel%(1,4) = 0
 510049 blPanel%(1,6) = 7
 510050 blPanel%(1,7) = 8
-510051 END SUB
+510051 CALL blMarkDirty(1)
+510052 END SUB
 510060 FUNCTION blCreate%(Parent%, Class%, Kind%, PosX%, PosY%, Width%, Height%, Text$, Action%, Flags%, TagId%)
 510061 LOCAL Handle%
 510062 blCreate% = 0
@@ -607,17 +636,17 @@
 510091 IF Class% = blClassUser% THEN blUser#(Handle%,12) = 0 : blUser#(Handle%,13) = 2 : blUser#(Handle%,14) = 1 : blUser#(Handle%,15) = 1 : blUser#(Handle%,16) = 0 : blUser#(Handle%,17) = 0 : blUser#(Handle%,18) = 1 : blUser#(Handle%,19) = 0 : blUser#(Handle%,20) = 1 : blUser#(Handle%,21) = 0 : blUser#(Handle%,22) = 1
 510092 IF Class% = blClassClickTarget% THEN blClick%(Handle%,1) = 1 : blClick%(Handle%,2) = 0 : blClick%(Handle%,3) = 0 : blClick%(Handle%,4) = 0
 510093 CALL blLinkHandle(Handle%)
-510094 blCreate% = Handle%
-510095 blNeedsLayout% = 1
-510096 blNeedsPaint% = 1
+510094 CALL blMarkDirty(Handle%)
+510095 blCreate% = Handle%
+510096 blNeedsLayout% = 1
 510097 END FUNCTION
 510110 SUB blDestroy(Handle%)
-510111 LOCAL Child%, NextSib%
+510111 LOCAL Child%, NextSib%, Parent%
 510112 blStatus% = blStatusOk%
 510113 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510114 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510115 IF Handle% = blRoot% THEN blStatus% = blStatusCannotDestroyRoot% : EXIT SUB
-510116 Child% = blCtl%(Handle%,3)
+510116 Parent% = blCtl%(Handle%,2) : Child% = blCtl%(Handle%,3)
 510117 WHILE Child% <> 0
 510118   NextSib% = blCtl%(Child%,6)
 510119   CALL blDestroy(Child%)
@@ -636,7 +665,7 @@
 510132 blCtl%(Handle%,13) = 0
 510133 blCtlText$(Handle%) = ""
 510134 blNeedsLayout% = 1
-510135 blNeedsPaint% = 1
+510135 CALL blMarkDirty(Parent%)
 510136 END SUB
 510150 SUB blSetBounds(Handle%, PosX%, PosY%, Width%, Height%)
 510151 blStatus% = blStatusOk%
@@ -647,8 +676,8 @@
 510156 blCtl%(Handle%,9) = Width%
 510157 blCtl%(Handle%,10) = Height%
 510158 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagLayoutDirty%
-510159 blNeedsLayout% = 1
-510160 blNeedsPaint% = 1
+510159 CALL blMarkDirty(Handle%)
+510160 blNeedsLayout% = 1
 510161 END SUB
 510170 SUB blSetLayout(Handle%, Mode%, PadSize%, GapSize%)
 510171 blStatus% = blStatusOk%
@@ -658,16 +687,16 @@
 510175 blPanel%(Handle%,2) = PadSize%
 510176 blPanel%(Handle%,3) = GapSize%
 510177 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagLayoutDirty%
-510178 blNeedsLayout% = 1
-510179 blNeedsPaint% = 1
+510178 CALL blMarkDirty(Handle%)
+510179 blNeedsLayout% = 1
 510180 END SUB
 510190 SUB blShow(Handle%)
 510191 blStatus% = blStatusOk%
 510192 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510193 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510194 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagVisible%
-510195 blNeedsLayout% = 1
-510196 blNeedsPaint% = 1
+510195 CALL blMarkDirty(Handle%)
+510196 blNeedsLayout% = 1
 510197 END SUB
 510200 SUB blHide(Handle%)
 510201 blStatus% = blStatusOk%
@@ -677,8 +706,8 @@
 510205 IF blHover% = Handle% THEN blHover% = 0
 510206 IF blPressed% = Handle% THEN blPressed% = 0
 510207 IF blCapture% = Handle% THEN blCapture% = 0
-510208 blNeedsLayout% = 1
-510209 blNeedsPaint% = 1
+510208 CALL blMarkDirty(Handle%)
+510209 blNeedsLayout% = 1
 510210 END SUB
 510220 SUB blSetEnabled(Handle%, Enabled%)
 510221 blStatus% = blStatusOk%
@@ -687,14 +716,14 @@
 510224 IF Enabled% <> 0 THEN blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagEnabled% : GOTO blEnabledDone
 510225 blCtl%(Handle%,13) = blCtl%(Handle%,13) AND (blFlagEnabled% XOR 32767)
 510226 LABEL blEnabledDone
-510227 blNeedsPaint% = 1
+510227 CALL blMarkDirty(Handle%)
 510228 END SUB
 510240 SUB blSetText(Handle%, Text$)
 510241 blStatus% = blStatusOk%
 510242 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510243 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510244 blCtlText$(Handle%) = Text$
-510245 blNeedsPaint% = 1
+510245 CALL blMarkDirty(Handle%)
 510246 END SUB
 510250 FUNCTION blGetText$(Handle%)
 510251 blStatus% = blStatusOk%
@@ -708,7 +737,7 @@
 510262 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510263 IF blCtl%(Handle%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT SUB
 510264 blUser#(Handle%,2) = blClamp#(Value#,blUser#(Handle%,3),blUser#(Handle%,4))
-510265 blNeedsPaint% = 1
+510265 CALL blMarkDirty(Handle%)
 510266 END SUB
 510270 FUNCTION blGetValue#(Handle%)
 510271 blStatus% = blStatusOk%
@@ -739,7 +768,7 @@
 510311 blStatus% = blStatusOk%
 510312 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510313 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510314 blNeedsPaint% = 1
+510314 CALL blMarkDirty(Handle%)
 510315 END SUB
 510320 SUB blLayoutAll
 510321 blNeedsLayout% = 0
@@ -753,9 +782,10 @@
 510329 END SUB
 510330 SUB blPaintAll
 510331 IF blNeedsLayout% <> 0 THEN CALL blLayoutAll
-510332 blNeedsPaint% = 0
-510333 CALL blPaintTree(1)
-510334 END SUB
+510332 CALL blPaintTree(1)
+510333 blNeedsPaint% = 0
+510334 CALL blClearDirtyTree
+510335 END SUB
 510340 SUB blUpdate(Handle%)
 510341 blStatus% = blStatusOk%
 510342 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
@@ -771,9 +801,16 @@
 510356 PadSize% = blUser#(Handle%,13)
 510357 blCtl%(Handle%,9) = TEXTWIDTH(blCtlText$(Handle%),Scale%) + 2 * PadSize% + 2
 510358 blCtl%(Handle%,10) = TEXTHEIGHT(blCtlText$(Handle%),Scale%) + 2 * PadSize% + 2
-510359 blNeedsLayout% = 1
-510360 blNeedsPaint% = 1
+510359 CALL blMarkDirty(Handle%)
+510360 blNeedsLayout% = 1
 510361 END SUB
+510362 SUB blUpdateAll
+510363 IF blNeedsPaint% = 0 THEN EXIT SUB
+510364 IF blNeedsLayout% <> 0 THEN CALL blLayoutAll
+510365 CALL blRepaintDirty(1)
+510366 blNeedsPaint% = 0
+510367 CALL blClearDirtyTree
+510368 END SUB
 510370 FUNCTION blPollInput%()
 510371 LOCAL MouseB%, BtnMask%, WheelD%, PosX%, PosY%, ClickH%
 510372 ClickH% = 0

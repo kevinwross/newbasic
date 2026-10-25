@@ -26,7 +26,7 @@ programs.
   scopes, function result assignment, `LOCAL` at the top, no `BYREF`/local
   arrays, strict procedure boundaries, main-only error/timer handlers, and a
   256-call depth limit.
-- Full suite after the parameterized baslib API: 515 cases / 31,921 assertions
+- Full suite after the parameterized baslib API: 516 cases / 32,037 assertions
   passing; CTest 7/7.
 
 ---
@@ -1265,8 +1265,8 @@ rewind through recursion.
 - Add sample(s). **Done:** `samples/subs.bas`.
 - Update `test_inventory`. **Done.**
 - Update project status docs. **Done.**
-- Run the full suite on Windows and Linux. **Windows done:** 515 cases /
-  31,921 assertions, CTest 7/7. The Linux port remains a separate environment.
+- Run the full suite on Windows and Linux. **Windows done:** 516 cases /
+  32,037 assertions, CTest 7/7. The Linux port remains a separate environment.
 - Run baslib demos/tests (no baslib source changes yet). **Done before M6.**
 - Final performance notes.
 
