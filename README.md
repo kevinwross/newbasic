@@ -33,7 +33,9 @@ build otherwise. The Windows targets are cross-built in CI and were compiled
 here with LLVM-MinGW, but the MSVC job is the authoritative Windows check.
 
 `%` and `&` are both signed 32-bit integers in this fork. Program files are
-plain-text `.BAS`; the old tokenized/protected formats are rejected.
+plain-text `.BAS`; the old tokenized/protected formats are rejected. An
+`INCLUDE "file.bas"` directive merges another numbered `.BAS` file at load
+time, with globally unique line numbers.
 
 ## Build
 
@@ -116,6 +118,7 @@ src/newbasic-screen   console / headless backends, glyph atlas
 src/newbasic-window   D3D11 (Windows) and SDL2 (Linux) window backends + factory
 src/newbasic-cli      newbasic.exe / newbasic
 src/newbasic-dap      newbasic-dap.exe / newbasic-dap (DAP server over stdio or TCP)
+bin/Release, bin/Debug  user-facing binaries after a build
 tests                unit, property, conformance and integration tests
 fixtures             *.bas + *.expected pairs run by the golden-corpus test
 docs                 format notes, design notes, status snapshot, portability notes

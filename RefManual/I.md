@@ -75,6 +75,97 @@ Output:
 MEDIUM
 ```
 
+<a id="include-statement"></a>
+## INCLUDE Statement
+
+**Type:** Statement  
+**Status:** Supported  
+**See also:** `LOAD`, `CHAIN`, `MERGE`
+
+### Purpose
+
+Merges the lines of another plain-text BASIC file into the program before compilation.
+
+### Syntax
+
+```basic
+INCLUDE "filename"
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `filename` | Yes | A quoted path to a numbered plain-text `.BAS` file. |
+
+### Comments
+
+`INCLUDE` is a compile-time directive. It is expanded while the program is loaded, so the VM never sees the statement and included lines share the program's variables, arrays, labels, `CONST` values and `DEF FN` definitions.
+
+The directive must be the only statement on its line; a trailing `'` comment is allowed. Its own line number is kept as a `REM` placeholder, so existing `GOTO`/`GOSUB` and `RENUM` references remain valid.
+
+Included files must contain ordinary numbered BASIC lines. Line numbers are global: a line number defined in both the main program and an included file is an error. The line-number order determines execution order; the textual position of `INCLUDE` does not override it. A subroutine library should therefore use its own line-number range, such as the `10000`/`20000` ranges used by `baslib`.
+
+Includes may be nested. Paths are resolved relative to the including file; top-level paths use the loader's current directory. A file is included at most once per load, and recursive include cycles are reported as errors.
+
+`LIST` and `SAVE` operate on the merged program. Saving an included program writes the expanded lines and does not preserve the original `INCLUDE` directives. The debugger likewise uses merged BASIC line numbers; breakpoints in the original included files are not remapped back to those files.
+
+### Examples
+
+#### Example 1 — Include a subroutine library
+
+`MAIN.BAS`:
+
+```basic
+10 INCLUDE "LIB.BAS"
+20 GOSUB 1000
+30 END
+```
+
+`LIB.BAS`:
+
+```basic
+1000 PRINT "FROM LIB"
+1010 RETURN
+```
+
+Output:
+
+```text
+FROM LIB
+```
+
+#### Example 2 — Nested include
+
+`MAIN.BAS`:
+
+```basic
+10 INCLUDE "LIB.BAS"
+20 GOSUB 1000
+30 END
+```
+
+`LIB.BAS`:
+
+```basic
+1000 INCLUDE "HELPER.BAS"
+1010 GOSUB 2000
+1020 RETURN
+```
+
+`HELPER.BAS`:
+
+```basic
+2000 PRINT "NESTED"
+2010 RETURN
+```
+
+Output:
+
+```text
+NESTED
+```
+
 <a id="inkey-function"></a>
 ## INKEY$ Function
 

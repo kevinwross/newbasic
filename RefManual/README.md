@@ -108,7 +108,7 @@ These differences cut across entries rather than belonging to one keyword. Follo
 | Keywords and spacing | Only exact whole words are keywords; run-together forms need spaces. This is the most common source of syntax errors when moving a program. |
 | Numbers | Integer `%` and long `&` are both signed 32-bit. Arithmetic is host `double`; only display formatting emulates GW-BASIC. Single precision displays 7 significant digits, double 16. Line numbers and `ERL` are also signed 32-bit. |
 | Random numbers | [RND](R.md#rnd-function) uses `std::mt19937`, so sequences differ from GW-BASIC but are reproducible after [RANDOMIZE](R.md#randomize-statement) with a seed. `RANDOMIZE` without an expression does not prompt. |
-| Program files | [SAVE](S.md#save-command), [LOAD](L.md#load-command), and [MERGE](M.md#merge-command) use plain-text `.BAS` only. Tokenized and protected formats are not supported and report **Bad file mode**. |
+| Program files | [SAVE](S.md#save-command), [LOAD](L.md#load-command), [MERGE](M.md#merge-command), and [INCLUDE](I.md#include-statement) use plain-text `.BAS` only. `INCLUDE` is expanded at load time; included files use ordinary numbered lines with globally unique numbers. Tokenized and protected formats are not supported and report **Bad file mode**. |
 | Named labels | [LABEL](L.md#label-statement) is a newbasic extension: a symbolic line target for `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are compile-time and survive `RENUM`. |
 | Constants | [CONST](C.md#const-statement) declares a read-only global with a literal value, installed before the program starts. Assignments to a constant are compile errors. |
 | File I/O | Sequential and random data files are supported. [BLOAD](B.md#bload-command)/[BSAVE](B.md#bsave-command), [OPEN "COM"](O.md#open-com-statement), [IOCTL](I.md#ioctl-statement), and [LOCK](L.md#lock-statement)/[UNLOCK](U.md#unlock-statement) are not. DOS commands such as [FILES](F.md#files-command), [CHDIR](C.md#chdir-command), [MKDIR](M.md#mkdir-command), [NAME](N.md#name-command), [RMDIR](R.md#rmdir-command), and [KILL](K.md#kill-command) are direct mode only. |
@@ -253,6 +253,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [GOTO Statement](G.md#goto-statement) | Statement | Supported |
 | [HEX$ Function](H.md#hex-function) | Function | Supported |
 | [IF Statement](I.md#if-statement) | Statement | Supported |
+| [INCLUDE Statement](I.md#include-statement) | Statement | Supported |
 | [INKEY$ Function](I.md#inkey-function) | Function | Supported |
 | [INP Function](I.md#inp-function) | Function | Not supported in newbasic |
 | [INPUT Statement](I.md#input-statement) | Statement | Supported |

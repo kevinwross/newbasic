@@ -19,6 +19,7 @@
 #include "newbasic/host.h"
 #include "newbasic/host_path.h"
 #include "newbasic/line_store.h"
+#include "newbasic/program_files.h"
 #include "newbasic/repl.h"
 #include "newbasic/screen/console_screen.h"
 #include "newbasic/screen/glyph_atlas.h"
@@ -300,23 +301,13 @@ void ReportResult(const newbasic::RunResult& result) {
   }
 }
 
-// Loads a plain-text .BAS file, compiles it and runs it.
+// Loads a plain-text .BAS file, expands INCLUDE directives, compiles it and
+// runs it.
 int RunFile(const char* path) {
-  // The program-file argument is a DOS-style path when the interpreter is used
-  // on Linux with a Windows-written command line, so translate it the same way
-  // the OPEN/SAVE/LOAD statements do.
-  std::ifstream in(newbasic::HostPath(path), std::ios::binary);
-  if (!in) {
-    std::fprintf(stderr, "Can't open file: %s\n", path);
-    return 1;
-  }
-  std::ostringstream buffer;
-  buffer << in.rdbuf();
-  const std::string text = buffer.str();
-
   newbasic::LineStore store;
+  int error_code = 0;
   std::string error;
-  if (!newbasic::LineStore::ParseTextBas(text, &store, &error)) {
+  if (!newbasic::LoadProgramFromFile(path, &store, &error_code, &error)) {
     std::fprintf(stderr, "%s\n", error.c_str());
     return 1;
   }

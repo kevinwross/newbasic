@@ -18,6 +18,7 @@
 #include "newbasic/errors.h"
 #include "newbasic/frontend.h"
 #include "newbasic/line_store.h"
+#include "newbasic/program_files.h"
 #include "newbasic/vm.h"
 
 namespace newbasic::dap {
@@ -76,11 +77,14 @@ public:
           LoadSource(text, outgoing);
           return RunAction::None;
         }
-        if (!path.empty()) {
+        if (path.empty())
+          return RunAction::None;
+        {
           const std::string source = ReadFile(path);
           LineStore store;
+          int error_code = 0;
           std::string error;
-          if (!LineStore::ParseTextBas(source, &store, &error)) {
+          if (!LoadProgramFromFile(path, &store, &error_code, &error)) {
             Fail(request, error, outgoing);
             return RunAction::None;
           }
@@ -596,8 +600,11 @@ private:
     request.Set("command", Json::Str("launch"));
     request.Set("seq", Json::Number(0));
     LineStore store;
+    int error_code = 0;
     std::string error;
-    if (!LineStore::ParseTextBas(text, &store, &error)) {
+    std::error_code cwd_error;
+    const std::string base_dir = std::filesystem::current_path(cwd_error).string();
+    if (!LoadProgramFromText(text, cwd_error ? "." : base_dir, &store, &error_code, &error)) {
       Fail(request, error, outgoing);
       return;
     }

@@ -10,6 +10,7 @@ add_executable(newbasic-tests
   test_data.cpp
   test_baslib.cpp
   test_const.cpp
+  test_include.cpp
   test_userfuncs.cpp
   test_errors.cpp
   test_files.cpp

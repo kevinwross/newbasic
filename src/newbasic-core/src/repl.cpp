@@ -45,30 +45,12 @@ RunResult Repl::SaveProgramFile(const std::string& path) {
 
 RunResult Repl::LoadProgramFile(const std::string& path) {
   RunResult result;
-  std::ifstream in(HostPath(path), std::ios::binary);
-  if (!in) {
-    result.status = RunResult::Status::Error;
-    result.code = kErrFileNotFound;
-    result.message = ErrorMessage(kErrFileNotFound);
-    return result;
-  }
-  std::ostringstream buffer;
-  buffer << in.rdbuf();
-  const std::string content = buffer.str();
-  // Text .BAS is the only supported program-file format. Reject the old
-  // tokenized/protected envelopes with a clear error.
-  const unsigned char first_byte = content.empty() ? 0u : static_cast<unsigned char>(content[0]);
-  if (first_byte == 0xFE || first_byte == 0xFF) {
-    result.status = RunResult::Status::Error;
-    result.code = kErrBadFileMode;
-    result.message = "tokenized program files are not supported";
-    return result;
-  }
   LineStore loaded;
+  int error_code = 0;
   std::string error;
-  if (!LineStore::ParseTextBas(content, &loaded, &error)) {
+  if (!LoadProgramFromFile(path, &loaded, &error_code, &error)) {
     result.status = RunResult::Status::Error;
-    result.code = kErrDirectStatementInFile;
+    result.code = error_code;
     result.message = error;
     return result;
   }
