@@ -4,21 +4,22 @@
 everyone else commits locally and records the result here so the push session knows what to send.
 **Rule: only the push session pushes. Never force-push.**
 
-**Last updated:** 2026-10-25 10:40 America/Phoenix, by session **`stng`**
+**Last updated:** 2026-10-25 10:55 America/Phoenix, by session **`baslib`**
 
 ---
 
 ## 1. Waiting to be pushed
 
-Ordered oldest → newest. Count at last update: **2 commits ahead of `origin/main`**
+Ordered oldest → newest. Count at last update: **3 commits ahead of `origin/main`**
 (`git rev-list --count origin/main..main`).
 
 | # | Commit | Session | Files | Subject |
 |---|---|---|---|---|
 | 1 | `cd35000` | (DRAW / RefManual session) | `RefManual/D.md` (+72) | Add DRAW examples for shapes, fills and patterns |
-| 2 | this session's commit (§2), parent `cd35000` | **`stng`** | `stng-handoff.md`, `bigpush.md` | Session handoff + push ledger |
+| 2 | `4d58222` | **`stng`** | `stng-handoff.md`, `bigpush.md` | Session handoff + push ledger |
+| 3 | this baslib commit, parent `4d58222` | **`baslib`** | `baslib-handoff.md`, `bigpush.md` | Baslib session handoff + push ledger entry |
 
-`origin/main` was at `d66efed` when this file was written ("Add blUpdateAll for dirty-subtree repainting").
+`origin/main` was at `d66efed` when this file was written ("Add blUpdateAll for dirty-subtree repainting"). The baslib commit in row 3 is local-only and is the one this handoff adds.
 
 ## 2. Committed by session `stng`
 
@@ -70,4 +71,44 @@ Nothing else was uncommitted: `git status --porcelain` reported only that one li
 
 <!-- Add your own entry below, newest last: session, timestamp, commit hash, files, subject. -->
 
-- _(empty)_
+- **2026-10-25 10:55** — `baslib`: checked `git status`; clean except untracked
+  `baslib/merged.bas`. Local branch `main`, HEAD `4d58222`, two commits ahead of
+  `origin/main` (`cd35000`, `4d58222`). Wrote `baslib-handoff.md`; updated this
+  ledger; made one local commit containing those two files. Did **not** push.
+
+---
+
+## 7. Session `baslib` handoff record
+
+**Handoff:** `baslib-handoff.md`  
+**Commit:** this ledger commit, parent `4d58222`  
+**Push:** handled by the push session; this session did not push.
+
+### Files in this local commit
+
+| File | What it is |
+|---|---|
+| `baslib-handoff.md` | Current baslib context: v0.3 API, dirty painting, tests, build/run paths, next actions |
+| `bigpush.md` | This ledger update |
+
+### Uncommitted files at handoff
+
+| File | State | Handling |
+|---|---|---|
+| `baslib/merged.bas` | untracked generated merge artifact | Deliberately left out; reproducible from `baslib/baslib.bas` + a host |
+
+### baslib state in one paragraph
+
+baslib is v0.3 with a fully parameterized `SUB`/`FUNCTION` API, no
+`blApi...`/`blReq...`/`blRet...` staging globals, descriptive 4–10 character
+variable names, and dirty-subtree repainting via `blUpdateAll`. `blPaintAll`
+remains the full repaint; `blUpdate(Handle%)` is an unconditional targeted
+subtree paint and deliberately does not clear dirty state. Last verified state:
+full suite **516 cases / 32,037 assertions**, CTest **7/7**, baslib suite
+**21 cases / 2,806 assertions**, CLI fixtures **3/3**.
+
+### Push-session note
+
+The baslib code commits (`b36137f`, `514ce87`, `d66efed`) are already on
+`origin/main`. The local commits still waiting are `cd35000`, `4d58222`, and
+this handoff commit. Push in that order; do not force-push.
