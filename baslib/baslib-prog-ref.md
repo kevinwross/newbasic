@@ -11,9 +11,9 @@
 >
 > ```basic
 > CALL blInit(640, 400)
-> P% = blCreate%(1, 2, 0, 10, 10, 300, 200, "", 0, 0, 0)
-> B% = blCreate%(P%, 3, 1, 0, 0, 100, 24, "OK", 100, 0, 0)
-> CALL blSetLayout(P%, 1, 4, 4)
+> PanelH% = blCreate%(1, 2, 0, 10, 10, 300, 200, "", 0, 0, 0)
+> ButtonH% = blCreate%(PanelH%, 3, 1, 0, 0, 100, 24, "OK", 100, 0, 0)
+> CALL blSetLayout(PanelH%, 1, 4, 4)
 > CALL blPaintAll
 > ```
 >
@@ -68,18 +68,18 @@ computed dispatch is used.
 10 SCREEN 720
 20 CALL blInit(640, 400)
 30 IF blStatus% <> blStatusOk% THEN PRINT "init failed"; blStatus% : END
-40 P% = blCreate%(1, 2, 0, 40, 40, 320, 200, "", 0, 0, 0)
-50 CALL blSetLayout(P%, 1, 12, 8)
-60 B% = blCreate%(P%, 3, 1, 0, 0, 180, 32, "Click me", 100, 0, 0)
+40 PanelH% = blCreate%(1, 2, 0, 40, 40, 320, 200, "", 0, 0, 0)
+50 CALL blSetLayout(PanelH%, 1, 12, 8)
+60 ButtonH% = blCreate%(PanelH%, 3, 1, 0, 0, 180, 32, "Click me", 100, 0, 0)
 70 CALL blSetActionLine(100, 1000)
 80 CALL blPaintAll
-90 R% = blPollInput%()
+90 ClickH% = blPollInput%()
 100 WHILE blEventCount%() > 0
-110   E% = blNextEvent%()
-120   A% = blEventAction%()
-130   IF A% <> blActionNone% THEN GOSUB blActionLine&(A%)
+110   EventTyp% = blNextEvent%()
+120   ActionId% = blEventAction%()
+130   IF ActionId% <> blActionNone% THEN GOSUB blActionLine&(ActionId%)
 140 WEND
-150 K$ = INKEY$ : IF K$ = CHR$(27) THEN END
+150 KeyChar$ = INKEY$ : IF KeyChar$ = CHR$(27) THEN END
 160 CALL blPaintAll
 170 SLEEP 16
 180 GOTO 90
@@ -98,8 +98,8 @@ computed dispatch is used.
 Use `CALL` with parentheses:
 
 ```basic
-CALL blSetText(B%, "Ready")
-CALL blSetBounds(B%, 10, 20, 120, 28)
+CALL blSetText(ButtonH%, "Ready")
+CALL blSetBounds(ButtonH%, 10, 20, 120, 28)
 CALL blPaintAll
 ```
 
@@ -111,10 +111,10 @@ errors; they set `blStatus%`.
 Function names carry their return type suffix and require parentheses:
 
 ```basic
-P% = blCreate%(1, 2, 0, 10, 10, 300, 200, "", 0, 0, 0)
-V# = blGetValue#(S%)
-S$ = blGetText$(B%)
-T% = blNextEvent%()
+PanelH% = blCreate%(1, 2, 0, 10, 10, 300, 200, "", 0, 0, 0)
+SliderVal# = blGetValue#(SliderH%)
+ButtonText$ = blGetText$(ButtonH%)
+EventTyp% = blNextEvent%()
 ```
 
 ### 3.3 Status
@@ -231,13 +231,13 @@ Codes 1, 5, 6, 9, 11, 14–17 are reserved or historical.
 
 ### 5.1 Lifecycle
 
-#### `blInit(W%, H%)`
+#### `blInit(Width%, Height%)`
 
-Initializes or reinitializes the library. A non-positive `W%`/`H%` uses the
-current canvas size (`SCREENW`/`SCREENH`), falling back to 640×400. Root handle
-is always 1. Clears controls, events, hover, capture, and status.
+Initializes or reinitializes the library. A non-positive `Width%`/`Height%` uses
+the current canvas size (`SCREENW`/`SCREENH`), falling back to 640×400. Root
+handle is always 1. Clears controls, events, hover, capture, and status.
 
-#### `blCreate%(Parent%, Class%, Kind%, X%, Y%, W%, Hgt%, Text$, Action%, Flags%, Tag%)`
+#### `blCreate%(Parent%, Class%, Kind%, PosX%, PosY%, Width%, Height%, Text$, Action%, Flags%, TagId%)`
 
 Creates a control and returns its handle, or `0` on failure.
 
@@ -246,28 +246,28 @@ Creates a control and returns its handle, or `0` on failure.
 | `Parent%` | Parent handle; root is 1 |
 | `Class%` | 2 panel, 3 user, 4 click target |
 | `Kind%` | User kind 1–5; ignored for panels/click targets |
-| `X%, Y%, W%, Hgt%` | Initial local rectangle |
+| `PosX%, PosY%, Width%, Height%` | Initial local rectangle |
 | `Text$` | Caption/label text |
 | `Action%` | Action ID stored on the control |
 | `Flags%` | Extra flags; visible/enabled are always added |
-| `Tag%` | Host tag stored on the control |
+| `TagId%` | Host tag stored on the control |
 
 Panels get mode 0, pad 0, gap 0. User controls get default values: 0..100,
 step 1, pad 2, centered, scale 1, border 0. Click targets default to button
 mask 1.
 
-#### `blDestroy(H%)`
+#### `blDestroy(Handle%)`
 
-Destroys `H%` and its subtree. Refuses root with status 8.
+Destroys `Handle%` and its subtree. Refuses root with status 8.
 
 ### 5.2 Geometry and layout
 
-#### `blSetBounds(H%, X%, Y%, W%, Hgt%)`
+#### `blSetBounds(Handle%, PosX%, PosY%, Width%, Height%)`
 
 Sets the local rectangle and marks layout/paint dirty. Absolute coordinates are
 stale until the next layout pass.
 
-#### `blSetLayout(H%, Mode%, Pad%, Gap%)`
+#### `blSetLayout(Handle%, Mode%, PadSize%, GapSize%)`
 
 Configures a panel or the root: mode 0 absolute, 1 vertical, 2 horizontal.
 Mode 3 and other values behave as absolute.
@@ -276,7 +276,7 @@ Mode 3 and other values behave as absolute.
 
 Recomputes absolute rectangles and clip rectangles for the whole tree.
 
-#### `blAutoSize(H%)`
+#### `blAutoSize(Handle%)`
 
 Sizes a user control from its text, current scale, and pad. Usually used on a
 label after `blSetText`.
@@ -285,30 +285,30 @@ label after `blSetText`.
 
 | Call | Effect |
 |---|---|
-| `blShow(H%)` | Set visible |
-| `blHide(H%)` | Clear visible; clears hover/press/capture |
-| `blSetEnabled(H%, Enabled%)` | Set enabled flag |
-| `blInvalidate(H%)` | Mark for repaint |
-| `blUpdate(H%)` | Repaint `H%` and its descendants |
+| `blShow(Handle%)` | Set visible |
+| `blHide(Handle%)` | Clear visible; clears hover/press/capture |
+| `blSetEnabled(Handle%, Enabled%)` | Set enabled flag |
+| `blInvalidate(Handle%)` | Mark for repaint |
+| `blUpdate(Handle%)` | Repaint `Handle%` and its descendants |
 
 ### 5.4 Text and values
 
-#### `blSetText(H%, Text$)`
+#### `blSetText(Handle%, Text$)`
 
 Sets caption/label text. CR/LF is supported.
 
-#### `blGetText$(H%)`
+#### `blGetText$(Handle%)`
 
 Returns the stored text, or `""` for a bad handle.
 
-#### `blSetValue(H%, Value#)` / `blGetValue#(H%)`
+#### `blSetValue(Handle%, Value#)` / `blGetValue#(Handle%)`
 
 Sets/reads a user-control value. The setter clamps to the control's current
 minimum/maximum (`blUser#(h,3)` and `blUser#(h,4)`).
 
 ### 5.5 Actions
 
-#### `blSetAction(H%, Action%)`
+#### `blSetAction(Handle%, Action%)`
 
 Changes the action ID stored on a control.
 
@@ -318,7 +318,7 @@ Maps an action ID to a host line. `Line&` is non-negative; `0` means no
 handler. This is the only numeric-line API because the host dispatches action
 handlers with `GOSUB`.
 
-#### `blSetClickMask(H%, Mask%)`
+#### `blSetClickMask(Handle%, Mask%)`
 
 Sets the click-target button mask. The current click path records but does not
 enforce the mask; host code can filter on `blEventButton%()`.
@@ -328,13 +328,13 @@ enforce the mask; host code can filter on `blEventButton%()`.
 | Call | Effect |
 |---|---|
 | `blPaintAll` | Lay out if needed, clear paint flag, paint whole tree |
-| `blUpdate(H%)` | Paint `H%` and descendants |
+| `blUpdate(Handle%)` | Paint `Handle%` and descendants |
 
 Painting preserves the host viewport through `PUSH VIEW`/`POP VIEW`.
 
 ### 5.7 Hit test and events
 
-#### `blFindAt%(X%, Y%)`
+#### `blFindAt%(PosX%, PosY%)`
 
 Returns the topmost visible, enabled control containing the absolute point, or
 0.
@@ -364,7 +364,7 @@ read with:
 
 #### `blDump`
 
-Prints allocated controls: `H`, class, parent, absolute X/Y, W/H.
+Prints allocated controls: handle, class, parent, absolute X/Y, width/height.
 
 #### `blRegisterClass(Class%, Line&, Name$)`
 
@@ -375,10 +375,10 @@ dispatch; this is metadata for host extensions.
 
 | Call | Effect |
 |---|---|
-| `blTestClickAt%(X%, Y%, Button%)` | Click and return hit handle |
-| `blTestMouseMove(X%, Y%)` | Move hover/capture |
-| `blTestMouseButton(Button%, Down%, X%, Y%)` | Press/release |
-| `blTestWheel(X%, Y%, Delta%)` | Wheel at point |
+| `blTestClickAt%(PosX%, PosY%, Button%)` | Click and return hit handle |
+| `blTestMouseMove(PosX%, PosY%)` | Move hover/capture |
+| `blTestMouseButton(Button%, Down%, PosX%, PosY%)` | Press/release |
+| `blTestWheel(PosX%, PosY%, Delta%)` | Wheel at point |
 
 These are deterministic and do not require a real mouse.
 
@@ -520,8 +520,8 @@ until it finds a nonzero action. The event control is the action owner.
 `blSetActionLine` maps an action ID to a numeric host line. The host dispatches:
 
 ```basic
-A% = blEventAction%()
-IF A% <> blActionNone% THEN GOSUB blActionLine&(A%)
+ActionId% = blEventAction%()
+IF ActionId% <> blActionNone% THEN GOSUB blActionLine&(ActionId%)
 ```
 
 Check the handler line against `blNoLine&` first if the table may be sparse.
@@ -533,19 +533,19 @@ Check the handler line against `blNoLine&` first if the table may be sparse.
 ```basic
 CALL blPaintAll
 Loop:
-  R% = blPollInput%()
+  ClickH% = blPollInput%()
   WHILE blEventCount%() > 0
-    E% = blNextEvent%()
+    EventTyp% = blNextEvent%()
     GOSUB DispatchAction
   WEND
-  K$ = INKEY$
-  IF K$ = CHR$(27) THEN END
+  KeyChar$ = INKEY$
+  IF KeyChar$ = CHR$(27) THEN END
   CALL blPaintAll
   SLEEP 16
   GOTO Loop
 ```
 
-`blPaintAll` every frame is simple and safe. `blUpdate(H%)` repaints one
+`blPaintAll` every frame is simple and safe. `blUpdate(Handle%)` repaints one
 subtree; call it after changing that subtree and before presenting.
 
 ---
@@ -556,12 +556,12 @@ The synthetic hooks let host tests drive deterministic input:
 
 ```basic
 CALL blInit(640, 400)
-B% = blCreate%(1, 3, 1, 10, 10, 100, 24, "OK", 100, 0, 0)
+ButtonH% = blCreate%(1, 3, 1, 10, 10, 100, 24, "OK", 100, 0, 0)
 CALL blTestMouseMove(20, 20)
 CALL blTestMouseButton(1, 1, 20, 20)
 CALL blTestMouseButton(1, 0, 20, 20)
-H% = blTestClickAt%(20, 20, 1)
-T% = blNextEvent%()
+ClickH% = blTestClickAt%(20, 20, 1)
+EventTyp% = blNextEvent%()
 ```
 
 `blTestClickAt%` returns the clicked control; when the action bubbles to a

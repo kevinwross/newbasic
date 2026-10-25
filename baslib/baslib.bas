@@ -78,43 +78,43 @@
 500086 CONST blFlagLayoutDirty% = 512
 500087 CONST blFlagCaptured% = 1024
 500088 CONST blNoLine& = 0
-500100 FUNCTION blClamp#(V#, Lo#, Hi#)
-500101 blClamp# = V#
-500102 IF blClamp# < Lo# THEN blClamp# = Lo#
-500103 IF blClamp# > Hi# THEN blClamp# = Hi#
+500100 FUNCTION blClamp#(Value#, LowVal#, HighVal#)
+500101 blClamp# = Value#
+500102 IF blClamp# < LowVal# THEN blClamp# = LowVal#
+500103 IF blClamp# > HighVal# THEN blClamp# = HighVal#
 500104 END FUNCTION
 500110 FUNCTION blAllocHandle%()
-500111 LOCAL I%
+500111 LOCAL Index%
 500112 blAllocHandle% = 0
-500113 FOR I% = 1 TO blMaxControls%
-500114   IF blCtl%(I%,1) = 0 THEN blAllocHandle% = I% : blStatus% = blStatusOk% : EXIT FUNCTION
-500115 NEXT I%
+500113 FOR Index% = 1 TO blMaxControls%
+500114   IF blCtl%(Index%,1) = 0 THEN blAllocHandle% = Index% : blStatus% = blStatusOk% : EXIT FUNCTION
+500115 NEXT Index%
 500116 blStatus% = blStatusControlTableFull%
 500117 END FUNCTION
-500120 SUB blLinkHandle(H%)
-500121 LOCAL P%, Last%
-500122 P% = blCtl%(H%,2)
-500123 IF P% < 1 OR P% > blMaxControls% THEN EXIT SUB
-500124 Last% = blCtl%(P%,4)
-500125 IF Last% = 0 THEN blCtl%(P%,3) = H% : blCtl%(H%,5) = 0 : blCtl%(H%,6) = 0 : GOTO blLinkDone
-500126 blCtl%(Last%,6) = H%
-500127 blCtl%(H%,5) = Last%
+500120 SUB blLinkHandle(Handle%)
+500121 LOCAL Parent%, LastChld%
+500122 Parent% = blCtl%(Handle%,2)
+500123 IF Parent% < 1 OR Parent% > blMaxControls% THEN EXIT SUB
+500124 LastChld% = blCtl%(Parent%,4)
+500125 IF LastChld% = 0 THEN blCtl%(Parent%,3) = Handle% : blCtl%(Handle%,5) = 0 : blCtl%(Handle%,6) = 0 : GOTO blLinkDone
+500126 blCtl%(LastChld%,6) = Handle%
+500127 blCtl%(Handle%,5) = LastChld%
 500128 LABEL blLinkDone
-500129 blCtl%(P%,4) = H%
+500129 blCtl%(Parent%,4) = Handle%
 500130 END SUB
-500140 SUB blDetachHandle(H%)
-500141 LOCAL P%, Prev%, Next%
-500142 P% = blCtl%(H%,2)
-500143 IF P% < 1 OR P% > blMaxControls% THEN EXIT SUB
-500144 Prev% = blCtl%(H%,5)
-500145 Next% = blCtl%(H%,6)
-500146 IF Prev% <> 0 THEN blCtl%(Prev%,6) = Next% ELSE blCtl%(P%,3) = Next%
-500147 IF Next% <> 0 THEN blCtl%(Next%,5) = Prev% ELSE blCtl%(P%,4) = Prev%
-500148 blCtl%(H%,5) = 0
-500149 blCtl%(H%,6) = 0
+500140 SUB blDetachHandle(Handle%)
+500141 LOCAL Parent%, PrevSib%, NextSib%
+500142 Parent% = blCtl%(Handle%,2)
+500143 IF Parent% < 1 OR Parent% > blMaxControls% THEN EXIT SUB
+500144 PrevSib% = blCtl%(Handle%,5)
+500145 NextSib% = blCtl%(Handle%,6)
+500146 IF PrevSib% <> 0 THEN blCtl%(PrevSib%,6) = NextSib% ELSE blCtl%(Parent%,3) = NextSib%
+500147 IF NextSib% <> 0 THEN blCtl%(NextSib%,5) = PrevSib% ELSE blCtl%(Parent%,4) = PrevSib%
+500148 blCtl%(Handle%,5) = 0
+500149 blCtl%(Handle%,6) = 0
 500150 END SUB
 500160 SUB blInitTables
-500161 LOCAL I%, C%, V%
+500161 LOCAL Index%, ClassId%, VerbId%
 500162 IF blInitDone% <> 0 THEN GOTO blInitClear
 500163 DIM blCtl%(255,17)
 500164 DIM blCtlText$(255)
@@ -127,401 +127,401 @@
 500171 DIM blEvButton%(63), blEvWheelVal%(63)
 500172 blInitDone% = 1
 500173 LABEL blInitClear
-500174 FOR I% = 0 TO 255
-500175   blCtl%(I%,1) = 0
-500176   blCtl%(I%,2) = 0
-500177   blCtl%(I%,3) = 0
-500178   blCtl%(I%,4) = 0
-500179   blCtl%(I%,5) = 0
-500180   blCtl%(I%,6) = 0
-500181   blCtl%(I%,7) = 0
-500182   blCtl%(I%,8) = 0
-500183   blCtl%(I%,9) = 0
-500184   blCtl%(I%,10) = 0
-500185   blCtl%(I%,11) = 0
-500186   blCtl%(I%,12) = 0
-500187   blCtl%(I%,13) = 0
-500188   blCtl%(I%,14) = 0
-500189   blCtl%(I%,15) = 0
-500190   blCtl%(I%,16) = 0
-500191   blCtl%(I%,17) = 0
-500192   blCtlText$(I%) = ""
-500193   blCtlClipL%(I%) = 0
-500194   blCtlClipT%(I%) = 0
-500195   blCtlClipR%(I%) = 0
-500196   blCtlClipB%(I%) = 0
-500197   blCtlZ%(I%) = 0
-500198 NEXT I%
-500199 FOR C% = 1 TO 16
-500200   blClassName$(C%) = ""
-500201   FOR V% = 1 TO 20
-500202     blMethod&(C%,V%) = 502999
-500203   NEXT V%
-500204 NEXT C%
+500174 FOR Index% = 0 TO 255
+500175   blCtl%(Index%,1) = 0
+500176   blCtl%(Index%,2) = 0
+500177   blCtl%(Index%,3) = 0
+500178   blCtl%(Index%,4) = 0
+500179   blCtl%(Index%,5) = 0
+500180   blCtl%(Index%,6) = 0
+500181   blCtl%(Index%,7) = 0
+500182   blCtl%(Index%,8) = 0
+500183   blCtl%(Index%,9) = 0
+500184   blCtl%(Index%,10) = 0
+500185   blCtl%(Index%,11) = 0
+500186   blCtl%(Index%,12) = 0
+500187   blCtl%(Index%,13) = 0
+500188   blCtl%(Index%,14) = 0
+500189   blCtl%(Index%,15) = 0
+500190   blCtl%(Index%,16) = 0
+500191   blCtl%(Index%,17) = 0
+500192   blCtlText$(Index%) = ""
+500193   blCtlClipL%(Index%) = 0
+500194   blCtlClipT%(Index%) = 0
+500195   blCtlClipR%(Index%) = 0
+500196   blCtlClipB%(Index%) = 0
+500197   blCtlZ%(Index%) = 0
+500198 NEXT Index%
+500199 FOR ClassId% = 1 TO 16
+500200   blClassName$(ClassId%) = ""
+500201   FOR VerbId% = 1 TO 20
+500202     blMethod&(ClassId%,VerbId%) = 502999
+500203   NEXT VerbId%
+500204 NEXT ClassId%
 500205 blClassName$(1) = "Top"
 500206 blClassName$(2) = "Panel"
 500207 blClassName$(3) = "User"
 500208 blClassName$(4) = "ClickTarget"
-500209 FOR I% = 0 TO 255
-500210   blActionLine&(I%) = 0
-500211 NEXT I%
-500212 FOR I% = 0 TO 63
-500213   blEvType%(I%) = 0
-500214   blEvCtl%(I%) = 0
-500215   blEvAction%(I%) = 0
-500216   blEvX%(I%) = 0
-500217   blEvY%(I%) = 0
-500218   blEvButton%(I%) = 0
-500219   blEvWheelVal%(I%) = 0
-500220 NEXT I%
+500209 FOR Index% = 0 TO 255
+500210   blActionLine&(Index%) = 0
+500211 NEXT Index%
+500212 FOR Index% = 0 TO 63
+500213   blEvType%(Index%) = 0
+500214   blEvCtl%(Index%) = 0
+500215   blEvAction%(Index%) = 0
+500216   blEvX%(Index%) = 0
+500217   blEvY%(Index%) = 0
+500218   blEvButton%(Index%) = 0
+500219   blEvWheelVal%(Index%) = 0
+500220 NEXT Index%
 500221 END SUB
-500230 SUB blLayoutControl(H%)
-500231 LOCAL C%
-500232 IF H% < 1 OR H% > blMaxControls% THEN EXIT SUB
-500233 IF blCtl%(H%,1) = 0 THEN EXIT SUB
-500234 IF (blCtl%(H%,13) AND blFlagVisible%) = 0 THEN EXIT SUB
-500235 C% = blCtl%(H%,1)
-500236 IF C% = blClassTop% OR C% = blClassPanel% THEN CALL blLayoutChildren(H%)
+500230 SUB blLayoutControl(Handle%)
+500231 LOCAL ClassId%
+500232 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
+500233 IF blCtl%(Handle%,1) = 0 THEN EXIT SUB
+500234 IF (blCtl%(Handle%,13) AND blFlagVisible%) = 0 THEN EXIT SUB
+500235 ClassId% = blCtl%(Handle%,1)
+500236 IF ClassId% = blClassTop% OR ClassId% = blClassPanel% THEN CALL blLayoutChildren(Handle%)
 500237 END SUB
-500240 SUB blLayoutChildren(H%)
-500241 LOCAL Mode%, Pad%, Gap%, PX%, PY%, CW%, CH%, CX%, CY%
-500242 LOCAL Child%, Next%, X2%, Y2%, L%, T%, R%, B%
-500243 Mode% = blPanel%(H%,1)
-500244 Pad% = blPanel%(H%,2)
-500245 Gap% = blPanel%(H%,3)
-500246 PX% = blCtl%(H%,11)
-500247 PY% = blCtl%(H%,12)
-500248 CW% = blCtl%(H%,9)
-500249 CH% = blCtl%(H%,10)
-500250 CX% = PX% + Pad%
-500251 CY% = PY% + Pad%
-500252 Child% = blCtl%(H%,3)
+500240 SUB blLayoutChildren(Handle%)
+500241 LOCAL Mode%, PadSize%, GapSize%, PanelX%, PanelY%, ClientW%, ClientH%, CursorX%, CursorY%
+500242 LOCAL Child%, NextSib%, RightX%, BottomY%, ClipL%, ClipT%, ClipR%, ClipB%
+500243 Mode% = blPanel%(Handle%,1)
+500244 PadSize% = blPanel%(Handle%,2)
+500245 GapSize% = blPanel%(Handle%,3)
+500246 PanelX% = blCtl%(Handle%,11)
+500247 PanelY% = blCtl%(Handle%,12)
+500248 ClientW% = blCtl%(Handle%,9)
+500249 ClientH% = blCtl%(Handle%,10)
+500250 CursorX% = PanelX% + PadSize%
+500251 CursorY% = PanelY% + PadSize%
+500252 Child% = blCtl%(Handle%,3)
 500253 WHILE Child% <> 0
 500254   IF (blCtl%(Child%,13) AND blFlagVisible%) = 0 THEN GOTO blLayoutNext
 500255   SELECT CASE Mode%
 500256   CASE 1
-500257     blCtl%(Child%,7) = Pad%
-500258     blCtl%(Child%,8) = CY% - PY%
-500259     blCtl%(Child%,9) = CW% - 2 * Pad%
-500260     CY% = CY% + blCtl%(Child%,10) + Gap%
+500257     blCtl%(Child%,7) = PadSize%
+500258     blCtl%(Child%,8) = CursorY% - PanelY%
+500259     blCtl%(Child%,9) = ClientW% - 2 * PadSize%
+500260     CursorY% = CursorY% + blCtl%(Child%,10) + GapSize%
 500261   CASE 2
-500262     blCtl%(Child%,7) = CX% - PX%
-500263     blCtl%(Child%,8) = Pad%
-500264     blCtl%(Child%,10) = CH% - 2 * Pad%
-500265     CX% = CX% + blCtl%(Child%,9) + Gap%
+500262     blCtl%(Child%,7) = CursorX% - PanelX%
+500263     blCtl%(Child%,8) = PadSize%
+500264     blCtl%(Child%,10) = ClientH% - 2 * PadSize%
+500265     CursorX% = CursorX% + blCtl%(Child%,9) + GapSize%
 500266   END SELECT
-500267   blCtl%(Child%,11) = PX% + blCtl%(Child%,7)
-500268   blCtl%(Child%,12) = PY% + blCtl%(Child%,8)
-500269   L% = blCtlClipL%(H%)
-500270   T% = blCtlClipT%(H%)
-500271   R% = blCtlClipR%(H%)
-500272   B% = blCtlClipB%(H%)
-500273   IF blCtl%(Child%,11) > L% THEN L% = blCtl%(Child%,11)
-500274   IF blCtl%(Child%,12) > T% THEN T% = blCtl%(Child%,12)
-500275   X2% = blCtl%(Child%,11) + blCtl%(Child%,9) - 1
-500276   Y2% = blCtl%(Child%,12) + blCtl%(Child%,10) - 1
-500277   IF X2% < R% THEN R% = X2%
-500278   IF Y2% < B% THEN B% = Y2%
-500279   blCtlClipL%(Child%) = L%
-500280   blCtlClipT%(Child%) = T%
-500281   blCtlClipR%(Child%) = R%
-500282   blCtlClipB%(Child%) = B%
-500283   Next% = blCtl%(Child%,6)
+500267   blCtl%(Child%,11) = PanelX% + blCtl%(Child%,7)
+500268   blCtl%(Child%,12) = PanelY% + blCtl%(Child%,8)
+500269   ClipL% = blCtlClipL%(Handle%)
+500270   ClipT% = blCtlClipT%(Handle%)
+500271   ClipR% = blCtlClipR%(Handle%)
+500272   ClipB% = blCtlClipB%(Handle%)
+500273   IF blCtl%(Child%,11) > ClipL% THEN ClipL% = blCtl%(Child%,11)
+500274   IF blCtl%(Child%,12) > ClipT% THEN ClipT% = blCtl%(Child%,12)
+500275   RightX% = blCtl%(Child%,11) + blCtl%(Child%,9) - 1
+500276   BottomY% = blCtl%(Child%,12) + blCtl%(Child%,10) - 1
+500277   IF RightX% < ClipR% THEN ClipR% = RightX%
+500278   IF BottomY% < ClipB% THEN ClipB% = BottomY%
+500279   blCtlClipL%(Child%) = ClipL%
+500280   blCtlClipT%(Child%) = ClipT%
+500281   blCtlClipR%(Child%) = ClipR%
+500282   blCtlClipB%(Child%) = ClipB%
+500283   NextSib% = blCtl%(Child%,6)
 500284   CALL blLayoutControl(Child%)
-500285   Child% = Next%
+500285   Child% = NextSib%
 500286   GOTO blLayoutLoopEnd
 500287   LABEL blLayoutNext
 500288   Child% = blCtl%(Child%,6)
 500289   LABEL blLayoutLoopEnd
 500290 WEND
 500291 END SUB
-500300 SUB blPaintTree(H%)
-500301 LOCAL Child%, Next%
-500302 IF H% < 1 OR H% > blMaxControls% THEN EXIT SUB
-500303 IF blCtl%(H%,1) = 0 THEN EXIT SUB
-500304 IF (blCtl%(H%,13) AND blFlagVisible%) = 0 THEN EXIT SUB
-500305 CALL blPaintOne(H%)
-500306 Child% = blCtl%(H%,3)
+500300 SUB blPaintTree(Handle%)
+500301 LOCAL Child%, NextSib%
+500302 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
+500303 IF blCtl%(Handle%,1) = 0 THEN EXIT SUB
+500304 IF (blCtl%(Handle%,13) AND blFlagVisible%) = 0 THEN EXIT SUB
+500305 CALL blPaintOne(Handle%)
+500306 Child% = blCtl%(Handle%,3)
 500307 WHILE Child% <> 0
-500308   Next% = blCtl%(Child%,6)
+500308   NextSib% = blCtl%(Child%,6)
 500309   CALL blPaintTree(Child%)
-500310   Child% = Next%
+500310   Child% = NextSib%
 500311 WEND
 500312 END SUB
-500320 SUB blPaintOne(H%)
-500321 LOCAL W%, HH%, Cls%
-500322 IF H% < 1 OR H% > blMaxControls% THEN EXIT SUB
-500323 IF blCtl%(H%,1) = 0 THEN EXIT SUB
-500324 W% = blCtl%(H%,9)
-500325 HH% = blCtl%(H%,10)
-500326 IF W% <= 0 OR HH% <= 0 THEN EXIT SUB
+500320 SUB blPaintOne(Handle%)
+500321 LOCAL Width%, Height%, ClassId%
+500322 IF Handle% < 1 OR Handle% > blMaxControls% THEN EXIT SUB
+500323 IF blCtl%(Handle%,1) = 0 THEN EXIT SUB
+500324 Width% = blCtl%(Handle%,9)
+500325 Height% = blCtl%(Handle%,10)
+500326 IF Width% <= 0 OR Height% <= 0 THEN EXIT SUB
 500327 PUSH VIEW
-500328 Cls% = blCtl%(H%,1)
-500329 IF Cls% = blClassTop% OR Cls% = blClassPanel% THEN CALL blPaintPanel(H%) : GOTO blPaintOneDone
-500330 IF Cls% = blClassUser% THEN CALL blPaintUser(H%)
+500328 ClassId% = blCtl%(Handle%,1)
+500329 IF ClassId% = blClassTop% OR ClassId% = blClassPanel% THEN CALL blPaintPanel(Handle%) : GOTO blPaintOneDone
+500330 IF ClassId% = blClassUser% THEN CALL blPaintUser(Handle%)
 500331 LABEL blPaintOneDone
 500332 POP VIEW
 500333 END SUB
-500340 SUB blPaintPanel(H%)
-500341 LOCAL X%, Y%, W%, HH%, Face%, Border%
-500342 X% = blCtl%(H%,11)
-500343 Y% = blCtl%(H%,12)
-500344 W% = blCtl%(H%,9)
-500345 HH% = blCtl%(H%,10)
-500346 Face% = blPanel%(H%,6)
-500347 Border% = blPanel%(H%,7)
-500348 LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Face%, BF
-500349 IF Border% >= 0 THEN LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Border%, B
+500340 SUB blPaintPanel(Handle%)
+500341 LOCAL PosX%, PosY%, Width%, Height%, FaceCol%, Border%
+500342 PosX% = blCtl%(Handle%,11)
+500343 PosY% = blCtl%(Handle%,12)
+500344 Width% = blCtl%(Handle%,9)
+500345 Height% = blCtl%(Handle%,10)
+500346 FaceCol% = blPanel%(Handle%,6)
+500347 Border% = blPanel%(Handle%,7)
+500348 LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), FaceCol%, BF
+500349 IF Border% >= 0 THEN LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), Border%, B
 500350 END SUB
-500360 SUB blPaintUser(H%)
+500360 SUB blPaintUser(Handle%)
 500361 LOCAL Kind%
-500362 Kind% = blUser#(H%,1)
+500362 Kind% = blUser#(Handle%,1)
 500363 SELECT CASE Kind%
 500364 CASE blKindButton%
-500365   CALL blPaintButton(H%)
+500365   CALL blPaintButton(Handle%)
 500366 CASE blKindLabel%
-500367   CALL blPaintLabel(H%)
+500367   CALL blPaintLabel(Handle%)
 500368 CASE blKindSlider%
-500369   CALL blPaintSlider(H%)
+500369   CALL blPaintSlider(Handle%)
 500370 CASE blKindGauge%
-500371   CALL blPaintGauge(H%)
+500371   CALL blPaintGauge(Handle%)
 500372 CASE blKindDial%
-500373   CALL blPaintDial(H%)
+500373   CALL blPaintDial(Handle%)
 500374 END SELECT
 500375 END SUB
-500380 SUB blPaintButton(H%)
-500381 LOCAL X%, Y%, W%, HH%, Face%, Col%, Border%, Scale%
-500382 X% = blCtl%(H%,11)
-500383 Y% = blCtl%(H%,12)
-500384 W% = blCtl%(H%,9)
-500385 HH% = blCtl%(H%,10)
-500386 Face% = blUser#(H%,8)
-500387 Col% = blUser#(H%,19)
-500388 Border% = blUser#(H%,17)
-500389 Scale% = blUser#(H%,20)
-500390 IF (blCtl%(H%,13) AND blFlagPressed%) <> 0 THEN Face% = blUser#(H%,9)
-500391 LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Face%, BF
-500392 IF Border% >= 0 THEN LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Border%, B
-500393 CALL blDrawText(X%,Y%,W%,HH%,blCtlText$(H%),Col%,Scale%,1,1,2)
+500380 SUB blPaintButton(Handle%)
+500381 LOCAL PosX%, PosY%, Width%, Height%, FaceCol%, TextCol%, Border%, Scale%
+500382 PosX% = blCtl%(Handle%,11)
+500383 PosY% = blCtl%(Handle%,12)
+500384 Width% = blCtl%(Handle%,9)
+500385 Height% = blCtl%(Handle%,10)
+500386 FaceCol% = blUser#(Handle%,8)
+500387 TextCol% = blUser#(Handle%,19)
+500388 Border% = blUser#(Handle%,17)
+500389 Scale% = blUser#(Handle%,20)
+500390 IF (blCtl%(Handle%,13) AND blFlagPressed%) <> 0 THEN FaceCol% = blUser#(Handle%,9)
+500391 LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), FaceCol%, BF
+500392 IF Border% >= 0 THEN LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), Border%, B
+500393 CALL blDrawText(PosX%,PosY%,Width%,Height%,blCtlText$(Handle%),TextCol%,Scale%,1,1,2)
 500394 END SUB
-500400 SUB blPaintLabel(H%)
-500401 LOCAL X%, Y%, W%, HH%, Face%, Col%, Border%, Scale%, Align%, VAlign%, Pad%, T$
-500402 X% = blCtl%(H%,11)
-500403 Y% = blCtl%(H%,12)
-500404 W% = blCtl%(H%,9)
-500405 HH% = blCtl%(H%,10)
-500406 Face% = blUser#(H%,8)
-500407 Col% = blUser#(H%,19)
-500408 Border% = blUser#(H%,17)
-500409 Scale% = blUser#(H%,20)
-500410 Align% = blUser#(H%,14)
-500411 VAlign% = blUser#(H%,15)
-500412 Pad% = blUser#(H%,13)
-500413 T$ = blCtlText$(H%)
-500414 IF blUser#(H%,16) <> 0 THEN T$ = blWrapText$(T$,W% - 2 * Pad%,Scale%)
-500415 IF blUser#(H%,18) = 0 THEN LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Face%, BF
-500416 IF Border% >= 0 THEN LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Border%, B
-500417 CALL blDrawText(X%,Y%,W%,HH%,T$,Col%,Scale%,Align%,VAlign%,Pad%)
+500400 SUB blPaintLabel(Handle%)
+500401 LOCAL PosX%, PosY%, Width%, Height%, FaceCol%, TextCol%, Border%, Scale%, Align%, VAlign%, PadSize%, LabelText$
+500402 PosX% = blCtl%(Handle%,11)
+500403 PosY% = blCtl%(Handle%,12)
+500404 Width% = blCtl%(Handle%,9)
+500405 Height% = blCtl%(Handle%,10)
+500406 FaceCol% = blUser#(Handle%,8)
+500407 TextCol% = blUser#(Handle%,19)
+500408 Border% = blUser#(Handle%,17)
+500409 Scale% = blUser#(Handle%,20)
+500410 Align% = blUser#(Handle%,14)
+500411 VAlign% = blUser#(Handle%,15)
+500412 PadSize% = blUser#(Handle%,13)
+500413 LabelText$ = blCtlText$(Handle%)
+500414 IF blUser#(Handle%,16) <> 0 THEN LabelText$ = blWrapText$(LabelText$,Width% - 2 * PadSize%,Scale%)
+500415 IF blUser#(Handle%,18) = 0 THEN LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), FaceCol%, BF
+500416 IF Border% >= 0 THEN LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), Border%, B
+500417 CALL blDrawText(PosX%,PosY%,Width%,Height%,LabelText$,TextCol%,Scale%,Align%,VAlign%,PadSize%)
 500418 END SUB
-500430 SUB blPaintSlider(H%)
-500431 LOCAL X%, Y%, W%, HH%, Pos%, Accent%
-500432 X% = blCtl%(H%,11)
-500433 Y% = blCtl%(H%,12)
-500434 W% = blCtl%(H%,9)
-500435 HH% = blCtl%(H%,10)
-500436 Accent% = blUser#(H%,9)
-500437 IF W% <= 0 THEN EXIT SUB
-500438 LINE (X%,Y% + HH% / 2)-(X% + W% - 1,Y% + HH% / 2), 8, BF
-500439 Pos% = X% + (W% - 8) * (blUser#(H%,2) - blUser#(H%,3)) / (blUser#(H%,4) - blUser#(H%,3) + 0.000001)
-500440 LINE (Pos%,Y% + 2)-(Pos% + 7,Y% + HH% - 2), Accent%, BF
+500430 SUB blPaintSlider(Handle%)
+500431 LOCAL PosX%, PosY%, Width%, Height%, BarPos%, Accent%
+500432 PosX% = blCtl%(Handle%,11)
+500433 PosY% = blCtl%(Handle%,12)
+500434 Width% = blCtl%(Handle%,9)
+500435 Height% = blCtl%(Handle%,10)
+500436 Accent% = blUser#(Handle%,9)
+500437 IF Width% <= 0 THEN EXIT SUB
+500438 LINE (PosX%,PosY% + Height% / 2)-(PosX% + Width% - 1,PosY% + Height% / 2), 8, BF
+500439 BarPos% = PosX% + (Width% - 8) * (blUser#(Handle%,2) - blUser#(Handle%,3)) / (blUser#(Handle%,4) - blUser#(Handle%,3) + 0.000001)
+500440 LINE (BarPos%,PosY% + 2)-(BarPos% + 7,PosY% + Height% - 2), Accent%, BF
 500441 END SUB
-500450 SUB blPaintGauge(H%)
-500451 LOCAL X%, Y%, W%, HH%, Face%, Accent%, Pos%
-500452 X% = blCtl%(H%,11)
-500453 Y% = blCtl%(H%,12)
-500454 W% = blCtl%(H%,9)
-500455 HH% = blCtl%(H%,10)
-500456 Face% = blUser#(H%,8)
-500457 Accent% = blUser#(H%,9)
-500458 LINE (X%,Y%)-(X% + W% - 1,Y% + HH% - 1), Face%, BF
-500459 Pos% = X% + (W% - 2) * (blUser#(H%,2) - blUser#(H%,3)) / (blUser#(H%,4) - blUser#(H%,3) + 0.000001)
-500460 LINE (X% + 1,Y% + 1)-(Pos%,Y% + HH% - 2), Accent%, BF
+500450 SUB blPaintGauge(Handle%)
+500451 LOCAL PosX%, PosY%, Width%, Height%, FaceCol%, Accent%, BarPos%
+500452 PosX% = blCtl%(Handle%,11)
+500453 PosY% = blCtl%(Handle%,12)
+500454 Width% = blCtl%(Handle%,9)
+500455 Height% = blCtl%(Handle%,10)
+500456 FaceCol% = blUser#(Handle%,8)
+500457 Accent% = blUser#(Handle%,9)
+500458 LINE (PosX%,PosY%)-(PosX% + Width% - 1,PosY% + Height% - 1), FaceCol%, BF
+500459 BarPos% = PosX% + (Width% - 2) * (blUser#(Handle%,2) - blUser#(Handle%,3)) / (blUser#(Handle%,4) - blUser#(Handle%,3) + 0.000001)
+500460 LINE (PosX% + 1,PosY% + 1)-(BarPos%,PosY% + Height% - 2), Accent%, BF
 500461 END SUB
-500470 SUB blPaintDial(H%)
-500471 LOCAL X%, Y%, W%, HH%, Face%, Accent%, R%, CX%, CY%, A#, EX%, EY%
-500472 X% = blCtl%(H%,11)
-500473 Y% = blCtl%(H%,12)
-500474 W% = blCtl%(H%,9)
-500475 HH% = blCtl%(H%,10)
-500476 Face% = blUser#(H%,8)
-500477 Accent% = blUser#(H%,9)
-500478 R% = HH% / 2 - 2
-500479 IF W% < HH% THEN R% = W% / 2 - 2
-500480 CX% = X% + W% / 2
-500481 CY% = Y% + HH% / 2
-500482 CIRCLE (CX%,CY%), R%, Face%, 0, 6.2831853, 1
-500483 CIRCLE (CX%,CY%), R% - 1, Accent%, 0, 6.2831853, 1
-500484 A# = 3.14159265 * (1 - (blUser#(H%,2) - blUser#(H%,3)) / (blUser#(H%,4) - blUser#(H%,3) + 0.000001))
-500485 EX% = CX% + COS(A#) * (R% - 4)
-500486 EY% = CY% - SIN(A#) * (R% - 4)
-500487 LINE (CX%,CY%)-(EX%,EY%), Accent%
+500470 SUB blPaintDial(Handle%)
+500471 LOCAL PosX%, PosY%, Width%, Height%, FaceCol%, Accent%, Radius%, CenterX%, CenterY%, Angle#, EndX%, EndY%
+500472 PosX% = blCtl%(Handle%,11)
+500473 PosY% = blCtl%(Handle%,12)
+500474 Width% = blCtl%(Handle%,9)
+500475 Height% = blCtl%(Handle%,10)
+500476 FaceCol% = blUser#(Handle%,8)
+500477 Accent% = blUser#(Handle%,9)
+500478 Radius% = Height% / 2 - 2
+500479 IF Width% < Height% THEN Radius% = Width% / 2 - 2
+500480 CenterX% = PosX% + Width% / 2
+500481 CenterY% = PosY% + Height% / 2
+500482 CIRCLE (CenterX%,CenterY%), Radius%, FaceCol%, 0, 6.2831853, 1
+500483 CIRCLE (CenterX%,CenterY%), Radius% - 1, Accent%, 0, 6.2831853, 1
+500484 Angle# = 3.14159265 * (1 - (blUser#(Handle%,2) - blUser#(Handle%,3)) / (blUser#(Handle%,4) - blUser#(Handle%,3) + 0.000001))
+500485 EndX% = CenterX% + COS(Angle#) * (Radius% - 4)
+500486 EndY% = CenterY% - SIN(Angle#) * (Radius% - 4)
+500487 LINE (CenterX%,CenterY%)-(EndX%,EndY%), Accent%
 500488 END SUB
-500500 SUB blDrawText(X%, Y%, W%, HH%, Text$, Color%, Scale%, Align%, VAlign%, Pad%)
-500501 LOCAL T$, TW%, TH%, DX%, DY%, FitW%
+500500 SUB blDrawText(PosX%, PosY%, Width%, Height%, Text$, Color%, Scale%, Align%, VAlign%, PadSize%)
+500501 LOCAL LabelText$, TextW%, TextH%, DrawX%, DrawY%, FitWidth%
 500502 IF Text$ = "" THEN EXIT SUB
-500503 FitW% = W% - 2 * Pad%
-500504 IF FitW% < 1 THEN FitW% = 1
-500505 T$ = blFitText$(Text$,FitW%,Scale%)
-500506 TW% = TEXTWIDTH(T$,Scale%)
-500507 TH% = TEXTHEIGHT(T$,Scale%)
-500508 DX% = X% + Pad%
-500509 DY% = Y% + Pad%
-500510 IF Align% = 1 THEN DX% = X% + (W% - TW%) / 2
-500511 IF Align% = 2 THEN DX% = X% + W% - TW% - Pad%
-500512 IF VAlign% = 1 THEN DY% = Y% + (HH% - TH%) / 2
-500513 IF VAlign% = 2 THEN DY% = Y% + HH% - TH% - Pad%
-500514 DRAWTEXT (DX%,DY%), T$, Color%, Scale%
+500503 FitWidth% = Width% - 2 * PadSize%
+500504 IF FitWidth% < 1 THEN FitWidth% = 1
+500505 LabelText$ = blFitText$(Text$,FitWidth%,Scale%)
+500506 TextW% = TEXTWIDTH(LabelText$,Scale%)
+500507 TextH% = TEXTHEIGHT(LabelText$,Scale%)
+500508 DrawX% = PosX% + PadSize%
+500509 DrawY% = PosY% + PadSize%
+500510 IF Align% = 1 THEN DrawX% = PosX% + (Width% - TextW%) / 2
+500511 IF Align% = 2 THEN DrawX% = PosX% + Width% - TextW% - PadSize%
+500512 IF VAlign% = 1 THEN DrawY% = PosY% + (Height% - TextH%) / 2
+500513 IF VAlign% = 2 THEN DrawY% = PosY% + Height% - TextH% - PadSize%
+500514 DRAWTEXT (DrawX%,DrawY%), LabelText$, Color%, Scale%
 500515 END SUB
 500520 FUNCTION blFitText$(Source$, MaxW%, Scale%)
-500521 LOCAL In$, Out$, Line$, Ch$, I%
+500521 LOCAL SourceIn$, SourceOut$, Line$, Char$, Index%
 500522 blFitText$ = ""
 500523 IF MaxW% < 1 THEN MaxW% = 1
 500524 IF Source$ = "" THEN EXIT FUNCTION
-500525 In$ = Source$
-500526 Out$ = ""
+500525 SourceIn$ = Source$
+500526 SourceOut$ = ""
 500527 Line$ = ""
-500528 FOR I% = 1 TO LEN(In$)
-500529   Ch$ = MID$(In$,I%,1)
-500530   IF Ch$ = CHR$(13) OR Ch$ = CHR$(10) THEN GOTO blFitNewline
-500531   Line$ = Line$ + Ch$
+500528 FOR Index% = 1 TO LEN(SourceIn$)
+500529   Char$ = MID$(SourceIn$,Index%,1)
+500530   IF Char$ = CHR$(13) OR Char$ = CHR$(10) THEN GOTO blFitNewline
+500531   Line$ = Line$ + Char$
 500532   GOTO blFitNext
 500533   LABEL blFitNewline
 500534   WHILE LEN(Line$) > 0 AND TEXTWIDTH(Line$,Scale%) > MaxW%
 500535     Line$ = LEFT$(Line$,LEN(Line$) - 1)
 500536   WEND
-500537   Out$ = Out$ + Line$ + CHR$(13) + CHR$(10)
+500537   SourceOut$ = SourceOut$ + Line$ + CHR$(13) + CHR$(10)
 500538   Line$ = ""
 500539   LABEL blFitNext
-500540 NEXT I%
+500540 NEXT Index%
 500541 WHILE LEN(Line$) > 0 AND TEXTWIDTH(Line$,Scale%) > MaxW%
 500542   Line$ = LEFT$(Line$,LEN(Line$) - 1)
 500543 WEND
-500544 blFitText$ = Out$ + Line$
+500544 blFitText$ = SourceOut$ + Line$
 500545 END FUNCTION
 500550 FUNCTION blWrapText$(Source$, MaxW%, Scale%)
-500551 LOCAL In$, Out$, Line$, Ch$, I%, Max%
+500551 LOCAL SourceIn$, SourceOut$, Line$, Char$, Index%, MaxWidth%
 500552 blWrapText$ = ""
-500553 In$ = Source$
-500554 Out$ = ""
+500553 SourceIn$ = Source$
+500554 SourceOut$ = ""
 500555 Line$ = ""
-500556 Max% = MaxW%
-500557 IF Max% < 1 THEN Max% = 1
-500558 FOR I% = 1 TO LEN(In$)
-500559   Ch$ = MID$(In$,I%,1)
-500560   IF Ch$ = CHR$(13) OR Ch$ = CHR$(10) THEN GOTO blWrapNewline
-500561   IF LEN(Line$) > 0 AND TEXTWIDTH(Line$ + Ch$,Scale%) > Max% THEN GOTO blWrapBreak
-500562   Line$ = Line$ + Ch$
+500556 MaxWidth% = MaxW%
+500557 IF MaxWidth% < 1 THEN MaxWidth% = 1
+500558 FOR Index% = 1 TO LEN(SourceIn$)
+500559   Char$ = MID$(SourceIn$,Index%,1)
+500560   IF Char$ = CHR$(13) OR Char$ = CHR$(10) THEN GOTO blWrapNewline
+500561   IF LEN(Line$) > 0 AND TEXTWIDTH(Line$ + Char$,Scale%) > MaxWidth% THEN GOTO blWrapBreak
+500562   Line$ = Line$ + Char$
 500563   GOTO blWrapNext
 500564   LABEL blWrapBreak
-500565   Out$ = Out$ + Line$ + CHR$(13) + CHR$(10)
-500566   Line$ = Ch$
+500565   SourceOut$ = SourceOut$ + Line$ + CHR$(13) + CHR$(10)
+500566   Line$ = Char$
 500567   GOTO blWrapNext
 500568   LABEL blWrapNewline
-500569   Out$ = Out$ + Line$ + CHR$(13) + CHR$(10)
+500569   SourceOut$ = SourceOut$ + Line$ + CHR$(13) + CHR$(10)
 500570   Line$ = ""
 500571   LABEL blWrapNext
-500572 NEXT I%
-500573 blWrapText$ = Out$ + Line$
+500572 NEXT Index%
+500573 blWrapText$ = SourceOut$ + Line$
 500574 END FUNCTION
-500580 FUNCTION blHitTest%(X%, Y%)
-500581 LOCAL H%, X1%, Y1%, X2%, Y2%
+500580 FUNCTION blHitTest%(PosX%, PosY%)
+500581 LOCAL Handle%, LeftX%, TopY%, RightX%, BottomY%
 500582 blHitTest% = 0
-500583 FOR H% = blMaxControls% TO 1 STEP -1
-500584   IF blCtl%(H%,1) = 0 OR (blCtl%(H%,13) AND blFlagVisible%) = 0 OR (blCtl%(H%,13) AND blFlagEnabled%) = 0 THEN GOTO blHitNext
-500585   X1% = blCtl%(H%,11)
-500586   Y1% = blCtl%(H%,12)
-500587   X2% = X1% + blCtl%(H%,9) - 1
-500588   Y2% = Y1% + blCtl%(H%,10) - 1
-500589   IF X% >= X1% AND X% <= X2% AND Y% >= Y1% AND Y% <= Y2% THEN blHitTest% = H% : EXIT FUNCTION
+500583 FOR Handle% = blMaxControls% TO 1 STEP -1
+500584   IF blCtl%(Handle%,1) = 0 OR (blCtl%(Handle%,13) AND blFlagVisible%) = 0 OR (blCtl%(Handle%,13) AND blFlagEnabled%) = 0 THEN GOTO blHitNext
+500585   LeftX% = blCtl%(Handle%,11)
+500586   TopY% = blCtl%(Handle%,12)
+500587   RightX% = LeftX% + blCtl%(Handle%,9) - 1
+500588   BottomY% = TopY% + blCtl%(Handle%,10) - 1
+500589   IF PosX% >= LeftX% AND PosX% <= RightX% AND PosY% >= TopY% AND PosY% <= BottomY% THEN blHitTest% = Handle% : EXIT FUNCTION
 500590   LABEL blHitNext
-500591 NEXT H%
+500591 NEXT Handle%
 500592 END FUNCTION
-500600 SUB blPostEvent(Type%, Ctl%, Action%, X%, Y%, Button%, Wheel%)
+500600 SUB blPostEvent(EventTyp%, CtlH%, Action%, PosX%, PosY%, Button%, Wheel%)
 500601 IF blEvCount% >= blMaxEvents% THEN blStatus% = blStatusEventQueueFull% : EXIT SUB
-500602 blEvType%(blEvTail%) = Type%
-500603 blEvCtl%(blEvTail%) = Ctl%
+500602 blEvType%(blEvTail%) = EventTyp%
+500603 blEvCtl%(blEvTail%) = CtlH%
 500604 blEvAction%(blEvTail%) = Action%
-500605 blEvX%(blEvTail%) = X%
-500606 blEvY%(blEvTail%) = Y%
+500605 blEvX%(blEvTail%) = PosX%
+500606 blEvY%(blEvTail%) = PosY%
 500607 blEvButton%(blEvTail%) = Button%
 500608 blEvWheelVal%(blEvTail%) = Wheel%
 500609 blEvTail% = (blEvTail% + 1) MOD blMaxEvents%
 500610 blEvCount% = blEvCount% + 1
 500611 END SUB
-500620 SUB blPostClick(Owner%, Action%, X%, Y%, Button%)
-500621 CALL blPostEvent(blEvClick%,Owner%,Action%,X%,Y%,Button%,0)
+500620 SUB blPostClick(OwnerH%, Action%, PosX%, PosY%, Button%)
+500621 CALL blPostEvent(blEvClick%,OwnerH%,Action%,PosX%,PosY%,Button%,0)
 500622 END SUB
-500630 SUB blPointerValue(H%, X%, Y%, Button%)
-500631 LOCAL Kind%, V#, W%
-500632 Kind% = blUser#(H%,1)
+500630 SUB blPointerValue(Handle%, PosX%, PosY%, Button%)
+500631 LOCAL Kind%, Value#, Width%
+500632 Kind% = blUser#(Handle%,1)
 500633 IF Kind% <> blKindSlider% AND Kind% <> blKindDial% THEN EXIT SUB
-500634 W% = blCtl%(H%,9)
-500635 IF W% <= 0 THEN EXIT SUB
-500636 V# = blUser#(H%,3) + (X% - blCtl%(H%,11)) * (blUser#(H%,4) - blUser#(H%,3)) / W%
-500637 V# = blClamp#(V#,blUser#(H%,3),blUser#(H%,4))
-500638 blUser#(H%,2) = V#
-500639 CALL blPostEvent(blEvChange%,H%,blCtl%(H%,15),X%,Y%,Button%,0)
+500634 Width% = blCtl%(Handle%,9)
+500635 IF Width% <= 0 THEN EXIT SUB
+500636 Value# = blUser#(Handle%,3) + (PosX% - blCtl%(Handle%,11)) * (blUser#(Handle%,4) - blUser#(Handle%,3)) / Width%
+500637 Value# = blClamp#(Value#,blUser#(Handle%,3),blUser#(Handle%,4))
+500638 blUser#(Handle%,2) = Value#
+500639 CALL blPostEvent(blEvChange%,Handle%,blCtl%(Handle%,15),PosX%,PosY%,Button%,0)
 500640 blNeedsPaint% = 1
 500641 END SUB
-500650 FUNCTION blClickAt%(X%, Y%, Button%)
-500651 LOCAL H%, Action%, P%
+500650 FUNCTION blClickAt%(PosX%, PosY%, Button%)
+500651 LOCAL Handle%, Action%, Parent%
 500652 blClickAt% = 0
-500653 H% = blHitTest%(X%,Y%)
-500654 IF H% = 0 THEN EXIT FUNCTION
-500655 IF blCtl%(H%,1) = blClassUser% THEN CALL blPointerValue(H%,X%,Y%,Button%)
-500656 Action% = blCtl%(H%,15)
-500657 P% = blCtl%(H%,2)
-500658 WHILE Action% = 0 AND P% <> 0
-500659   IF blCtl%(P%,15) <> 0 THEN Action% = blCtl%(P%,15) : H% = P% : P% = 0 ELSE P% = blCtl%(P%,2)
+500653 Handle% = blHitTest%(PosX%,PosY%)
+500654 IF Handle% = 0 THEN EXIT FUNCTION
+500655 IF blCtl%(Handle%,1) = blClassUser% THEN CALL blPointerValue(Handle%,PosX%,PosY%,Button%)
+500656 Action% = blCtl%(Handle%,15)
+500657 Parent% = blCtl%(Handle%,2)
+500658 WHILE Action% = 0 AND Parent% <> 0
+500659   IF blCtl%(Parent%,15) <> 0 THEN Action% = blCtl%(Parent%,15) : Handle% = Parent% : Parent% = 0 ELSE Parent% = blCtl%(Parent%,2)
 500660 WEND
-500661 blClickAt% = H%
-500662 IF Action% <> 0 THEN CALL blPostClick(H%,Action%,X%,Y%,Button%)
+500661 blClickAt% = Handle%
+500662 IF Action% <> 0 THEN CALL blPostClick(Handle%,Action%,PosX%,PosY%,Button%)
 500663 END FUNCTION
-500670 SUB blPostHover(Old%, New%, X%, Y%)
-500671 IF Old% <> 0 THEN CALL blPostEvent(blEvLeave%,Old%,0,X%,Y%,0,0)
-500672 IF New% <> 0 THEN CALL blPostEvent(blEvEnter%,New%,0,X%,Y%,0,0)
+500670 SUB blPostHover(OldHover%, NewHover%, PosX%, PosY%)
+500671 IF OldHover% <> 0 THEN CALL blPostEvent(blEvLeave%,OldHover%,0,PosX%,PosY%,0,0)
+500672 IF NewHover% <> 0 THEN CALL blPostEvent(blEvEnter%,NewHover%,0,PosX%,PosY%,0,0)
 500673 END SUB
-500680 SUB blPostMove(H%, X%, Y%)
-500681 CALL blPostEvent(blEvMove%,H%,0,X%,Y%,0,0)
+500680 SUB blPostMove(Handle%, PosX%, PosY%)
+500681 CALL blPostEvent(blEvMove%,Handle%,0,PosX%,PosY%,0,0)
 500682 END SUB
-500690 SUB blTestMove(X%, Y%)
-500691 LOCAL Old%, H%
-500692 Old% = blHover%
-500693 H% = blHitTest%(X%,Y%)
-500694 blHover% = H%
-500695 IF blCapture% <> 0 AND blPressed% <> 0 THEN CALL blPointerValue(blCapture%,X%,Y%,blPressed%)
-500696 IF Old% <> blHover% THEN CALL blPostHover(Old%,blHover%,X%,Y%)
-500697 IF blHover% <> 0 THEN CALL blPostMove(blHover%,X%,Y)
+500690 SUB blTestMove(PosX%, PosY%)
+500691 LOCAL OldHover%, Handle%
+500692 OldHover% = blHover%
+500693 Handle% = blHitTest%(PosX%,PosY%)
+500694 blHover% = Handle%
+500695 IF blCapture% <> 0 AND blPressed% <> 0 THEN CALL blPointerValue(blCapture%,PosX%,PosY%,blPressed%)
+500696 IF OldHover% <> blHover% THEN CALL blPostHover(OldHover%,blHover%,PosX%,PosY%)
+500697 IF blHover% <> 0 THEN CALL blPostMove(blHover%,PosX%,PosY%)
 500698 END SUB
-500700 SUB blTestButton(Button%, Down%, X%, Y%)
+500700 SUB blTestButton(Button%, Down%, PosX%, PosY%)
 500701 IF Down% = 0 THEN GOTO blButtonUp
 500702 blPressed% = Button%
 500703 IF blHover% <> 0 THEN blCapture% = blHover%
-500704 CALL blPostEvent(blEvDown%,blHover%,0,X%,Y%,Button%,0)
+500704 CALL blPostEvent(blEvDown%,blHover%,0,PosX%,PosY%,Button%,0)
 500705 GOTO blButtonDone
 500706 LABEL blButtonUp
-500707 CALL blPostEvent(blEvUp%,blCapture%,0,X%,Y%,Button%,0)
+500707 CALL blPostEvent(blEvUp%,blCapture%,0,PosX%,PosY%,Button%,0)
 500708 blPressed% = 0
 500709 blCapture% = 0
 500710 LABEL blButtonDone
 500711 END SUB
-500720 SUB blWheelAt(X%, Y%, Delta%)
+500720 SUB blWheelAt(PosX%, PosY%, Delta%)
 500721 IF blHover% = 0 THEN EXIT SUB
-500722 CALL blPostEvent(blEvWheel%,blHover%,0,X%,Y%,0,Delta%)
+500722 CALL blPostEvent(blEvWheel%,blHover%,0,PosX%,PosY%,0,Delta%)
 500723 END SUB
 502999 LABEL blNoop
 503000 RETURN
-510000 SUB blInit(W%, H%)
+510000 SUB blInit(Width%, Height%)
 510001 CALL blInitTables
 510002 blRoot% = 1
 510003 blNeedsPaint% = 1
@@ -549,11 +549,11 @@
 510025 blCtl%(1,7) = 0
 510026 blCtl%(1,8) = 0
 510027 blCtl%(1,9) = 640
-510028 IF W% > 0 THEN blCtl%(1,9) = W%
-510029 IF W% <= 0 AND SCREENW > 0 THEN blCtl%(1,9) = SCREENW
+510028 IF Width% > 0 THEN blCtl%(1,9) = Width%
+510029 IF Width% <= 0 AND SCREENW > 0 THEN blCtl%(1,9) = SCREENW
 510030 blCtl%(1,10) = 400
-510031 IF H% > 0 THEN blCtl%(1,10) = H%
-510032 IF H% <= 0 AND SCREENH > 0 THEN blCtl%(1,10) = SCREENH
+510031 IF Height% > 0 THEN blCtl%(1,10) = Height%
+510032 IF Height% <= 0 AND SCREENH > 0 THEN blCtl%(1,10) = SCREENH
 510033 blCtl%(1,11) = 0
 510034 blCtl%(1,12) = 0
 510035 blCtl%(1,13) = blFlagVisible% OR blFlagEnabled% OR blFlagClip%
@@ -573,155 +573,155 @@
 510049 blPanel%(1,6) = 7
 510050 blPanel%(1,7) = 8
 510051 END SUB
-510060 FUNCTION blCreate%(Parent%, Class%, Kind%, X%, Y%, W%, Hgt%, Text$, Action%, Flags%, Tag%)
-510061 LOCAL H%
+510060 FUNCTION blCreate%(Parent%, Class%, Kind%, PosX%, PosY%, Width%, Height%, Text$, Action%, Flags%, TagId%)
+510061 LOCAL Handle%
 510062 blCreate% = 0
 510063 blStatus% = blStatusOk%
 510064 IF Parent% < 1 OR Parent% > blMaxControls% THEN blStatus% = blStatusInvalidParent% : EXIT FUNCTION
 510065 IF blCtl%(Parent%,1) = 0 THEN blStatus% = blStatusInvalidParent% : EXIT FUNCTION
 510066 IF Class% < 2 OR Class% > 4 THEN blStatus% = blStatusInvalidClass% : EXIT FUNCTION
 510067 IF Class% = blClassUser% AND (Kind% < 1 OR Kind% > 5) THEN blStatus% = blStatusInvalidValue% : EXIT FUNCTION
-510068 H% = blAllocHandle%()
-510069 IF H% = 0 THEN EXIT FUNCTION
-510070 blCtl%(H%,1) = Class%
-510071 blCtl%(H%,2) = Parent%
-510072 blCtl%(H%,3) = 0
-510073 blCtl%(H%,4) = 0
-510074 blCtl%(H%,5) = 0
-510075 blCtl%(H%,6) = 0
-510076 blCtl%(H%,7) = X%
-510077 blCtl%(H%,8) = Y%
-510078 blCtl%(H%,9) = W%
-510079 blCtl%(H%,10) = Hgt%
-510080 blCtl%(H%,11) = X%
-510081 blCtl%(H%,12) = Y%
-510082 blCtl%(H%,13) = Flags% OR blFlagVisible% OR blFlagEnabled%
-510083 blCtl%(H%,14) = 0
-510084 blCtl%(H%,15) = Action%
-510085 blCtl%(H%,16) = Tag%
-510086 blCtl%(H%,17) = 0
-510087 blCtlText$(H%) = Text$
-510088 blCtlZ%(H%) = H%
-510089 IF Class% = blClassPanel% THEN blPanel%(H%,1) = 0 : blPanel%(H%,2) = 0 : blPanel%(H%,3) = 0 : blPanel%(H%,4) = 0 : blPanel%(H%,6) = 7 : blPanel%(H%,7) = 8 : blCtl%(H%,13) = blCtl%(H%,13) OR blFlagClip%
-510090 IF Class% = blClassUser% THEN blUser#(H%,1) = Kind% : blUser#(H%,2) = 0 : blUser#(H%,3) = 0 : blUser#(H%,4) = 100 : blUser#(H%,5) = 1 : blUser#(H%,6) = 0 : blUser#(H%,7) = 0 : blUser#(H%,8) = 7 : blUser#(H%,9) = 4 : blUser#(H%,10) = 0 : blUser#(H%,11) = 0
-510091 IF Class% = blClassUser% THEN blUser#(H%,12) = 0 : blUser#(H%,13) = 2 : blUser#(H%,14) = 1 : blUser#(H%,15) = 1 : blUser#(H%,16) = 0 : blUser#(H%,17) = 0 : blUser#(H%,18) = 1 : blUser#(H%,19) = 0 : blUser#(H%,20) = 1 : blUser#(H%,21) = 0 : blUser#(H%,22) = 1
-510092 IF Class% = blClassClickTarget% THEN blClick%(H%,1) = 1 : blClick%(H%,2) = 0 : blClick%(H%,3) = 0 : blClick%(H%,4) = 0
-510093 CALL blLinkHandle(H%)
-510094 blCreate% = H%
+510068 Handle% = blAllocHandle%()
+510069 IF Handle% = 0 THEN EXIT FUNCTION
+510070 blCtl%(Handle%,1) = Class%
+510071 blCtl%(Handle%,2) = Parent%
+510072 blCtl%(Handle%,3) = 0
+510073 blCtl%(Handle%,4) = 0
+510074 blCtl%(Handle%,5) = 0
+510075 blCtl%(Handle%,6) = 0
+510076 blCtl%(Handle%,7) = PosX%
+510077 blCtl%(Handle%,8) = PosY%
+510078 blCtl%(Handle%,9) = Width%
+510079 blCtl%(Handle%,10) = Height%
+510080 blCtl%(Handle%,11) = PosX%
+510081 blCtl%(Handle%,12) = PosY%
+510082 blCtl%(Handle%,13) = Flags% OR blFlagVisible% OR blFlagEnabled%
+510083 blCtl%(Handle%,14) = 0
+510084 blCtl%(Handle%,15) = Action%
+510085 blCtl%(Handle%,16) = TagId%
+510086 blCtl%(Handle%,17) = 0
+510087 blCtlText$(Handle%) = Text$
+510088 blCtlZ%(Handle%) = Handle%
+510089 IF Class% = blClassPanel% THEN blPanel%(Handle%,1) = 0 : blPanel%(Handle%,2) = 0 : blPanel%(Handle%,3) = 0 : blPanel%(Handle%,4) = 0 : blPanel%(Handle%,6) = 7 : blPanel%(Handle%,7) = 8 : blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagClip%
+510090 IF Class% = blClassUser% THEN blUser#(Handle%,1) = Kind% : blUser#(Handle%,2) = 0 : blUser#(Handle%,3) = 0 : blUser#(Handle%,4) = 100 : blUser#(Handle%,5) = 1 : blUser#(Handle%,6) = 0 : blUser#(Handle%,7) = 0 : blUser#(Handle%,8) = 7 : blUser#(Handle%,9) = 4 : blUser#(Handle%,10) = 0 : blUser#(Handle%,11) = 0
+510091 IF Class% = blClassUser% THEN blUser#(Handle%,12) = 0 : blUser#(Handle%,13) = 2 : blUser#(Handle%,14) = 1 : blUser#(Handle%,15) = 1 : blUser#(Handle%,16) = 0 : blUser#(Handle%,17) = 0 : blUser#(Handle%,18) = 1 : blUser#(Handle%,19) = 0 : blUser#(Handle%,20) = 1 : blUser#(Handle%,21) = 0 : blUser#(Handle%,22) = 1
+510092 IF Class% = blClassClickTarget% THEN blClick%(Handle%,1) = 1 : blClick%(Handle%,2) = 0 : blClick%(Handle%,3) = 0 : blClick%(Handle%,4) = 0
+510093 CALL blLinkHandle(Handle%)
+510094 blCreate% = Handle%
 510095 blNeedsLayout% = 1
 510096 blNeedsPaint% = 1
 510097 END FUNCTION
-510110 SUB blDestroy(H%)
-510111 LOCAL Child%, Next%
+510110 SUB blDestroy(Handle%)
+510111 LOCAL Child%, NextSib%
 510112 blStatus% = blStatusOk%
-510113 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510114 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510115 IF H% = blRoot% THEN blStatus% = blStatusCannotDestroyRoot% : EXIT SUB
-510116 Child% = blCtl%(H%,3)
+510113 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510114 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510115 IF Handle% = blRoot% THEN blStatus% = blStatusCannotDestroyRoot% : EXIT SUB
+510116 Child% = blCtl%(Handle%,3)
 510117 WHILE Child% <> 0
-510118   Next% = blCtl%(Child%,6)
+510118   NextSib% = blCtl%(Child%,6)
 510119   CALL blDestroy(Child%)
-510120   Child% = Next%
+510120   Child% = NextSib%
 510121 WEND
-510122 CALL blDetachHandle(H%)
-510123 IF blHover% = H% THEN blHover% = 0
-510124 IF blPressed% = H% THEN blPressed% = 0
-510125 IF blCapture% = H% THEN blCapture% = 0
-510126 blCtl%(H%,1) = 0
-510127 blCtl%(H%,2) = 0
-510128 blCtl%(H%,3) = 0
-510129 blCtl%(H%,4) = 0
-510130 blCtl%(H%,5) = 0
-510131 blCtl%(H%,6) = 0
-510132 blCtl%(H%,13) = 0
-510133 blCtlText$(H%) = ""
+510122 CALL blDetachHandle(Handle%)
+510123 IF blHover% = Handle% THEN blHover% = 0
+510124 IF blPressed% = Handle% THEN blPressed% = 0
+510125 IF blCapture% = Handle% THEN blCapture% = 0
+510126 blCtl%(Handle%,1) = 0
+510127 blCtl%(Handle%,2) = 0
+510128 blCtl%(Handle%,3) = 0
+510129 blCtl%(Handle%,4) = 0
+510130 blCtl%(Handle%,5) = 0
+510131 blCtl%(Handle%,6) = 0
+510132 blCtl%(Handle%,13) = 0
+510133 blCtlText$(Handle%) = ""
 510134 blNeedsLayout% = 1
 510135 blNeedsPaint% = 1
 510136 END SUB
-510150 SUB blSetBounds(H%, X%, Y%, W%, Hgt%)
+510150 SUB blSetBounds(Handle%, PosX%, PosY%, Width%, Height%)
 510151 blStatus% = blStatusOk%
-510152 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510153 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510154 blCtl%(H%,7) = X%
-510155 blCtl%(H%,8) = Y%
-510156 blCtl%(H%,9) = W%
-510157 blCtl%(H%,10) = Hgt%
-510158 blCtl%(H%,13) = blCtl%(H%,13) OR blFlagLayoutDirty%
+510152 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510153 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510154 blCtl%(Handle%,7) = PosX%
+510155 blCtl%(Handle%,8) = PosY%
+510156 blCtl%(Handle%,9) = Width%
+510157 blCtl%(Handle%,10) = Height%
+510158 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagLayoutDirty%
 510159 blNeedsLayout% = 1
 510160 blNeedsPaint% = 1
 510161 END SUB
-510170 SUB blSetLayout(H%, Mode%, Pad%, Gap%)
+510170 SUB blSetLayout(Handle%, Mode%, PadSize%, GapSize%)
 510171 blStatus% = blStatusOk%
-510172 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510173 IF blCtl%(H%,1) <> blClassPanel% AND blCtl%(H%,1) <> blClassTop% THEN blStatus% = blStatusInvalidClass% : EXIT SUB
-510174 blPanel%(H%,1) = Mode%
-510175 blPanel%(H%,2) = Pad%
-510176 blPanel%(H%,3) = Gap%
-510177 blCtl%(H%,13) = blCtl%(H%,13) OR blFlagLayoutDirty%
+510172 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510173 IF blCtl%(Handle%,1) <> blClassPanel% AND blCtl%(Handle%,1) <> blClassTop% THEN blStatus% = blStatusInvalidClass% : EXIT SUB
+510174 blPanel%(Handle%,1) = Mode%
+510175 blPanel%(Handle%,2) = PadSize%
+510176 blPanel%(Handle%,3) = GapSize%
+510177 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagLayoutDirty%
 510178 blNeedsLayout% = 1
 510179 blNeedsPaint% = 1
 510180 END SUB
-510190 SUB blShow(H%)
+510190 SUB blShow(Handle%)
 510191 blStatus% = blStatusOk%
-510192 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510193 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510194 blCtl%(H%,13) = blCtl%(H%,13) OR blFlagVisible%
+510192 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510193 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510194 blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagVisible%
 510195 blNeedsLayout% = 1
 510196 blNeedsPaint% = 1
 510197 END SUB
-510200 SUB blHide(H%)
+510200 SUB blHide(Handle%)
 510201 blStatus% = blStatusOk%
-510202 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510203 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510204 blCtl%(H%,13) = blCtl%(H%,13) AND (blFlagVisible% XOR 32767)
-510205 IF blHover% = H% THEN blHover% = 0
-510206 IF blPressed% = H% THEN blPressed% = 0
-510207 IF blCapture% = H% THEN blCapture% = 0
+510202 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510203 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510204 blCtl%(Handle%,13) = blCtl%(Handle%,13) AND (blFlagVisible% XOR 32767)
+510205 IF blHover% = Handle% THEN blHover% = 0
+510206 IF blPressed% = Handle% THEN blPressed% = 0
+510207 IF blCapture% = Handle% THEN blCapture% = 0
 510208 blNeedsLayout% = 1
 510209 blNeedsPaint% = 1
 510210 END SUB
-510220 SUB blSetEnabled(H%, Enabled%)
+510220 SUB blSetEnabled(Handle%, Enabled%)
 510221 blStatus% = blStatusOk%
-510222 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510223 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510224 IF Enabled% <> 0 THEN blCtl%(H%,13) = blCtl%(H%,13) OR blFlagEnabled% : GOTO blEnabledDone
-510225 blCtl%(H%,13) = blCtl%(H%,13) AND (blFlagEnabled% XOR 32767)
+510222 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510223 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510224 IF Enabled% <> 0 THEN blCtl%(Handle%,13) = blCtl%(Handle%,13) OR blFlagEnabled% : GOTO blEnabledDone
+510225 blCtl%(Handle%,13) = blCtl%(Handle%,13) AND (blFlagEnabled% XOR 32767)
 510226 LABEL blEnabledDone
 510227 blNeedsPaint% = 1
 510228 END SUB
-510240 SUB blSetText(H%, Text$)
+510240 SUB blSetText(Handle%, Text$)
 510241 blStatus% = blStatusOk%
-510242 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510243 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510244 blCtlText$(H%) = Text$
+510242 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510243 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510244 blCtlText$(Handle%) = Text$
 510245 blNeedsPaint% = 1
 510246 END SUB
-510250 FUNCTION blGetText$(H%)
+510250 FUNCTION blGetText$(Handle%)
 510251 blStatus% = blStatusOk%
 510252 blGetText$ = ""
-510253 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
-510254 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
-510255 blGetText$ = blCtlText$(H%)
+510253 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
+510254 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
+510255 blGetText$ = blCtlText$(Handle%)
 510256 END FUNCTION
-510260 SUB blSetValue(H%, Value#)
+510260 SUB blSetValue(Handle%, Value#)
 510261 blStatus% = blStatusOk%
-510262 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510263 IF blCtl%(H%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT SUB
-510264 blUser#(H%,2) = blClamp#(Value#,blUser#(H%,3),blUser#(H%,4))
+510262 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510263 IF blCtl%(Handle%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT SUB
+510264 blUser#(Handle%,2) = blClamp#(Value#,blUser#(Handle%,3),blUser#(Handle%,4))
 510265 blNeedsPaint% = 1
 510266 END SUB
-510270 FUNCTION blGetValue#(H%)
+510270 FUNCTION blGetValue#(Handle%)
 510271 blStatus% = blStatusOk%
 510272 blGetValue# = 0
-510273 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
-510274 IF blCtl%(H%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT FUNCTION
-510275 blGetValue# = blUser#(H%,2)
+510273 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT FUNCTION
+510274 IF blCtl%(Handle%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT FUNCTION
+510275 blGetValue# = blUser#(Handle%,2)
 510276 END FUNCTION
-510280 SUB blSetAction(H%, Action%)
+510280 SUB blSetAction(Handle%, Action%)
 510281 blStatus% = blStatusOk%
-510282 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510283 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510284 blCtl%(H%,15) = Action%
+510282 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510283 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510284 blCtl%(Handle%,15) = Action%
 510285 END SUB
 510290 SUB blSetActionLine(ActionId%, Line&)
 510291 blStatus% = blStatusOk%
@@ -729,16 +729,16 @@
 510293 IF Line& < 0 OR Line& > 2147483647 THEN blStatus% = blStatusInvalidValue% : EXIT SUB
 510294 blActionLine&(ActionId%) = Line&
 510295 END SUB
-510300 SUB blSetClickMask(H%, Mask%)
+510300 SUB blSetClickMask(Handle%, Mask%)
 510301 blStatus% = blStatusOk%
-510302 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510303 IF blCtl%(H%,1) <> blClassClickTarget% THEN blStatus% = blStatusInvalidClass% : EXIT SUB
-510304 blClick%(H%,1) = Mask%
+510302 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510303 IF blCtl%(Handle%,1) <> blClassClickTarget% THEN blStatus% = blStatusInvalidClass% : EXIT SUB
+510304 blClick%(Handle%,1) = Mask%
 510305 END SUB
-510310 SUB blInvalidate(H%)
+510310 SUB blInvalidate(Handle%)
 510311 blStatus% = blStatusOk%
-510312 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510313 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510312 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510313 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
 510314 blNeedsPaint% = 1
 510315 END SUB
 510320 SUB blLayoutAll
@@ -756,38 +756,38 @@
 510332 blNeedsPaint% = 0
 510333 CALL blPaintTree(1)
 510334 END SUB
-510340 SUB blUpdate(H%)
+510340 SUB blUpdate(Handle%)
 510341 blStatus% = blStatusOk%
-510342 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510343 IF blCtl%(H%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510344 CALL blPaintTree(H%)
+510342 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510343 IF blCtl%(Handle%,1) = 0 THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510344 CALL blPaintTree(Handle%)
 510345 END SUB
-510350 SUB blAutoSize(H%)
-510351 LOCAL Scale%, Pad%
+510350 SUB blAutoSize(Handle%)
+510351 LOCAL Scale%, PadSize%
 510352 blStatus% = blStatusOk%
-510353 IF H% < 1 OR H% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
-510354 IF blCtl%(H%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT SUB
-510355 Scale% = blUser#(H%,20)
-510356 Pad% = blUser#(H%,13)
-510357 blCtl%(H%,9) = TEXTWIDTH(blCtlText$(H%),Scale%) + 2 * Pad% + 2
-510358 blCtl%(H%,10) = TEXTHEIGHT(blCtlText$(H%),Scale%) + 2 * Pad% + 2
+510353 IF Handle% < 1 OR Handle% > blMaxControls% THEN blStatus% = blStatusInvalidHandle% : EXIT SUB
+510354 IF blCtl%(Handle%,1) <> blClassUser% THEN blStatus% = blStatusInvalidValue% : EXIT SUB
+510355 Scale% = blUser#(Handle%,20)
+510356 PadSize% = blUser#(Handle%,13)
+510357 blCtl%(Handle%,9) = TEXTWIDTH(blCtlText$(Handle%),Scale%) + 2 * PadSize% + 2
+510358 blCtl%(Handle%,10) = TEXTHEIGHT(blCtlText$(Handle%),Scale%) + 2 * PadSize% + 2
 510359 blNeedsLayout% = 1
 510360 blNeedsPaint% = 1
 510361 END SUB
 510370 FUNCTION blPollInput%()
-510371 LOCAL B%, BM%, Wh%, X%, Y%, R%
-510372 R% = 0
-510373 B% = MOUSEB
-510374 X% = MOUSEPOSX
-510375 Y% = MOUSEPOSY
-510376 IF X% >= 0 THEN CALL blTestMove(X%,Y%)
-510377 BM% = MOUSEBUTTONS AND 1
-510378 IF BM% <> 0 AND blPressed% = 0 THEN CALL blTestButton(1,1,X%,Y%)
-510379 IF BM% = 0 AND blPressed% <> 0 THEN CALL blTestButton(blPressed%,0,X%,Y%)
-510380 Wh% = MOUSEWHEEL
-510381 IF Wh% <> 0 THEN CALL blWheelAt(X%,Y%,Wh%)
-510382 IF B% <> 0 THEN X% = MOUSEX : Y% = MOUSEY : R% = blClickAt%(X%,Y%,B%)
-510383 blPollInput% = R%
+510371 LOCAL MouseB%, BtnMask%, WheelD%, PosX%, PosY%, ClickH%
+510372 ClickH% = 0
+510373 MouseB% = MOUSEB
+510374 PosX% = MOUSEPOSX
+510375 PosY% = MOUSEPOSY
+510376 IF PosX% >= 0 THEN CALL blTestMove(PosX%,PosY%)
+510377 BtnMask% = MOUSEBUTTONS AND 1
+510378 IF BtnMask% <> 0 AND blPressed% = 0 THEN CALL blTestButton(1,1,PosX%,PosY%)
+510379 IF BtnMask% = 0 AND blPressed% <> 0 THEN CALL blTestButton(blPressed%,0,PosX%,PosY%)
+510380 WheelD% = MOUSEWHEEL
+510381 IF WheelD% <> 0 THEN CALL blWheelAt(PosX%,PosY%,WheelD%)
+510382 IF MouseB% <> 0 THEN PosX% = MOUSEX : PosY% = MOUSEY : ClickH% = blClickAt%(PosX%,PosY%,MouseB%)
+510383 blPollInput% = ClickH%
 510384 END FUNCTION
 510390 FUNCTION blNextEvent%()
 510391 blStatus% = blStatusOk%
@@ -824,37 +824,37 @@
 510470 FUNCTION blEventCount%()
 510471 blEventCount% = blEvCount%
 510472 END FUNCTION
-510480 FUNCTION blFindAt%(X%, Y%)
-510481 blFindAt% = blHitTest%(X%,Y%)
+510480 FUNCTION blFindAt%(PosX%, PosY%)
+510481 blFindAt% = blHitTest%(PosX%,PosY%)
 510482 END FUNCTION
 510490 SUB blDump
-510491 LOCAL I%
-510492 FOR I% = 1 TO blMaxControls%
-510493   IF blCtl%(I%,1) <> 0 THEN PRINT "H"; I%; " C"; blCtl%(I%,1); " P"; blCtl%(I%,2); " X"; blCtl%(I%,11); " Y"; blCtl%(I%,12); " W"; blCtl%(I%,9); " H"; blCtl%(I%,10)
-510494 NEXT I%
+510491 LOCAL Index%
+510492 FOR Index% = 1 TO blMaxControls%
+510493   IF blCtl%(Index%,1) <> 0 THEN PRINT "H"; Index%; " C"; blCtl%(Index%,1); " P"; blCtl%(Index%,2); " X"; blCtl%(Index%,11); " Y"; blCtl%(Index%,12); " W"; blCtl%(Index%,9); " H"; blCtl%(Index%,10)
+510494 NEXT Index%
 510495 blStatus% = blStatusOk%
 510496 END SUB
 510500 SUB blRegisterClass(Class%, Line&, Name$)
-510501 LOCAL V%
+510501 LOCAL VerbId%
 510502 blStatus% = blStatusOk%
 510503 IF Class% < 5 OR Class% > blMaxClasses% THEN blStatus% = blStatusInvalidClass% : EXIT SUB
 510504 IF Line& <= 0 OR Line& > 2147483647 THEN blStatus% = blStatusInvalidValue% : EXIT SUB
-510505 FOR V% = 1 TO blMaxVerbs%
-510506   blMethod&(Class%,V%) = Line&
-510507 NEXT V%
+510505 FOR VerbId% = 1 TO blMaxVerbs%
+510506   blMethod&(Class%,VerbId%) = Line&
+510507 NEXT VerbId%
 510508 blClassName$(Class%) = Name$
 510509 END SUB
-510520 FUNCTION blTestClickAt%(X%, Y%, Button%)
-510521 blTestClickAt% = blClickAt%(X%,Y%,Button%)
+510520 FUNCTION blTestClickAt%(PosX%, PosY%, Button%)
+510521 blTestClickAt% = blClickAt%(PosX%,PosY%,Button%)
 510522 END FUNCTION
-510530 SUB blTestMouseMove(X%, Y%)
-510531 CALL blTestMove(X%,Y%)
+510530 SUB blTestMouseMove(PosX%, PosY%)
+510531 CALL blTestMove(PosX%,PosY%)
 510532 END SUB
-510540 SUB blTestMouseButton(Button%, Down%, X%, Y%)
-510541 CALL blTestButton(Button%,Down%,X%,Y%)
+510540 SUB blTestMouseButton(Button%, Down%, PosX%, PosY%)
+510541 CALL blTestButton(Button%,Down%,PosX%,PosY%)
 510542 END SUB
-510550 SUB blTestWheel(X%, Y%, Delta%)
-510551 CALL blWheelAt(X%,Y%,Delta%)
+510550 SUB blTestWheel(PosX%, PosY%, Delta%)
+510551 CALL blWheelAt(PosX%,PosY%,Delta%)
 510552 END SUB
 512000 REM debug/test helper area
 512010 LABEL blTestErl
