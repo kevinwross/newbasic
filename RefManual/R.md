@@ -289,6 +289,8 @@ RETURN [line]
 
 `RETURN` without a saved `GOSUB` raises **RETURN without GOSUB**. A line argument is a non-local return; use it sparingly.
 
+`RETURN` restores the `FOR` nesting depth that was current when the matching `GOSUB` ran. Any loops entered by the subroutine are discarded, while loops that were already active in the caller are preserved. This means a subroutine may return from inside one or more `FOR` loops without leaking loop frames into the caller.
+
 ### Examples
 
 #### Example 1 — Return to the caller

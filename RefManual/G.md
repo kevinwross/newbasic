@@ -87,7 +87,9 @@ GOSUB expression
 
 ### Comments
 
-`GOSUB` pushes a return address; the subroutine must finish with `RETURN`. A `GOSUB` without a matching `RETURN` eventually raises **Return without GOSUB** when the stack is misused. Direct-mode `GOSUB` is not allowed.
+`GOSUB` pushes a return address and the current `FOR` nesting depth; the subroutine must finish with `RETURN`. A `GOSUB` without a matching `RETURN` eventually raises **Return without GOSUB** when the stack is misused. Direct-mode `GOSUB` is not allowed.
+
+`RETURN` discards any `FOR` loops entered by the subroutine and preserves loops that were already active in the caller. A subroutine can therefore return from inside a loop without leaving a stale loop frame behind.
 
 A literal target is resolved when the program is compiled. A bare identifier is a label; a type-suffixed identifier is a computed line-number expression (`GOSUB T%`), and an unsuffixed computed variable must be parenthesized (`GOSUB (T)`). A computed expression is evaluated when the statement runs, rounded to an integer, and looked up in the program's line table; a missing line raises **Undefined line number** and a non-numeric target raises **Type mismatch**. This makes computed dispatch possible without `ON ... GOSUB`:
 

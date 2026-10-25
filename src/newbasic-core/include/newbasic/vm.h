@@ -349,6 +349,14 @@ struct ForFrame {
   int body_pc = 0; // pc just after ForStart
 };
 
+// GOSUB return address plus the FOR-stack depth at the call. RETURN trims
+// loops opened by the subroutine while preserving loops that were already
+// active in the caller.
+struct GosubFrame {
+  int return_pc = 0;
+  std::size_t for_depth = 0;
+};
+
 // One active SELECT CASE. The frame stays alive through every CASE body, so a
 // user GOTO can be checked against the lexical start/end lines of the SELECT.
 struct SelectFrame {
@@ -424,10 +432,10 @@ public:
   };
   std::vector<CallFrame> CallStack() const {
     std::vector<CallFrame> frames;
-    for (int return_pc : gosub_stack_) {
+    for (const GosubFrame& gosub : gosub_stack_) {
       CallFrame frame;
       frame.kind = CallFrame::Kind::Gosub;
-      frame.line = LineAtPc(return_pc);
+      frame.line = LineAtPc(gosub.return_pc);
       frames.push_back(frame);
     }
     for (const ForFrame& loop : for_stack_) {
@@ -514,7 +522,7 @@ public:
     std::map<std::string, Value> vars;
     std::map<std::string, ArrayValue> arrays;
     std::vector<ForFrame> for_stack;
-    std::vector<int> gosub_stack;
+    std::vector<GosubFrame> gosub_stack;
     std::vector<SelectFrame> select_stack;
     std::vector<screen::Screen::GraphicsViewportState> view_stack;
     // DEF FN frames flattened to basic types (FuncFrame is declared below).
@@ -662,6 +670,7 @@ private:
   // --- arrays ---
   ArrayValue* FindArray(const std::string& name);
   ArrayValue* EnsureArray(const std::string& name, const std::vector<int>& upper_bounds, int base);
+  void PushGosub(int return_pc);
   bool ArrayOffset(const ArrayValue& array, const std::vector<int>& subscripts, std::size_t* out);
 
   screen::Screen& screen_;
@@ -677,7 +686,7 @@ private:
   std::set<std::string> const_names_; // canonical names declared by CONST
   std::map<std::string, ArrayValue> arrays_;
   std::vector<ForFrame> for_stack_;
-  std::vector<int> gosub_stack_;
+  std::vector<GosubFrame> gosub_stack_;
   std::vector<SelectFrame> select_stack_;
   std::vector<screen::Screen::GraphicsViewportState> view_stack_;
   std::size_t data_index_ = 0; // next DATA item for READ

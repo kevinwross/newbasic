@@ -555,6 +555,10 @@ void Vm::Push(const Value& v) {
   stack_.push_back(v);
 }
 
+void Vm::PushGosub(int return_pc) {
+  gosub_stack_.push_back(GosubFrame{return_pc, for_stack_.size()});
+}
+
 bool Vm::Fail(int code) {
   return Fail(code, ErrorMessage(code));
 }
@@ -3057,7 +3061,7 @@ bool Vm::StepImpl() {
   case Op::Gosub:
     if (in.a < 0)
       return Fail(kErrUndefinedLineNumber);
-    gosub_stack_.push_back(pc_);
+    PushGosub(pc_);
     pc_ = in.a;
     break;
   case Op::GosubIndirect: {
@@ -3071,18 +3075,26 @@ bool Vm::StepImpl() {
     const auto range = program_.PcRangeForLine(line);
     if (!range)
       return Fail(kErrUndefinedLineNumber);
-    gosub_stack_.push_back(pc_);
+    PushGosub(pc_);
     pc_ = range->first;
     break;
   }
   case Op::Return:
     if (gosub_stack_.empty())
       return Fail(kErrReturnWithoutGosub);
-    if (LeavesSelect(gosub_stack_.back()))
-      return Fail(kErrIllegalFunctionCall, "RETURN would leave a SELECT CASE");
-    in_event_ = false; // a timer handler finished
-    pc_ = gosub_stack_.back();
-    gosub_stack_.pop_back();
+    {
+      const GosubFrame gosub = gosub_stack_.back();
+      if (LeavesSelect(gosub.return_pc))
+        return Fail(kErrIllegalFunctionCall, "RETURN would leave a SELECT CASE");
+      // A subroutine may return from inside one or more FOR loops. Restore
+      // the depth from the call so those loops do not leak into the caller;
+      // loops that were already active before the call stay in place.
+      if (for_stack_.size() > gosub.for_depth)
+        for_stack_.resize(gosub.for_depth);
+      in_event_ = false; // a timer handler finished
+      pc_ = gosub.return_pc;
+      gosub_stack_.pop_back();
+    }
     break;
   case Op::ForStart:
     return DoForStart(in);
@@ -3102,7 +3114,7 @@ bool Vm::StepImpl() {
       if (target < 0)
         return Fail(kErrUndefinedLineNumber);
       if (in.b == 1)
-        gosub_stack_.push_back(pc_);
+        PushGosub(pc_);
       else if (LeavesSelect(target))
         return Fail(kErrIllegalFunctionCall, "GOTO would leave a SELECT CASE");
       pc_ = target;
@@ -3690,7 +3702,7 @@ RunResult Vm::Run() {
         timer_last_ = now;
         main_step_done_ = false;
         in_event_ = true;
-        gosub_stack_.push_back(pc_);
+        PushGosub(pc_);
         pc_ = timer_handler_pc_;
       }
     }

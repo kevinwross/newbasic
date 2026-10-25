@@ -179,6 +179,70 @@ TEST_CASE("Inspection: GOSUB and FOR call frames", "[debug]") {
   CHECK(frames[1].name == "I!"); // canonical name keeps the type suffix
 }
 
+TEST_CASE("Inspection: RETURN discards loops opened by the subroutine", "[debug]") {
+  DebugSession s("10 FOR I=1 TO 2\n"
+                 "20 GOSUB 100\n"
+                 "30 NEXT I\n"
+                 "40 END\n"
+                 "100 FOR J=1 TO 10\n"
+                 "110 RETURN\n"
+                 "120 NEXT J\n");
+  newbasic::debug::Debugger debugger(s.vm);
+  debugger.SetBreakpoint(30);
+  CHECK(debugger.Continue().line == 30);
+
+  // The caller's I loop survives, but the subroutine's abandoned J loop
+  // must not leak into the caller.
+  std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
+  REQUIRE(frames.size() == 1);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].name == "I!");
+
+  // The caller still runs its second iteration.
+  CHECK(debugger.Continue().line == 30);
+  CHECK(debugger.Variable("I")->AsNumber() == 2.0);
+  frames = s.vm.CallStack();
+  REQUIRE(frames.size() == 1);
+  CHECK(frames[0].name == "I!");
+  CHECK(debugger.Continue().AtEnd());
+}
+
+TEST_CASE("Inspection: RETURN unwinds all loops opened by the subroutine", "[debug]") {
+  DebugSession s("10 FOR I=1 TO 2\n"
+                 "20 GOSUB 100\n"
+                 "30 NEXT I\n"
+                 "40 END\n"
+                 "100 FOR J=1 TO 2\n"
+                 "110 FOR K=1 TO 2\n"
+                 "120 RETURN\n"
+                 "130 NEXT K\n"
+                 "140 NEXT J\n");
+  newbasic::debug::Debugger debugger(s.vm);
+  debugger.SetBreakpoint(30);
+  CHECK(debugger.Continue().line == 30);
+
+  const std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
+  REQUIRE(frames.size() == 1);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].name == "I!");
+}
+
+TEST_CASE("Inspection: RETURN preserves a caller loop around the call", "[debug]") {
+  DebugSession s("10 FOR I=1 TO 2\n"
+                 "20 GOSUB 100\n"
+                 "30 NEXT I\n"
+                 "40 END\n"
+                 "100 RETURN\n");
+  newbasic::debug::Debugger debugger(s.vm);
+  debugger.SetBreakpoint(30);
+  CHECK(debugger.Continue().line == 30);
+
+  const std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
+  REQUIRE(frames.size() == 1);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].name == "I!");
+}
+
 TEST_CASE("Inspection: array contents and bounds", "[debug]") {
   DebugSession s("10 DIM A(3)\n20 A(2)=7\n30 DIM S$(1)\n40 S$(0)=\"hi\"\n50 END\n");
   newbasic::debug::Debugger debugger(s.vm);
