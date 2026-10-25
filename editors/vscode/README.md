@@ -23,15 +23,17 @@ Windows (Visual Studio generator):
 The extension searches the first workspace folder for the adapter, in this order:
 
 1. `newbasic.adapterPath`, if set (supports `${workspaceFolder}`);
-2. `build-sdl/src/newbasic-dap/newbasic-dap`;
-3. `build/src/newbasic-dap/newbasic-dap`;
-4. `out/src/newbasic-dap/Release/newbasic-dap.exe`;
-5. `out/src/newbasic-dap/Debug/newbasic-dap.exe`.
+2. `bin/Release/newbasic-dap` (or `newbasic-dap.exe` on Windows);
+3. `bin/Debug/newbasic-dap` (or `newbasic-dap.exe` on Windows);
+4. `build-sdl/src/newbasic-dap/newbasic-dap` (legacy build tree);
+5. `build/src/newbasic-dap/newbasic-dap` (legacy build tree);
+6. `out/src/newbasic-dap/Release/newbasic-dap.exe` (legacy build tree);
+7. `out/src/newbasic-dap/Debug/newbasic-dap.exe` (legacy build tree).
 
 The Linux binaries have no `.exe` suffix, and this repository's `.vscode/launch.json` is already
 configured to run the current `.bas` file. The checked-in workspace settings leave
 `newbasic.adapterPath` empty so the same settings file works on Linux and Windows; set it only if the
-adapter lives outside these build directories. If it is set, it must match the current platform.
+adapter lives outside these locations. If it is set, it must match the current platform.
 
 ## Running it from source
 
@@ -98,7 +100,7 @@ clear error naming the path.
 
 If the adapter is not executable, fix it with:
 
-    chmod +x build-sdl/src/newbasic-dap/newbasic-dap
+    chmod +x bin/Release/newbasic-dap
 
 ## Settings
 

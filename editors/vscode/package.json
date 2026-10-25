@@ -75,7 +75,7 @@
         "newbasic.adapterPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the newbasic-dap executable (newbasic-dap.exe on Windows). Leave empty to search build-sdl, build, then the Visual Studio out/ trees in the workspace folder."
+          "description": "Path to the newbasic-dap executable (newbasic-dap.exe on Windows). Leave empty to search bin/Release, bin/Debug, then the legacy build-sdl, build, and out/ trees in the workspace folder."
         },
         "newbasic.showWindow": {
           "type": "boolean",

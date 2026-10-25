@@ -23,13 +23,15 @@ function expandWorkspaceFolder(value, folder) {
   return value.replace(/\$\{workspaceFolder\}/g, folder || '');
 }
 
-// The adapter has no fixed output directory across platforms and generators, so
-// look where the documented builds put it: the Linux CMake trees first, then the
-// Visual Studio tree. On Windows the executable carries .exe.
+// The build puts the adapter in the workspace-root bin directory. Keep the old
+// CMake-tree locations as fallbacks for existing checkouts. On Windows the
+// executable carries .exe.
 function adapterCandidates(folder, platform = process.platform) {
   const exe = platform === 'win32' ? '.exe' : '';
   const root = folder || '';
   return [
+    path.join(root, 'bin', 'Release', `newbasic-dap${exe}`),
+    path.join(root, 'bin', 'Debug', `newbasic-dap${exe}`),
     path.join(root, 'build-sdl', 'src', 'newbasic-dap', `newbasic-dap${exe}`),
     path.join(root, 'build', 'src', 'newbasic-dap', `newbasic-dap${exe}`),
     path.join(root, 'out', 'src', 'newbasic-dap', 'Release', `newbasic-dap${exe}`),
