@@ -105,6 +105,16 @@ public:
   int CurrentLine() const { return vm_.LineAtPc(vm_.Pc()); }
   std::optional<Value> Variable(const std::string& name) const { return vm_.GetVar(name); }
   std::vector<std::string> VariableNames() const;
+  // Locals of the active SUB/FUNCTION frame (empty in main/global scope).
+  std::vector<std::pair<std::string, Value>> LocalVariables() const {
+    return vm_.CurrentLocals();
+  }
+  std::optional<Value> LocalVariable(const std::string& name) const {
+    return vm_.GetLocal(name);
+  }
+  void SetLocalVariable(const std::string& name, const Value& value) {
+    vm_.SetLocal(name, value);
+  }
   const std::vector<Value>& Stack() const { return vm_.Stack(); }
 
   // Structural inspection: active GOSUB/FOR frames and arrays, surfaced here

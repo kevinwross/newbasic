@@ -153,5 +153,6 @@ TEST_CASE("Expressions: unsupported statements fail predictably", "[expr]") {
   CHECK(line == 10);
   // SOUND and PLAY are implemented (M7); the graphics statements, WINDOW/PMAP and PCOPY
   // since M12.
-  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 POKE 1,1\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrUndefinedProcedure);
 }

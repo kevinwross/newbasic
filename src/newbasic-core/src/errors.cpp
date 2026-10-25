@@ -108,6 +108,12 @@ const char* ErrorMessage(int code) {
     return "Path not found";
   case kErrStackEmpty:
     return "Stack empty";
+  case kErrUndefinedProcedure:
+    return "Undefined procedure";
+  case kErrCallStackOverflow:
+    return "Call stack overflow";
+  case kErrProcedureBoundary:
+    return "Procedure boundary";
   default:
     return "Unprintable error";
   }

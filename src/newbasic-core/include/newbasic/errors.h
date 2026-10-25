@@ -61,6 +61,9 @@ enum ErrorCode : int {
   kErrPathFileAccess = 75,
   kErrPathNotFound = 76,
   kErrStackEmpty = 77, // newbasic extension: STACK POP/TOP target list too short
+  kErrUndefinedProcedure = 78,   // newbasic extension: CALL/function name not defined
+  kErrCallStackOverflow = 79,    // newbasic extension: SUB/FUNCTION recursion too deep
+  kErrProcedureBoundary = 80,    // newbasic extension: jump crosses a procedure body
 };
 
 // Message text for a code ("Syntax error", "Division by zero", ...).

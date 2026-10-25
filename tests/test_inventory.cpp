@@ -49,6 +49,11 @@ const char* const kImplemented[] = {
     "LABEL",
     "CONST",
     "STACK",
+    "SUB",
+    "FUNCTION",
+    "LOCAL",
+    "EXIT",
+    "CALL",
     // Graphics: phases 1 to 3.
     "SCREEN",
     "PSET",
@@ -71,8 +76,8 @@ const char* const kImplemented[] = {
 // Statements with no implementation: they report Advanced Feature. This list must
 // match kUnimplementedStatements in frontend.cpp.
 const char* const kStubs[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
-    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
+    "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
+    "NAME",  "OUT", "PEN",     "POKE",  "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
 };
 
 } // namespace
@@ -141,7 +146,7 @@ TEST_CASE("Inventory: machine-level access refuses clearly (M13)", "[inventory]"
   CHECK(lwtest::RunErrorCode("10 POKE 100,1\n") == newbasic::kErrAdvancedFeature);
   CHECK(lwtest::RunErrorCode("10 OUT 60,1\n") == newbasic::kErrAdvancedFeature);
   CHECK(lwtest::RunErrorCode("10 WAIT 60,1\n") == newbasic::kErrAdvancedFeature);
-  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrAdvancedFeature);
+  CHECK(lwtest::RunErrorCode("10 CALL X\n") == newbasic::kErrUndefinedProcedure);
   CHECK(lwtest::RunErrorCode("10 MOTOR\n") == newbasic::kErrAdvancedFeature);
 }
 

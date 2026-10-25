@@ -232,6 +232,8 @@ enum class Op : std::uint8_t {
   Restore,    // a = line number, 0 = first DATA item
   CallUser,   // a = user-function index, b = argument count (DEF FN)
   UserReturn, // end of a DEF FN body: returns the top of stack
+  CallProc,   // a = procedure index, b = argument count (SUB/FUNCTION)
+  SubReturn,  // a = 1 to return a FUNCTION result, 0 for a SUB
   // error handling (M3)
   OnError,   // a = handler pc, -1 disables trapping (ON ERROR GOTO 0)
   Resume,    // b = 0 retry, 1 next, 2 line (a = target pc)
@@ -310,6 +312,31 @@ struct ConstDef {
   int line = 0;
 };
 
+// SUB/FUNCTION metadata. The vector is pre-scanned before compilation so a
+// forward CALL can be checked and dispatched; params/locals/body_pc are filled
+// in when the header is compiled. Procedure names are canonical (upper-case;
+// FUNCTION names carry their explicit type suffix).
+enum class ProcKind { Sub, Function };
+
+struct ProcParam {
+  std::string name; // canonical variable name, including its type suffix
+  Value::Kind kind = Value::Kind::Sgl;
+  bool byref = false; // reserved for a later release; always false in v1
+};
+
+struct Procedure {
+  std::string name; // canonical call name
+  ProcKind kind = ProcKind::Sub;
+  std::vector<ProcParam> params;
+  std::vector<ProcParam> locals; // does not include params
+  int header_line = 0;
+  int end_line = 0;
+  int body_pc = -1; // first instruction after the header jump
+  int end_pc = -1;  // SubReturn instruction
+  std::string result_name; // FUNCTION only; same as name
+  bool has_code = false;   // used for LOCAL placement checks
+};
+
 class Program {
 public:
   const std::vector<Instr>& Instrs() const { return instrs_; }
@@ -321,6 +348,13 @@ public:
   std::optional<std::pair<int, int>> PcRangeForLine(int line) const;
   // Line number containing pc (by instruction), or nullopt.
   std::optional<int> LineForPc(int pc) const;
+  // Procedure containing a source line, or nullopt for main-program lines.
+  std::optional<int> ProcedureForLine(int line) const;
+  // Procedure containing a pc, or nullopt for main-program code.
+  std::optional<int> ProcedureForPc(int pc) const;
+  // Look up a procedure by its canonical call name.
+  const Procedure* FindProcedure(const std::string& name) const;
+  int ProcedureIndex(const std::string& name) const;
 
   std::vector<Instr> instrs_;
   std::vector<LineSpan> line_table_; // ascending by line
@@ -328,6 +362,8 @@ public:
   std::vector<DataItem> data_items_;   // DATA values in program order
   std::map<int, int> line_data_index_; // line with DATA -> first item index
   std::vector<UserFunc> user_funcs_;   // DEF FN definitions
+  std::vector<Procedure> procedures_;  // SUB/FUNCTION definitions
+  std::map<std::string, int> procedure_index_; // canonical name -> index
   std::vector<ConstDef> constants_;    // CONST definitions, initialized before Start
   std::vector<StackSource> stack_sources_; // STACK PUSH source descriptors
   std::vector<StackTarget> stack_targets_; // STACK POP/TOP target descriptors
@@ -351,6 +387,7 @@ struct ForFrame {
   double end = 0.0;
   double step = 1.0;
   int body_pc = 0; // pc just after ForStart
+  std::uint64_t sequence = 0; // debugger call-stack ordering
 };
 
 // GOSUB return address plus the FOR-stack depth at the call. RETURN trims
@@ -359,6 +396,10 @@ struct ForFrame {
 struct GosubFrame {
   int return_pc = 0;
   std::size_t for_depth = 0;
+  // Scope depth at the call. RETURN pops any scope barriers pushed for a timer
+  // handler or an error handler above this depth.
+  std::size_t scope_depth = 0;
+  std::uint64_t sequence = 0;
 };
 
 // One active SELECT CASE. The frame stays alive through every CASE body, so a
@@ -386,6 +427,28 @@ struct StackItem {
   Value scalar;
   ArrayValue array;
   std::size_t Elements() const { return is_array ? array.data.size() : 1; }
+};
+
+// One active SUB/FUNCTION activation. `locals` is pre-populated with every
+// parameter and LOCAL name; an undeclared name falls through to globals.
+struct SubFrame {
+  int proc_index = -1;
+  int return_pc = 0;
+  std::map<std::string, Value> locals;
+  std::size_t for_depth = 0;
+  std::size_t select_depth = 0;
+  std::size_t gosub_depth = 0;
+  std::uint64_t sequence = 0;
+};
+
+// The variable-lookup scope stack. A Sub scope owns named locals; a
+// GlobalBarrier makes LoadVariable/StoreVariable ignore procedure scopes (used
+// for DEF FN, timer handlers, and main-program error handlers).
+enum class ScopeKind { Sub, GlobalBarrier };
+
+struct ScopeRef {
+  ScopeKind kind = ScopeKind::GlobalBarrier;
+  std::size_t sub_index = 0;
 };
 
 // Canonical variable key: upper-cased, with the default type character (!)
@@ -430,30 +493,25 @@ public:
   // Active GOSUB/FOR frames, innermost last within each kind. GOSUB frames
   // come first because a subroutine call is the outer context of a loop.
   struct CallFrame {
-    enum class Kind { Gosub, For_ } kind = Kind::Gosub;
-    int line = 0;     // GOSUB: return line; FOR: the loop's line
-    std::string name; // FOR: canonical loop variable
+    enum class Kind { Gosub, For_, Sub } kind = Kind::Gosub;
+    int line = 0;     // GOSUB/SUB: call/return line; FOR: the loop's line
+    std::string name; // SUB/FUNCTION: canonical name; FOR: loop variable
+    bool function = false; // SUB kind: true for FUNCTION
   };
-  std::vector<CallFrame> CallStack() const {
-    std::vector<CallFrame> frames;
-    for (const GosubFrame& gosub : gosub_stack_) {
-      CallFrame frame;
-      frame.kind = CallFrame::Kind::Gosub;
-      frame.line = LineAtPc(gosub.return_pc);
-      frames.push_back(frame);
-    }
-    for (const ForFrame& loop : for_stack_) {
-      CallFrame frame;
-      frame.kind = CallFrame::Kind::For_;
-      frame.name = loop.name;
-      frame.line = LineAtPc(loop.body_pc - 1);
-      frames.push_back(frame);
-    }
-    return frames;
-  }
+  std::vector<CallFrame> CallStack() const;
   // Number of active GOSUB activations, used by the debugger to step over or
   // out of a subroutine rather than into it.
   std::size_t GosubDepth() const { return gosub_stack_.size(); }
+  std::size_t SubDepth() const { return sub_stack_.size(); }
+  // GOSUB + SUB + DEF FN activations. This is what Step Over/Step Out use.
+  std::size_t CallDepth() const {
+    return gosub_stack_.size() + sub_stack_.size() + func_stack_.size();
+  }
+  // Locals of the active procedure, outermost first; empty in main or inside a
+  // global barrier (DEF FN/timer/error handler).
+  std::vector<std::pair<std::string, Value>> CurrentLocals() const;
+  std::optional<Value> GetLocal(const std::string& name) const;
+  void SetLocal(const std::string& name, const Value& value);
 
   // Dimensioned (or auto-created) arrays.
   struct ArrayInfo {
@@ -530,6 +588,10 @@ public:
     std::map<std::string, ArrayValue> arrays;
     std::vector<ForFrame> for_stack;
     std::vector<GosubFrame> gosub_stack;
+    std::vector<SubFrame> sub_stack;
+    std::vector<ScopeRef> scope_stack;
+    std::uint64_t call_sequence = 0;
+    bool error_scope_barrier = false;
     std::vector<SelectFrame> select_stack;
     std::vector<screen::Screen::GraphicsViewportState> view_stack;
     // DEF FN frames flattened to basic types (FuncFrame is declared below).
@@ -560,6 +622,10 @@ public:
     state.arrays = arrays_;
     state.for_stack = for_stack_;
     state.gosub_stack = gosub_stack_;
+    state.sub_stack = sub_stack_;
+    state.scope_stack = scope_stack_;
+    state.call_sequence = call_sequence_;
+    state.error_scope_barrier = error_scope_barrier_;
     state.select_stack = select_stack_;
     state.view_stack = view_stack_;
     for (const FuncFrame& frame : func_stack_) {
@@ -591,6 +657,10 @@ public:
     arrays_ = state.arrays;
     for_stack_ = state.for_stack;
     gosub_stack_ = state.gosub_stack;
+    sub_stack_ = state.sub_stack;
+    scope_stack_ = state.scope_stack;
+    call_sequence_ = state.call_sequence;
+    error_scope_barrier_ = state.error_scope_barrier;
     select_stack_ = state.select_stack;
     view_stack_ = state.view_stack;
     func_stack_.clear();
@@ -660,6 +730,23 @@ private:
   bool String(const Value& v, std::string* out); // error 13 on numbers
   bool StoreVariable(const std::string& name, const Value& v);
   Value LoadVariable(const std::string& name);
+  // Scope-aware accessors keyed by an already-canonical name. Used by the few
+  // instructions that used to write vars_ directly (FOR, LSET, SWAP, FIELD,
+  // STACK targets).
+  Value LoadCanonical(const std::string& canonical_name);
+  bool StoreCanonical(const std::string& canonical_name, const Value& v);
+  void StoreCanonicalValue(const std::string& canonical_name, const Value& v);
+  // Index of the procedure whose scope is currently visible, or -1.
+  int CurrentProcIndex() const;
+  bool CheckJumpTarget(int line);
+  void PushScope(const ScopeRef& scope) { scope_stack_.push_back(scope); }
+  void PushGlobalBarrier() { PushScope(ScopeRef{ScopeKind::GlobalBarrier, 0}); }
+  void PopScope() {
+    if (!scope_stack_.empty())
+      scope_stack_.pop_back();
+  }
+  void UnwindScopesTo(std::size_t depth);
+  bool ReconcileSubScopes(int target_pc);
   bool InitConstants();
   bool EmitValue(const Value& v); // PRINT one value (used by Emit and WRITE)
   bool CallFunction(Func f, int argc);
@@ -677,7 +764,7 @@ private:
   // --- arrays ---
   ArrayValue* FindArray(const std::string& name);
   ArrayValue* EnsureArray(const std::string& name, const std::vector<int>& upper_bounds, int base);
-  void PushGosub(int return_pc);
+  void PushGosub(int return_pc, bool global_barrier = false);
   bool ArrayOffset(const ArrayValue& array, const std::vector<int>& subscripts, std::size_t* out);
 
   screen::Screen& screen_;
@@ -694,6 +781,10 @@ private:
   std::map<std::string, ArrayValue> arrays_;
   std::vector<ForFrame> for_stack_;
   std::vector<GosubFrame> gosub_stack_;
+  std::vector<SubFrame> sub_stack_;
+  std::vector<ScopeRef> scope_stack_;
+  std::uint64_t call_sequence_ = 0;
+  bool error_scope_barrier_ = false;
   std::vector<SelectFrame> select_stack_;
   std::vector<screen::Screen::GraphicsViewportState> view_stack_;
   std::size_t data_index_ = 0; // next DATA item for READ

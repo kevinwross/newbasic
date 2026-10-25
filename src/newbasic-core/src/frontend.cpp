@@ -183,6 +183,33 @@ public:
     return last != '%' && last != '&' && last != '!' && last != '#' && last != '$';
   }
 
+  static bool HasTypeSuffix(const std::string& name) {
+    if (name.empty())
+      return false;
+    const char last = name.back();
+    return last == '%' || last == '&' || last == '!' || last == '#' || last == '$';
+  }
+
+  static std::string StripTypeSuffix(std::string name) {
+    if (HasTypeSuffix(name))
+      name.pop_back();
+    return name;
+  }
+
+  // A procedure name and every variable/array name with the same base collide.
+  // This catches `SUB Foo` used as `Foo%`, and `FUNCTION Foo%` used as `Foo`.
+  bool ProcedureBaseExists(const std::string& name) const {
+    return procedure_bases_.count(NormalizeLabel(StripTypeSuffix(name))) != 0;
+  }
+
+  bool IsCurrentFunctionResult(const std::string& name) const {
+    if (current_proc_ < 0 ||
+        static_cast<std::size_t>(current_proc_) >= out_->procedures_.size())
+      return false;
+    const Procedure& proc = out_->procedures_[static_cast<std::size_t>(current_proc_)];
+    return proc.kind == ProcKind::Function && proc.result_name == name;
+  }
+
   // CONST name = literal. The value is converted to the name's type when the
   // program is compiled; the VM installs it before the first instruction.
   bool ParseConstDecl(const std::vector<Token>& tokens, std::size_t index, int line,
@@ -409,6 +436,155 @@ public:
     return true;
   }
 
+  // Collect SUB/FUNCTION headers and their matching END lines before any body
+  // is compiled. Forward CALLs and function calls need the procedure table.
+  bool BuildProcedures(const LineStore& store) {
+    int open = -1;
+    for (const SourceLine& line : store.Lines()) {
+      std::vector<Token> tokens;
+      std::string error;
+      int pos = 0;
+      if (!Lexer::Tokenize(line.source, &tokens, &error, &pos))
+        continue; // CompileSource reports the lexical error with position
+      if (tokens.empty() || tokens[0].kind == Tok::EndOfLine)
+        continue;
+      if (tokens[0].kind == Tok::Keyword &&
+          (tokens[0].text == "SUB" || tokens[0].text == "FUNCTION")) {
+        if (open >= 0) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "SUB/FUNCTION cannot be nested";
+          return false;
+        }
+        const bool function = tokens[0].text == "FUNCTION";
+        if (tokens.size() < 2 || tokens[1].kind != Tok::Ident) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "Expected a procedure name";
+          return false;
+        }
+        const std::string name = NormalizeLabel(tokens[1].text);
+        if (function && !HasTypeSuffix(name)) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "FUNCTION name requires a type suffix";
+          return false;
+        }
+        if (!function && HasTypeSuffix(name)) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "SUB name cannot have a type suffix";
+          return false;
+        }
+        const std::string base = StripTypeSuffix(name);
+        if (procedure_bases_.count(base) != 0) {
+          error_->line = line.line_number;
+          error_->code = kErrDuplicateDefinition;
+          error_->message = "Duplicate procedure " + base;
+          return false;
+        }
+        for (const std::string& constant : const_names_) {
+          if (StripTypeSuffix(constant) == base) {
+            error_->line = line.line_number;
+            error_->code = kErrDuplicateDefinition;
+            error_->message = "Procedure name collides with CONST " + constant;
+            return false;
+          }
+        }
+        Procedure proc;
+        proc.name = name;
+        proc.kind = function ? ProcKind::Function : ProcKind::Sub;
+        proc.header_line = line.line_number;
+        proc.result_name = function ? name : std::string();
+        std::size_t index = 2;
+        if (index < tokens.size() && tokens[index].kind == Tok::Op &&
+            tokens[index].text == "(") {
+          ++index;
+          if (index < tokens.size() && tokens[index].kind == Tok::Op &&
+              tokens[index].text == ")") {
+            ++index;
+          } else {
+            for (;;) {
+              if (index >= tokens.size() || tokens[index].kind != Tok::Ident) {
+                error_->line = line.line_number;
+                error_->code = kErrSyntax;
+                error_->message = "Expected a parameter name";
+                return false;
+              }
+              ProcParam param;
+              param.name = NormalizeLabel(tokens[index].text);
+              param.kind = Value::Kind::Sgl;
+              proc.params.push_back(std::move(param));
+              ++index;
+              if (index < tokens.size() && tokens[index].kind == Tok::Op &&
+                  tokens[index].text == ",") {
+                ++index;
+                continue;
+              }
+              if (index >= tokens.size() || tokens[index].kind != Tok::Op ||
+                  tokens[index].text != ")") {
+                error_->line = line.line_number;
+                error_->code = kErrSyntax;
+                error_->message = "Expected ')' after procedure parameters";
+                return false;
+              }
+              ++index;
+              break;
+            }
+          }
+        }
+        if (index < tokens.size() && tokens[index].kind != Tok::EndOfLine &&
+            !(tokens[index].kind == Tok::Op && tokens[index].text == "'")) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "Procedure header must be alone on its line";
+          return false;
+        }
+        const int proc_index = static_cast<int>(out_->procedures_.size());
+        out_->procedures_.push_back(std::move(proc));
+        out_->procedure_index_[name] = proc_index;
+        procedure_bases_[base] = proc_index;
+        open = proc_index;
+        continue;
+      }
+      if (tokens[0].kind == Tok::Keyword && tokens[0].text == "END" &&
+          tokens.size() >= 2 && tokens[1].kind == Tok::Keyword &&
+          (tokens[1].text == "SUB" || tokens[1].text == "FUNCTION")) {
+        if (open < 0) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "END " + tokens[1].text + " without an open procedure";
+          return false;
+        }
+        const bool function = tokens[1].text == "FUNCTION";
+        if ((function ? ProcKind::Function : ProcKind::Sub) !=
+            out_->procedures_[static_cast<std::size_t>(open)].kind) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "Procedure END does not match its header";
+          return false;
+        }
+        if (tokens.size() > 2 && tokens[2].kind != Tok::EndOfLine &&
+            !(tokens[2].kind == Tok::Op && tokens[2].text == "'")) {
+          error_->line = line.line_number;
+          error_->code = kErrSyntax;
+          error_->message = "END procedure must be alone on its line";
+          return false;
+        }
+        out_->procedures_[static_cast<std::size_t>(open)].end_line = line.line_number;
+        open = -1;
+      }
+    }
+    if (open >= 0) {
+      error_->line =
+          out_->procedures_[static_cast<std::size_t>(open)].header_line;
+      error_->code = kErrSyntax;
+      error_->message = "SUB/FUNCTION without END";
+      return false;
+    }
+    return true;
+  }
+
   bool RejectConstWrite(const std::string& name) {
     if (const_names_.count(name) == 0)
       return false;
@@ -420,6 +596,8 @@ public:
     if (!BuildConsts(store))
       return false;
     if (!BuildLabels(store))
+      return false;
+    if (!BuildProcedures(store))
       return false;
     for (const SourceLine& line : store.Lines()) {
       const int begin = Pc();
@@ -580,17 +758,27 @@ private:
   void PatchTarget(int index, int target) {
     out_->instrs_[static_cast<std::size_t>(index)].a = target;
   }
-  void AddLineFixup(int instr_index, int line) {
+  void AddLineFixup(int instr_index, int line, int owner_proc = -2,
+                    bool boundary_exempt = false, bool main_only = false) {
     Fixup fixup;
     fixup.instr_index = instr_index;
     fixup.line = line;
+    fixup.owner_proc = owner_proc == -2 ? current_proc_ : owner_proc;
+    fixup.boundary_exempt = boundary_exempt;
+    fixup.main_only = main_only;
+    fixup.source_line = line_;
     fixups_.push_back(fixup);
   }
 
-  void AddLabelFixup(int instr_index, std::string label) {
+  void AddLabelFixup(int instr_index, std::string label, int owner_proc = -2,
+                     bool boundary_exempt = false, bool main_only = false) {
     Fixup fixup;
     fixup.instr_index = instr_index;
     fixup.label = std::move(label);
+    fixup.owner_proc = owner_proc == -2 ? current_proc_ : owner_proc;
+    fixup.boundary_exempt = boundary_exempt;
+    fixup.main_only = main_only;
+    fixup.source_line = line_;
     fixups_.push_back(fixup);
   }
 
@@ -661,6 +849,14 @@ private:
   bool CompileStatement() {
     if (IsOp("'"))
       return true;
+    if (current_proc_ >= 0 && Cur().kind == Tok::Keyword) {
+      const std::string& kw = Cur().text;
+      if (kw != "LOCAL" && kw != "REM" && kw != "LABEL" && kw != "CONST" &&
+          kw != "DATA" && kw != "SUB" && kw != "FUNCTION")
+        proc_has_executable_ = true;
+    } else if (current_proc_ >= 0) {
+      proc_has_executable_ = true;
+    }
     if (Cur().kind == Tok::Ident)
       return CompileLet();
     if (IsOp("?")) {
@@ -797,6 +993,21 @@ private:
     if (keyword == "LABEL") {
       Advance();
       return CompileLabel();
+    }
+    if (keyword == "SUB" || keyword == "FUNCTION") {
+      return CompileProcedureHeader(keyword == "FUNCTION");
+    }
+    if (keyword == "LOCAL") {
+      Advance();
+      return CompileLocal();
+    }
+    if (keyword == "CALL") {
+      Advance();
+      return CompileCall();
+    }
+    if (keyword == "EXIT") {
+      Advance();
+      return CompileExit();
     }
     if (keyword == "GOTO") {
       Advance();
@@ -938,6 +1149,13 @@ private:
         Advance(); // END
         Advance(); // SELECT
         return CompileEndSelect();
+      }
+      if (pos_ + 1 < tokens_.size() && tokens_[pos_ + 1].kind == Tok::Keyword &&
+          (tokens_[pos_ + 1].text == "SUB" || tokens_[pos_ + 1].text == "FUNCTION")) {
+        const bool function_end = tokens_[pos_ + 1].text == "FUNCTION";
+        Advance(); // END
+        Advance(); // SUB/FUNCTION
+        return CompileProcedureEnd(function_end);
       }
       Advance();
       Emit(Op::End);
@@ -1308,6 +1526,8 @@ private:
     if (keyword == "CLEAR") {
       // CLEAR: variables, arrays, stacks and files, leaving the program in place.
       // The argument form (string space / stack size) is not modelled.
+      if (current_proc_ >= 0)
+        return Syntax("CLEAR is not allowed inside a procedure");
       Advance();
       if (!AtListEnd() && !IsOp(":"))
         return UnsupportedStatement("CLEAR with arguments");
@@ -1920,7 +2140,7 @@ private:
       Advance();
       const int index = EmitPlaceholder(Op::Resume);
       out_->instrs_[static_cast<std::size_t>(index)].b = 2;
-      AddLineFixup(index, target);
+      AddLineFixup(index, target, current_proc_, true, false);
       return true;
     }
     in.b = 0;
@@ -2075,6 +2295,10 @@ private:
     } else {
       return Syntax("Expected FN after DEF");
     }
+    if (current_proc_ >= 0)
+      return Syntax("DEF FN is not allowed inside a procedure");
+    if (ProcedureBaseExists(name))
+      return Syntax("DEF FN name collides with a procedure");
     std::vector<std::string> params;
     if (TakeOp("(")) {
       if (!IsOp(")")) {
@@ -2127,6 +2351,8 @@ private:
         return Syntax("Expected an array name");
       }
       const std::string name = TypeName(Cur().text);
+      if (ProcedureBaseExists(name))
+        return Syntax("Procedure name cannot be used as an array");
       if (RejectConstWrite(name))
         return false;
       Advance();
@@ -2164,9 +2390,12 @@ private:
           return Syntax(Cur().text + " is a reserved word and cannot be used as a name");
         return Syntax("Expected an array name");
       }
+      const std::string array_name = TypeName(Cur().text);
+      if (ProcedureBaseExists(array_name))
+        return Syntax("Procedure name cannot be used as an array");
       if (!names.empty())
         names += ',';
-      names += TypeName(Cur().text);
+      names += array_name;
       Advance();
     } while (TakeOp(","));
     Instr in;
@@ -2186,6 +2415,8 @@ private:
       return Syntax("Expected a variable name");
     }
     *name = TypeName(Cur().text);
+    if (ProcedureBaseExists(*name) && !IsCurrentFunctionResult(*name))
+      return Syntax("Procedure name cannot be used as a variable");
     *array = false;
     *subscripts = 0;
     Advance();
@@ -2477,6 +2708,8 @@ private:
     if (Cur().kind != Tok::Ident)
       return Syntax("Expected a variable after FOR");
     const std::string name = TypeName(Cur().text);
+    if (ProcedureBaseExists(name))
+      return Syntax("Procedure name cannot be used as a variable");
     if (RejectConstWrite(name))
       return false;
     Advance();
@@ -2576,6 +2809,214 @@ private:
       return false;
     pos_ = static_cast<int>(next);
     Emit(Op::Nop);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- procedures
+  static Value::Kind KindForName(const std::string& name) {
+    switch (name.empty() ? '!' : name.back()) {
+    case '%':
+      return Value::Kind::Int;
+    case '&':
+      return Value::Kind::Long;
+    case '#':
+      return Value::Kind::Dbl;
+    case '$':
+      return Value::Kind::Str;
+    default:
+      return Value::Kind::Sgl;
+    }
+  }
+
+  bool ValidLocalName(const Procedure& proc, const std::string& canonical) {
+    if (local_names_.count(canonical) != 0)
+      return Syntax("Duplicate parameter/local " + canonical);
+    if (StripTypeSuffix(canonical) == StripTypeSuffix(proc.name))
+      return Syntax("Parameter/local name collides with procedure " + proc.name);
+    if (RejectConstWrite(canonical))
+      return false;
+    for (const std::string& constant : const_names_) {
+      if (StripTypeSuffix(constant) == StripTypeSuffix(canonical))
+        return Syntax("Parameter/local name collides with CONST " + constant);
+    }
+    local_names_.insert(canonical);
+    return true;
+  }
+
+  bool CompileProcedureHeader(bool function) {
+    if (direct_)
+      return Error(kErrIllegalDirect, "SUB/FUNCTION is illegal in direct mode");
+    if (current_proc_ >= 0)
+      return Syntax("SUB/FUNCTION cannot be nested");
+    if (!IsKeyword("SUB") && !IsKeyword("FUNCTION"))
+      return Syntax("Expected SUB or FUNCTION");
+    Advance(); // SUB/FUNCTION
+    if (Cur().kind != Tok::Ident)
+      return Syntax("Expected a procedure name");
+    const std::string name = NormalizeLabel(Cur().text);
+    Advance();
+    const int index = out_->ProcedureIndex(name);
+    if (index < 0)
+      return Error(kErrUndefinedProcedure, "Undefined procedure " + name);
+    Procedure& proc = out_->procedures_[static_cast<std::size_t>(index)];
+    if (proc.header_line != line_)
+      return Syntax("Procedure header line mismatch");
+    if ((function ? ProcKind::Function : ProcKind::Sub) != proc.kind)
+      return Syntax("Procedure kind does not match its definition");
+    local_names_.clear();
+    proc.params.clear();
+    proc.locals.clear();
+    if (TakeOp("(")) {
+      if (!IsOp(")")) {
+        for (;;) {
+          if (Cur().kind != Tok::Ident)
+            return Syntax("Expected a parameter name");
+          const std::string canonical = TypeName(Cur().text);
+          Advance();
+          if (IsOp("("))
+            return Syntax("Array parameters are not supported yet");
+          if (!ValidLocalName(proc, canonical))
+            return false;
+          ProcParam param;
+          param.name = canonical;
+          param.kind = KindForName(canonical);
+          proc.params.push_back(std::move(param));
+          if (!TakeOp(","))
+            break;
+        }
+      }
+      if (!ExpectOp(")"))
+        return false;
+    }
+    if (!AtStatementEnd() && !IsOp(":"))
+      return Syntax("Procedure header must be alone on its line");
+    const int jump = EmitPlaceholder(Op::Jump);
+    proc.body_pc = Pc();
+    proc.header_line = line_;
+    proc.kind = function ? ProcKind::Function : ProcKind::Sub;
+    proc.result_name = function ? name : std::string();
+    current_proc_ = index;
+    proc_has_executable_ = false;
+    proc_header_jump_ = jump;
+    return true;
+  }
+
+  bool CompileLocal() {
+    if (current_proc_ < 0)
+      return Syntax("LOCAL is only valid inside a procedure");
+    if (direct_)
+      return Error(kErrIllegalDirect, "LOCAL is illegal in direct mode");
+    if (proc_has_executable_)
+      return Syntax("LOCAL must appear before executable statements");
+    Procedure& proc = out_->procedures_[static_cast<std::size_t>(current_proc_)];
+    for (;;) {
+      if (Cur().kind != Tok::Ident)
+        return Syntax("Expected a local variable name");
+      const std::string canonical = TypeName(Cur().text);
+      Advance();
+      if (IsOp("("))
+        return Syntax("Local arrays are not supported yet");
+      if (!ValidLocalName(proc, canonical))
+        return false;
+      ProcParam local;
+      local.name = canonical;
+      local.kind = KindForName(canonical);
+      proc.locals.push_back(std::move(local));
+      if (!TakeOp(","))
+        break;
+    }
+    if (!AtStatementEnd() && !IsOp(":"))
+      return Syntax("Expected end of LOCAL statement");
+    return true;
+  }
+
+  bool CompileCall() {
+    if (direct_)
+      return Error(kErrIllegalDirect, "CALL is illegal in direct mode");
+    if (Cur().kind != Tok::Ident)
+      return Syntax("Expected a procedure name after CALL");
+    const std::string name = NormalizeLabel(Cur().text);
+    Advance();
+    const int index = out_->ProcedureIndex(name);
+    if (index < 0)
+      return Error(kErrUndefinedProcedure, "Undefined procedure " + name);
+    const Procedure& proc = out_->procedures_[static_cast<std::size_t>(index)];
+    if (proc.kind != ProcKind::Sub)
+      return Syntax("CALL requires a SUB; use the FUNCTION in an expression");
+    int argc = 0;
+    if (TakeOp("(")) {
+      if (!IsOp(")")) {
+        do {
+          if (!ParseExpression())
+            return false;
+          ++argc;
+        } while (TakeOp(","));
+      }
+      if (!ExpectOp(")"))
+        return false;
+    } else if (!AtListEnd() && !IsOp(":")) {
+      return Syntax("Expected '(' after the procedure name");
+    }
+    if (static_cast<std::size_t>(argc) != proc.params.size()) {
+      return Syntax(name + " takes " + std::to_string(proc.params.size()) +
+                    " argument(s)");
+    }
+    Instr in;
+    in.op = Op::CallProc;
+    in.a = index;
+    in.b = argc;
+    out_->instrs_.push_back(in);
+    return true;
+  }
+
+  bool CompileExit() {
+    if (current_proc_ < 0)
+      return Syntax("EXIT is only valid inside a procedure");
+    const Procedure& proc = out_->procedures_[static_cast<std::size_t>(current_proc_)];
+    if (IsKeyword("SUB")) {
+      if (proc.kind != ProcKind::Sub)
+        return Syntax("EXIT SUB inside a FUNCTION");
+      Advance();
+      Instr in;
+      in.op = Op::SubReturn;
+      in.a = 0;
+      out_->instrs_.push_back(in);
+      return true;
+    }
+    if (IsKeyword("FUNCTION")) {
+      if (proc.kind != ProcKind::Function)
+        return Syntax("EXIT FUNCTION inside a SUB");
+      Advance();
+      Instr in;
+      in.op = Op::SubReturn;
+      in.a = 1;
+      out_->instrs_.push_back(in);
+      return true;
+    }
+    return Syntax("Expected SUB or FUNCTION after EXIT");
+  }
+
+  bool CompileProcedureEnd(bool function_end) {
+    if (direct_)
+      return Error(kErrIllegalDirect, "END SUB/FUNCTION is illegal in direct mode");
+    if (current_proc_ < 0)
+      return Syntax("END SUB/FUNCTION without an open procedure");
+    Procedure& proc = out_->procedures_[static_cast<std::size_t>(current_proc_)];
+    if ((function_end ? ProcKind::Function : ProcKind::Sub) != proc.kind)
+      return Syntax("Procedure END does not match its header");
+    Instr in;
+    in.op = Op::SubReturn;
+    in.a = proc.kind == ProcKind::Function ? 1 : 0;
+    out_->instrs_.push_back(in);
+    proc.end_pc = Pc() - 1;
+    proc.end_line = line_;
+    if (proc_header_jump_ < 0)
+      return Syntax("Internal procedure header error");
+    PatchTarget(proc_header_jump_, Pc());
+    current_proc_ = -1;
+    proc_has_executable_ = false;
+    local_names_.clear();
+    proc_header_jump_ = -1;
     return true;
   }
 
@@ -2752,12 +3193,13 @@ private:
            labels_.find(NormalizeLabel(Cur().text)) != labels_.end();
   }
 
-  bool CompileLabelTarget(Op op) {
+  bool CompileLabelTarget(Op op, int owner_proc = -2, bool boundary_exempt = false,
+                          bool main_only = false) {
     if (direct_)
       return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
     const std::string name = NormalizeLabel(Cur().text);
     Advance();
-    AddLabelFixup(EmitPlaceholder(op), name);
+    AddLabelFixup(EmitPlaceholder(op), name, owner_proc, boundary_exempt, main_only);
     return true;
   }
 
@@ -2819,14 +3261,14 @@ private:
       if (!TakeKeyword("GOSUB"))
         return Syntax("Expected GOSUB after ON TIMER(n)");
       if (IsLabelTarget())
-        return CompileLabelTarget(Op::OnTimer);
+        return CompileLabelTarget(Op::OnTimer, current_proc_, true, true);
       if (Cur().kind != Tok::Number)
         return Syntax("Expected a line number or label");
       int target = 0;
       if (!LineNumberFromNumber(Cur().number.AsNumber(), &target))
         return Error(kErrIllegalFunctionCall, "Line number out of range");
       Advance();
-      AddLineFixup(EmitPlaceholder(Op::OnTimer), target);
+      AddLineFixup(EmitPlaceholder(Op::OnTimer), target, current_proc_, true, true);
       return true;
     }
     if (IsKeyword("ERROR")) {
@@ -2834,7 +3276,7 @@ private:
       if (!TakeKeyword("GOTO"))
         return Syntax("Expected GOTO after ON ERROR");
       if (IsLabelTarget())
-        return CompileLabelTarget(Op::OnError);
+        return CompileLabelTarget(Op::OnError, current_proc_, true, true);
       if (Cur().kind != Tok::Number)
         return Syntax("Expected a line number or label");
       int target = 0;
@@ -2850,7 +3292,7 @@ private:
       }
       if (direct_)
         return Error(kErrIllegalDirect, ErrorMessage(kErrIllegalDirect));
-      AddLineFixup(EmitPlaceholder(Op::OnError), target);
+      AddLineFixup(EmitPlaceholder(Op::OnError), target, current_proc_, true, true);
       return true;
     }
     if (!ParseExpression())
@@ -2879,6 +3321,8 @@ private:
       fixup.instr_index = -1;
       fixup.table = table_index;
       fixup.slot = slot;
+      fixup.owner_proc = current_proc_;
+      fixup.source_line = line_;
       if (IsLabelTarget()) {
         fixup.label = NormalizeLabel(Cur().text);
         Advance();
@@ -3155,6 +3599,49 @@ private:
     }
     if (Cur().kind == Tok::Ident) {
       const std::string name = TypeName(Cur().text);
+      // A declared SUB/FUNCTION owns its base name. A FUNCTION is called with
+      // parentheses; inside its own body the bare result name reads the result
+      // local. A SUB name is not an expression.
+      const int proc_index = out_->ProcedureIndex(name);
+      if (proc_index >= 0) {
+        const Procedure& proc = out_->procedures_[static_cast<std::size_t>(proc_index)];
+        Advance();
+        if (proc.kind == ProcKind::Function) {
+          if (!IsOp("(")) {
+            if (IsCurrentFunctionResult(name)) {
+              Instr in;
+              in.op = Op::LoadVar;
+              in.name = name;
+              out_->instrs_.push_back(in);
+              return true;
+            }
+            return Syntax("Function name requires arguments");
+          }
+          Advance(); // (
+          int argc = 0;
+          if (!IsOp(")")) {
+            do {
+              if (!ParseExpression())
+                return false;
+              ++argc;
+            } while (TakeOp(","));
+          }
+          if (!ExpectOp(")"))
+            return false;
+          if (static_cast<std::size_t>(argc) != proc.params.size())
+            return Syntax(name + " takes " + std::to_string(proc.params.size()) +
+                          " argument(s)");
+          Instr in;
+          in.op = Op::CallProc;
+          in.a = proc_index;
+          in.b = argc;
+          out_->instrs_.push_back(in);
+          return true;
+        }
+        return Syntax("SUB name cannot be used in an expression");
+      }
+      if (ProcedureBaseExists(name))
+        return Syntax("Procedure name cannot be used as a variable");
       // `FNA` is one identifier now. A matching DEF FN is a user-function call;
       // the FN prefix keeps its function-call meaning when followed by `(`.
       // Without parentheses, FNA can still be an ordinary scalar name.
@@ -3310,6 +3797,12 @@ private:
 
   // ---------------------------------------------------------------- finish
   bool Finish() {
+    if (current_proc_ >= 0) {
+      error_->line = line_;
+      error_->code = kErrSyntax;
+      error_->message = "SUB/FUNCTION without END";
+      return false;
+    }
     if (!for_stack_.empty()) {
       error_->line = for_stack_.back().line;
       error_->code = kErrForWithoutNext;
@@ -3341,6 +3834,35 @@ private:
         }
         line = label->second;
       }
+      if (line > 0) {
+        const std::optional<int> target_proc = out_->ProcedureForLine(line);
+        if (fixup.main_only) {
+          if (target_proc) {
+            error_->line = fixup.source_line;
+            error_->code = kErrSyntax;
+            error_->message = "ON ERROR/ON TIMER handler must be in main";
+            return false;
+          }
+        } else if (!fixup.boundary_exempt) {
+          if (target_proc) {
+            const Procedure& proc =
+                out_->procedures_[static_cast<std::size_t>(*target_proc)];
+            if (line == proc.header_line || line == proc.end_line) {
+              error_->line = fixup.source_line;
+              error_->code = kErrProcedureBoundary;
+              error_->message = "GOTO/GOSUB cannot target a procedure header or END line";
+              return false;
+            }
+          }
+          const int target = target_proc.value_or(-1);
+          if (target != fixup.owner_proc) {
+            error_->line = fixup.source_line;
+            error_->code = kErrProcedureBoundary;
+            error_->message = "GOTO/GOSUB would cross a procedure boundary";
+            return false;
+          }
+        }
+      }
       int target = -1;
       const auto it = line_starts_.find(line);
       if (it != line_starts_.end())
@@ -3371,6 +3893,10 @@ private:
     int slot = 0;
     int line = 0;
     std::string label; // when non-empty, resolve through labels_ at Finish
+    int owner_proc = -1;
+    bool boundary_exempt = false;
+    bool main_only = false;
+    int source_line = 0;
   };
 
   Program* out_;
@@ -3393,15 +3919,20 @@ private:
   std::map<std::string, int> labels_; // normalized label -> source line
   std::set<std::string> const_names_;             // canonical CONST names
   std::map<std::string, std::string> const_alias_; // base name -> canonical name
+  std::map<std::string, int> procedure_bases_;     // base name -> procedure index
+  int current_proc_ = -1;
+  int proc_header_jump_ = -1;
+  bool proc_has_executable_ = false;
+  std::set<std::string> local_names_;
 };
 
 } // namespace
 
 bool IsIllegalDirect(const std::string& keyword) {
   static const char* const kIllegalDirect[] = {
-      "CASE", "CONST", "DATA",   "DEF",    "DIM",    "DELETE", "ERASE", "FOR",
-      "GOSUB", "GOTO", "LABEL",  "NEXT",   "RESUME", "RETURN", "SELECT", "WEND",
-      "WHILE",
+      "CALL", "CASE", "CONST", "DATA", "DEF", "DIM", "DELETE", "ERASE", "EXIT",
+      "FOR", "FUNCTION", "GOSUB", "GOTO", "LABEL", "LOCAL", "NEXT", "RESUME",
+      "RETURN", "SELECT", "SUB", "WEND", "WHILE",
   };
   return InList(kIllegalDirect, sizeof(kIllegalDirect) / sizeof(kIllegalDirect[0]), keyword);
 }
@@ -3413,6 +3944,8 @@ bool Compile(const LineStore& store, Program* out, CompileError* error) {
   out->data_items_.clear();
   out->line_data_index_.clear();
   out->user_funcs_.clear();
+  out->procedures_.clear();
+  out->procedure_index_.clear();
   out->constants_.clear();
   out->statement_pcs_.clear();
   Compiler compiler(out, error, false);
@@ -3429,6 +3962,8 @@ bool CompileDirect(const std::string& text, Program* out, CompileError* error) {
   out->data_items_.clear();
   out->line_data_index_.clear();
   out->user_funcs_.clear();
+  out->procedures_.clear();
+  out->procedure_index_.clear();
   out->constants_.clear();
   out->statement_pcs_.clear();
   Compiler compiler(out, error, true);

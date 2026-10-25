@@ -255,9 +255,13 @@ public:
       for (const Vm::CallFrame& frame : debugger_.CallFrames()) {
         Json item = Json::Object();
         item.Set("id", Json::Number(id++));
-        const std::string label = frame.kind == Vm::CallFrame::Kind::Gosub
-                                      ? "GOSUB line " + std::to_string(frame.line)
-                                      : "FOR " + frame.name + " line " + std::to_string(frame.line);
+        const std::string label =
+            frame.kind == Vm::CallFrame::Kind::Gosub
+                ? "GOSUB line " + std::to_string(frame.line)
+                : (frame.kind == Vm::CallFrame::Kind::For_
+                       ? "FOR " + frame.name + " line " + std::to_string(frame.line)
+                       : (frame.function ? "FUNCTION " : "SUB ") + frame.name +
+                             " line " + std::to_string(frame.line));
         item.Set("name", Json::Str(label));
         item.Set("line", Json::Number(ProgramLineToFileLine(frame.line)));
         item.Set("column", Json::Number(1));
@@ -274,9 +278,14 @@ public:
       Json scopes = Json::Array();
       Json locals = Json::Object();
       locals.Set("name", Json::Str("Locals"));
-      locals.Set("variablesReference", Json::Number(1));
+      locals.Set("variablesReference", Json::Number(2));
       locals.Set("expensive", Json::Bool(false));
       scopes.Push(std::move(locals));
+      Json globals = Json::Object();
+      globals.Set("name", Json::Str("Globals"));
+      globals.Set("variablesReference", Json::Number(1));
+      globals.Set("expensive", Json::Bool(false));
+      scopes.Push(std::move(globals));
       body.Set("scopes", std::move(scopes));
       Respond(request, std::move(body), outgoing);
       return RunAction::None;
@@ -291,6 +300,14 @@ public:
         const std::size_t index = static_cast<std::size_t>(reference - kArrayReferenceBase);
         if (index < arrays.size())
           AppendArrayElements(arrays[index], &variables);
+      } else if (reference == 2) {
+        for (const auto& entry : debugger_.LocalVariables()) {
+          Json item = Json::Object();
+          item.Set("name", Json::Str(entry.first));
+          item.Set("value", Json::Str(FormatValue(entry.second)));
+          item.Set("variablesReference", Json::Number(0));
+          variables.Push(std::move(item));
+        }
       } else {
         for (const std::string& name : debugger_.VariableNames()) {
           const std::optional<Value> value = debugger_.Variable(name);
@@ -327,11 +344,12 @@ public:
       const int reference = static_cast<int>(Number(*arguments, "variablesReference"));
       const std::string name = String(*arguments, "name");
       const std::string text = String(*arguments, "value");
-      if (reference != 1) {
-        Fail(request, "Only Locals variables can be edited", outgoing);
+      if (reference != 1 && reference != 2) {
+        Fail(request, "Only Locals/Globals variables can be edited", outgoing);
         return RunAction::None;
       }
-      const std::optional<Value> current = debugger_.Variable(name);
+      const std::optional<Value> current =
+          reference == 2 ? debugger_.LocalVariable(name) : debugger_.Variable(name);
       if (!current.has_value()) {
         Fail(request, "No such variable: " + name, outgoing);
         return RunAction::None;
@@ -356,8 +374,12 @@ public:
         }
         updated = Value::Sgl(number);
       }
-      vm_.SetVar(name, updated);
-      const std::optional<Value> result = debugger_.Variable(name);
+      if (reference == 2)
+        debugger_.SetLocalVariable(name, updated);
+      else
+        vm_.SetVar(name, updated);
+      const std::optional<Value> result =
+          reference == 2 ? debugger_.LocalVariable(name) : debugger_.Variable(name);
       Json body = Json::Object();
       body.Set("value", Json::Str(result.has_value() ? FormatValue(*result) : text));
       body.Set("variablesReference", Json::Number(0));
@@ -368,7 +390,9 @@ public:
       const std::string expression =
           arguments == nullptr ? std::string() : String(*arguments, "expression");
       // Exactly a variable name: a stop-gap until full expression evaluation.
-      const std::optional<Value> value = debugger_.Variable(expression);
+      std::optional<Value> value = debugger_.LocalVariable(expression);
+      if (!value.has_value())
+        value = debugger_.Variable(expression);
       if (!value.has_value()) {
         Fail(request, "No such variable: " + expression, outgoing);
         return RunAction::None;

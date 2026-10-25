@@ -230,10 +230,10 @@ TEST_CASE("Inspection: GOSUB and FOR call frames", "[debug]") {
 
   const std::vector<newbasic::Vm::CallFrame> frames = s.vm.CallStack();
   REQUIRE(frames.size() == 2);
-  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::Gosub);
-  CHECK(frames[0].line == 50); // returns to the statement after the GOSUB
-  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::For_);
-  CHECK(frames[1].name == "I!"); // canonical name keeps the type suffix
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].name == "I!"); // canonical name keeps the type suffix
+  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::Gosub);
+  CHECK(frames[1].line == 50); // returns to the statement after the GOSUB
 }
 
 TEST_CASE("Inspection: RETURN discards loops opened by the subroutine", "[debug]") {
@@ -399,8 +399,8 @@ TEST_CASE("Debugger: surfaces frames, arrays and snapshots", "[debug]") {
   // Structural inspection through the debugger itself (the DAP surface).
   const std::vector<newbasic::Vm::CallFrame> frames = debugger.CallFrames();
   REQUIRE(frames.size() == 2);
-  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::Gosub);
-  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[0].kind == newbasic::Vm::CallFrame::Kind::For_);
+  CHECK(frames[1].kind == newbasic::Vm::CallFrame::Kind::Gosub);
   const std::vector<newbasic::Vm::ArrayInfo> arrays = debugger.Arrays();
   REQUIRE(arrays.size() == 1);
   CHECK(arrays[0].name == "A!");

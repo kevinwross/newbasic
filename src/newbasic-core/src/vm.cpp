@@ -34,6 +34,10 @@ constexpr std::size_t kMaxStringLength = 255; // GW-BASIC string limit
 // budget, so one huge array cannot bypass the scalar limit.
 constexpr std::size_t kMaxUserStack = 1'000'000;
 constexpr std::size_t kMaxStackElements = 1'000'000;
+// SUB/FUNCTION/DEF FN recursion limit. Deep enough for ordinary recursion,
+// small enough that a runaway program reports an error instead of exhausting
+// the host stack.
+constexpr std::size_t kMaxCallDepth = 256;
 
 // DRAWTEXT's line rules: CR, LF, or CRLF starts a new line. TEXTWIDTH reports
 // the widest line and TEXTHEIGHT the number of lines, both in pixels.
@@ -439,6 +443,120 @@ std::optional<int> Program::LineForPc(int pc) const {
   return std::nullopt;
 }
 
+std::optional<int> Program::ProcedureForLine(int line) const {
+  for (std::size_t i = 0; i < procedures_.size(); ++i) {
+    const Procedure& proc = procedures_[i];
+    if (proc.header_line > 0 && line >= proc.header_line && line <= proc.end_line)
+      return static_cast<int>(i);
+  }
+  return std::nullopt;
+}
+
+std::optional<int> Program::ProcedureForPc(int pc) const {
+  const std::optional<int> line = LineForPc(pc);
+  return line ? ProcedureForLine(*line) : std::nullopt;
+}
+
+const Procedure* Program::FindProcedure(const std::string& name) const {
+  const auto it = procedure_index_.find(name);
+  if (it == procedure_index_.end() || it->second < 0 ||
+      static_cast<std::size_t>(it->second) >= procedures_.size())
+    return nullptr;
+  return &procedures_[static_cast<std::size_t>(it->second)];
+}
+
+int Program::ProcedureIndex(const std::string& name) const {
+  const auto it = procedure_index_.find(name);
+  return it == procedure_index_.end() ? -1 : it->second;
+}
+
+std::vector<Vm::CallFrame> Vm::CallStack() const {
+  struct OrderedFrame {
+    std::uint64_t sequence = 0;
+    CallFrame frame;
+  };
+  std::vector<OrderedFrame> ordered;
+  for (const GosubFrame& gosub : gosub_stack_) {
+    OrderedFrame item;
+    item.sequence = gosub.sequence;
+    item.frame.kind = CallFrame::Kind::Gosub;
+    item.frame.line = LineAtPc(gosub.return_pc);
+    ordered.push_back(std::move(item));
+  }
+  for (const ForFrame& loop : for_stack_) {
+    OrderedFrame item;
+    item.sequence = loop.sequence;
+    item.frame.kind = CallFrame::Kind::For_;
+    item.frame.name = loop.name;
+    item.frame.line = LineAtPc(loop.body_pc - 1);
+    ordered.push_back(std::move(item));
+  }
+  for (const SubFrame& sub : sub_stack_) {
+    OrderedFrame item;
+    item.sequence = sub.sequence;
+    item.frame.kind = CallFrame::Kind::Sub;
+    item.frame.name = sub.proc_index >= 0 &&
+                              static_cast<std::size_t>(sub.proc_index) <
+                                  program_.procedures_.size()
+                          ? program_.procedures_[static_cast<std::size_t>(sub.proc_index)].name
+                          : std::string();
+    item.frame.function =
+        sub.proc_index >= 0 &&
+        static_cast<std::size_t>(sub.proc_index) < program_.procedures_.size() &&
+        program_.procedures_[static_cast<std::size_t>(sub.proc_index)].kind ==
+            ProcKind::Function;
+    item.frame.line = LineAtPc(sub.return_pc);
+    ordered.push_back(std::move(item));
+  }
+  std::sort(ordered.begin(), ordered.end(),
+            [](const OrderedFrame& a, const OrderedFrame& b) {
+              return a.sequence < b.sequence;
+            });
+  std::vector<CallFrame> frames;
+  frames.reserve(ordered.size());
+  for (OrderedFrame& item : ordered)
+    frames.push_back(std::move(item.frame));
+  return frames;
+}
+
+std::vector<std::pair<std::string, Value>> Vm::CurrentLocals() const {
+  std::vector<std::pair<std::string, Value>> out;
+  if (scope_stack_.empty() || scope_stack_.back().kind != ScopeKind::Sub)
+    return out;
+  const std::size_t index = scope_stack_.back().sub_index;
+  if (index >= sub_stack_.size())
+    return out;
+  for (const auto& entry : sub_stack_[index].locals)
+    out.emplace_back(entry.first, entry.second);
+  return out;
+}
+
+std::optional<Value> Vm::GetLocal(const std::string& name) const {
+  if (scope_stack_.empty() || scope_stack_.back().kind != ScopeKind::Sub)
+    return std::nullopt;
+  const std::size_t index = scope_stack_.back().sub_index;
+  if (index >= sub_stack_.size())
+    return std::nullopt;
+  const auto it = sub_stack_[index].locals.find(CanonicalVarName(name));
+  if (it == sub_stack_[index].locals.end())
+    return std::nullopt;
+  return it->second;
+}
+
+void Vm::SetLocal(const std::string& name, const Value& value) {
+  if (scope_stack_.empty() || scope_stack_.back().kind != ScopeKind::Sub)
+    return;
+  const std::size_t index = scope_stack_.back().sub_index;
+  if (index >= sub_stack_.size())
+    return;
+  auto it = sub_stack_[index].locals.find(CanonicalVarName(name));
+  if (it == sub_stack_[index].locals.end())
+    return;
+  Value converted;
+  if (ConvertForName(it->first, value, &converted))
+    it->second = converted;
+}
+
 Vm::Vm(screen::Screen& screen, Host* host, std::atomic<bool>* break_flag)
     : screen_(screen), host_(host != nullptr ? host : &default_host_), break_flag_(break_flag) {
   rng_.seed(kDefaultSeed);
@@ -493,6 +611,10 @@ void Vm::Load(Program program) {
   stack_.clear();
   for_stack_.clear();
   gosub_stack_.clear();
+  sub_stack_.clear();
+  scope_stack_.clear();
+  call_sequence_ = 0;
+  error_scope_barrier_ = false;
   select_stack_.clear();
   view_stack_.clear();
   func_stack_.clear();
@@ -512,6 +634,10 @@ void Vm::ClearState() {
   user_stack_elements_ = 0;
   for_stack_.clear();
   gosub_stack_.clear();
+  sub_stack_.clear();
+  scope_stack_.clear();
+  call_sequence_ = 0;
+  error_scope_barrier_ = false;
   select_stack_.clear();
   view_stack_.clear();
   func_stack_.clear();
@@ -560,8 +686,85 @@ void Vm::Push(const Value& v) {
   stack_.push_back(v);
 }
 
-void Vm::PushGosub(int return_pc) {
-  gosub_stack_.push_back(GosubFrame{return_pc, for_stack_.size()});
+void Vm::PushGosub(int return_pc, bool global_barrier) {
+  const std::size_t scope_depth = scope_stack_.size();
+  if (global_barrier)
+    PushGlobalBarrier();
+  GosubFrame frame;
+  frame.return_pc = return_pc;
+  frame.for_depth = for_stack_.size();
+  frame.scope_depth = scope_depth;
+  frame.sequence = ++call_sequence_;
+  gosub_stack_.push_back(frame);
+}
+
+void Vm::UnwindScopesTo(std::size_t depth) {
+  while (scope_stack_.size() > depth)
+    scope_stack_.pop_back();
+}
+
+int Vm::CurrentProcIndex() const {
+  if (scope_stack_.empty())
+    return -1;
+  const ScopeRef& top = scope_stack_.back();
+  if (top.kind != ScopeKind::Sub || top.sub_index >= sub_stack_.size())
+    return -1;
+  return sub_stack_[top.sub_index].proc_index;
+}
+
+bool Vm::CheckJumpTarget(int line) {
+  if (line <= 0)
+    return Fail(kErrUndefinedLineNumber);
+  const std::optional<int> target_proc = program_.ProcedureForLine(line);
+  if (target_proc) {
+    const Procedure& proc = program_.procedures_[static_cast<std::size_t>(*target_proc)];
+    if (line == proc.header_line || line == proc.end_line)
+      return Fail(kErrProcedureBoundary,
+                  "GOTO/GOSUB cannot target a procedure header or END line");
+  }
+  const int current_proc = CurrentProcIndex();
+  const int target = target_proc.value_or(-1);
+  if (target != current_proc)
+    return Fail(kErrProcedureBoundary,
+                "GOTO/GOSUB would cross a procedure boundary");
+  return true;
+}
+
+bool Vm::ReconcileSubScopes(int target_pc) {
+  if (target_pc >= static_cast<int>(program_.instrs_.size())) {
+    scope_stack_.clear();
+    sub_stack_.clear();
+    return true;
+  }
+  const std::optional<int> target_line = program_.LineForPc(target_pc);
+  if (!target_line)
+    return Fail(kErrUndefinedLineNumber);
+  const std::optional<int> target_proc = program_.ProcedureForLine(*target_line);
+  if (!target_proc) {
+    // Resuming in main: discard every procedure scope/frame.
+    scope_stack_.clear();
+    sub_stack_.clear();
+    return true;
+  }
+  std::size_t target_index = sub_stack_.size();
+  for (std::size_t i = sub_stack_.size(); i-- > 0;) {
+    if (sub_stack_[i].proc_index == *target_proc) {
+      target_index = i;
+      break;
+    }
+  }
+  if (target_index >= sub_stack_.size())
+    return Fail(kErrProcedureBoundary, "RESUME across a procedure boundary");
+  // Drop barriers/scopes above the target frame, then any inner frames.
+  while (!scope_stack_.empty()) {
+    const ScopeRef& top = scope_stack_.back();
+    if (top.kind == ScopeKind::Sub && top.sub_index == target_index)
+      break;
+    scope_stack_.pop_back();
+  }
+  while (sub_stack_.size() > target_index + 1)
+    sub_stack_.pop_back();
+  return true;
 }
 
 bool Vm::Fail(int code) {
@@ -582,6 +785,12 @@ bool Vm::Fail(int code, const std::string& message) {
     error_next_pc_ = StatementNext(pc_ - 1);
     handling_error_ = true;
     trap_pending_ = true;
+    // The handler lives in main, so hide any active procedure locals while it
+    // runs. RESUME pops this barrier.
+    if (!scope_stack_.empty() && scope_stack_.back().kind == ScopeKind::Sub) {
+      PushGlobalBarrier();
+      error_scope_barrier_ = true;
+    }
     pc_ = error_handler_pc_;
     stack_.clear(); // abandon the failed expression
     last_.status = RunResult::Status::Done;
@@ -653,8 +862,83 @@ bool Vm::ConvertForName(const std::string& name, const Value& v, Value* out) {
   }
 }
 
+namespace {
+
+Value DefaultValueForKind(Value::Kind kind) {
+  switch (kind) {
+  case Value::Kind::Int:
+    return Value::Int(0);
+  case Value::Kind::Long:
+    return Value::Long(0);
+  case Value::Kind::Dbl:
+    return Value::Dbl(0.0);
+  case Value::Kind::Str:
+    return Value::Str(std::string());
+  case Value::Kind::Sgl:
+  default:
+    return Value::Sgl(0.0);
+  }
+}
+
+Value::Kind KindForName(const std::string& name) {
+  switch (VarTypeSuffix(name)) {
+  case '%':
+    return Value::Kind::Int;
+  case '&':
+    return Value::Kind::Long;
+  case '#':
+    return Value::Kind::Dbl;
+  case '$':
+    return Value::Kind::Str;
+  default:
+    return Value::Kind::Sgl;
+  }
+}
+
+} // namespace
+
 bool Vm::StoreVariable(const std::string& name, const Value& v) {
-  const std::string key = CanonicalVarName(name);
+  return StoreCanonical(CanonicalVarName(name), v);
+}
+
+Value Vm::LoadVariable(const std::string& name) {
+  return LoadCanonical(CanonicalVarName(name));
+}
+
+Value Vm::LoadCanonical(const std::string& key) {
+  // Lexical scope: only the top procedure scope is searched. A callee never
+  // sees its caller's locals; a GlobalBarrier (DEF FN/timer/error handler)
+  // skips procedure scopes entirely.
+  if (!scope_stack_.empty() && scope_stack_.back().kind == ScopeKind::Sub) {
+    const std::size_t index = scope_stack_.back().sub_index;
+    if (index < sub_stack_.size()) {
+      const auto local = sub_stack_[index].locals.find(key);
+      if (local != sub_stack_[index].locals.end())
+        return local->second;
+    }
+  }
+  const auto it = vars_.find(key);
+  if (it != vars_.end())
+    return it->second;
+  const Value initial = VarTypeSuffix(key) == '$' ? Value::Str(std::string()) : Value::Sgl(0.0);
+  vars_[key] = initial;
+  return initial;
+}
+
+bool Vm::StoreCanonical(const std::string& key, const Value& v) {
+  if (!scope_stack_.empty() && scope_stack_.back().kind == ScopeKind::Sub) {
+    const std::size_t index = scope_stack_.back().sub_index;
+    if (index < sub_stack_.size()) {
+      auto local = sub_stack_[index].locals.find(key);
+      if (local != sub_stack_[index].locals.end()) {
+        Value converted;
+        if (!ConvertForName(key, v, &converted))
+          return false;
+        local->second = converted;
+        return true;
+      }
+    }
+  }
   if (const_names_.count(key) != 0)
     return Fail(kErrIllegalFunctionCall, "Cannot assign to constant " + key);
   Value converted;
@@ -664,14 +948,18 @@ bool Vm::StoreVariable(const std::string& name, const Value& v) {
   return true;
 }
 
-Value Vm::LoadVariable(const std::string& name) {
-  const std::string key = CanonicalVarName(name);
-  const auto it = vars_.find(key);
-  if (it != vars_.end())
-    return it->second;
-  const Value initial = VarTypeSuffix(key) == '$' ? Value::Str(std::string()) : Value::Sgl(0.0);
-  vars_[key] = initial;
-  return initial;
+void Vm::StoreCanonicalValue(const std::string& key, const Value& v) {
+  if (!scope_stack_.empty() && scope_stack_.back().kind == ScopeKind::Sub) {
+    const std::size_t index = scope_stack_.back().sub_index;
+    if (index < sub_stack_.size()) {
+      auto local = sub_stack_[index].locals.find(key);
+      if (local != sub_stack_[index].locals.end()) {
+        local->second = v;
+        return;
+      }
+    }
+  }
+  vars_[key] = v;
 }
 
 Value::Kind ArrayKindForName(const std::string& name) {
@@ -837,6 +1125,7 @@ bool Vm::DoForStart(const Instr& in) {
   frame.end = end;
   frame.step = step;
   frame.body_pc = pc_;
+  frame.sequence = ++call_sequence_;
   for_stack_.push_back(frame);
   return true;
 }
@@ -859,7 +1148,7 @@ bool Vm::DoForNext(const Instr& in) {
       return Fail(kErrNextWithoutFor);
   }
   const ForFrame frame = for_stack_[index];
-  const Value current = LoadVariable(frame.name);
+  const Value current = LoadCanonical(frame.name);
   const double next = current.AsNumber() + frame.step;
   const bool again =
       (frame.step >= 0.0 && next <= frame.end) || (frame.step < 0.0 && next >= frame.end);
@@ -879,7 +1168,7 @@ bool Vm::DoForNext(const Instr& in) {
       last = Value::Dbl(next);
     else if (current.kind() == Value::Kind::Sgl)
       last = Value::Sgl(next);
-    vars_[frame.name] = last;
+    StoreCanonicalValue(frame.name, last);
     for_stack_.resize(index);
     return true;
   }
@@ -903,7 +1192,7 @@ bool Vm::DoForNext(const Instr& in) {
     stored = Value::Sgl(next);
     break;
   }
-  vars_[frame.name] = stored;
+  StoreCanonicalValue(frame.name, stored);
   pc_ = frame.body_pc;
   return true;
 }
@@ -2782,7 +3071,8 @@ bool Vm::StepImpl() {
       file->second.fields.push_back({name, file->second.allocated, width});
       file->second.allocated += width;
       // A fielded variable starts as spaces of its field width.
-      vars_[name] = Value::Str(std::string(static_cast<std::size_t>(width), ' '));
+      StoreCanonicalValue(CanonicalVarName(name),
+                          Value::Str(std::string(static_cast<std::size_t>(width), ' ')));
       pos = comma == std::string::npos ? in.name.size() : comma + 1;
     }
     return true;
@@ -2811,20 +3101,19 @@ bool Vm::StepImpl() {
       std::string padded(width, ' ');
       padded.replace(right_justify ? width - text.size() : 0, text.size(), text);
       owner->buffer.replace(static_cast<std::size_t>(binding->offset), width, padded);
-      vars_[in.name] = Value::Str(padded);
+      StoreCanonicalValue(CanonicalVarName(in.name), Value::Str(padded));
       return true;
     }
     // Otherwise justify inside the variable's own current length.
     std::size_t width = text.size();
-    const auto existing = vars_.find(in.name);
-    if (existing != vars_.end() && existing->second.IsString()) {
-      width = std::max(width, existing->second.AsString().size());
-    }
+    const Value existing = LoadCanonical(CanonicalVarName(in.name));
+    if (existing.IsString())
+      width = std::max(width, existing.AsString().size());
     if (text.size() > width)
       text.resize(width);
     std::string padded(width, ' ');
     padded.replace(right_justify ? width - text.size() : 0, text.size(), text);
-    vars_[in.name] = Value::Str(padded);
+    StoreCanonicalValue(CanonicalVarName(in.name), Value::Str(padded));
     return true;
   }
   case Op::GetRecord:
@@ -2863,16 +3152,17 @@ bool Vm::StepImpl() {
     if (!writing) {
       // GET publishes the fields into their variables.
       for (const FieldBinding& field : state.fields) {
-        vars_[field.name] = Value::Str(state.buffer.substr(static_cast<std::size_t>(field.offset),
-                                                           static_cast<std::size_t>(field.width)));
+        StoreCanonicalValue(CanonicalVarName(field.name),
+                            Value::Str(state.buffer.substr(static_cast<std::size_t>(field.offset),
+                                                           static_cast<std::size_t>(field.width))));
       }
     } else {
       // PUT copies the variables into the buffer, then writes the record.
       for (const FieldBinding& field : state.fields) {
         std::string text;
-        const auto var = vars_.find(field.name);
-        if (var != vars_.end() && var->second.IsString())
-          text = var->second.AsString();
+        const Value var = LoadCanonical(CanonicalVarName(field.name));
+        if (var.IsString())
+          text = var.AsString();
         const std::size_t width = static_cast<std::size_t>(field.width);
         if (text.size() > width)
           text.resize(width);
@@ -3065,6 +3355,8 @@ bool Vm::StepImpl() {
     const auto range = program_.PcRangeForLine(line);
     if (!range)
       return Fail(kErrUndefinedLineNumber);
+    if (!CheckJumpTarget(line))
+      return false;
     if (LeavesSelect(range->first))
       return Fail(kErrIllegalFunctionCall, "GOTO would leave a SELECT CASE");
     pc_ = range->first;
@@ -3099,6 +3391,8 @@ bool Vm::StepImpl() {
     const auto range = program_.PcRangeForLine(line);
     if (!range)
       return Fail(kErrUndefinedLineNumber);
+    if (!CheckJumpTarget(line))
+      return false;
     PushGosub(pc_);
     pc_ = range->first;
     break;
@@ -3108,6 +3402,10 @@ bool Vm::StepImpl() {
       return Fail(kErrReturnWithoutGosub);
     {
       const GosubFrame gosub = gosub_stack_.back();
+      if (!sub_stack_.empty() &&
+          gosub_stack_.size() <= sub_stack_.back().gosub_depth)
+        return Fail(kErrReturnWithoutGosub,
+                    "RETURN without GOSUB inside a procedure");
       if (LeavesSelect(gosub.return_pc))
         return Fail(kErrIllegalFunctionCall, "RETURN would leave a SELECT CASE");
       // A subroutine may return from inside one or more FOR loops. Restore
@@ -3115,6 +3413,9 @@ bool Vm::StepImpl() {
       // loops that were already active before the call stay in place.
       if (for_stack_.size() > gosub.for_depth)
         for_stack_.resize(gosub.for_depth);
+      // A timer/error handler may have pushed a global barrier above the
+      // caller's scope; drop it before resuming.
+      UnwindScopesTo(gosub.scope_depth);
       in_event_ = false; // a timer handler finished
       pc_ = gosub.return_pc;
       gosub_stack_.pop_back();
@@ -3137,6 +3438,9 @@ bool Vm::StepImpl() {
       const int target = table[static_cast<std::size_t>(index - 1)];
       if (target < 0)
         return Fail(kErrUndefinedLineNumber);
+      const std::optional<int> target_line = program_.LineForPc(target);
+      if (!target_line || !CheckJumpTarget(*target_line))
+        return false;
       if (in.b == 1)
         PushGosub(pc_);
       else if (LeavesSelect(target))
@@ -3173,12 +3477,18 @@ bool Vm::StepImpl() {
       args[i] = Pop();
     FuncFrame frame;
     frame.return_pc = pc_;
+    // A DEF FN body is global-scoped: it must not see the locals of a procedure
+    // that called it. The barrier is popped by UserReturn (and on a failed
+    // parameter store).
+    PushGlobalBarrier();
     for (const std::string& param : fn.params) {
       frame.saved.emplace_back(param, LoadVariable(param));
     }
     for (std::size_t i = 0; i < fn.params.size() && i < args.size(); ++i) {
-      if (!StoreVariable(fn.params[i], args[i]))
+      if (!StoreVariable(fn.params[i], args[i])) {
+        PopScope();
         return false;
+      }
     }
     func_stack_.push_back(std::move(frame));
     pc_ = fn.body_pc;
@@ -3193,8 +3503,81 @@ bool Vm::StepImpl() {
     for (const auto& entry : frame.saved) {
       vars_[CanonicalVarName(entry.first)] = entry.second;
     }
+    PopScope(); // the DEF FN global barrier
     pc_ = frame.return_pc;
     Push(result);
+    break;
+  }
+  case Op::CallProc: {
+    if (in.a < 0 || static_cast<std::size_t>(in.a) >= program_.procedures_.size())
+      return Fail(kErrUndefinedProcedure);
+    const Procedure& proc = program_.procedures_[static_cast<std::size_t>(in.a)];
+    if (proc.body_pc < 0)
+      return Fail(kErrInternal);
+    if (in.b < 0 || static_cast<std::size_t>(in.b) != proc.params.size())
+      return Fail(kErrIllegalFunctionCall, "Procedure argument count mismatch");
+    if (sub_stack_.size() + func_stack_.size() >= kMaxCallDepth)
+      return Fail(kErrCallStackOverflow);
+    std::vector<Value> args(static_cast<std::size_t>(in.b));
+    for (std::size_t i = args.size(); i-- > 0;)
+      args[i] = Pop();
+    SubFrame frame;
+    frame.proc_index = in.a;
+    frame.return_pc = pc_;
+    frame.for_depth = for_stack_.size();
+    frame.select_depth = select_stack_.size();
+    frame.gosub_depth = gosub_stack_.size();
+    frame.sequence = ++call_sequence_;
+    for (const ProcParam& param : proc.params)
+      frame.locals[param.name] = DefaultValueForKind(param.kind);
+    for (const ProcParam& local : proc.locals)
+      frame.locals[local.name] = DefaultValueForKind(local.kind);
+    if (proc.kind == ProcKind::Function)
+      frame.locals[proc.result_name] =
+          DefaultValueForKind(KindForName(proc.result_name));
+    for (std::size_t i = 0; i < proc.params.size(); ++i) {
+      Value converted;
+      if (!ConvertForName(proc.params[i].name, args[i], &converted))
+        return false; // no frame was pushed
+      frame.locals[proc.params[i].name] = converted;
+    }
+    const std::size_t index = sub_stack_.size();
+    sub_stack_.push_back(std::move(frame));
+    PushScope(ScopeRef{ScopeKind::Sub, index});
+    pc_ = proc.body_pc;
+    break;
+  }
+  case Op::SubReturn: {
+    if (sub_stack_.empty())
+      return Fail(kErrReturnWithoutGosub, "Procedure return without an active procedure");
+    if (sub_stack_.back().proc_index < 0 ||
+        static_cast<std::size_t>(sub_stack_.back().proc_index) >= program_.procedures_.size())
+      return Fail(kErrInternal);
+    SubFrame frame = std::move(sub_stack_.back());
+    if (select_stack_.size() > frame.select_depth)
+      return Fail(kErrIllegalFunctionCall,
+                  "Procedure return would leave a SELECT CASE");
+    if (gosub_stack_.size() > frame.gosub_depth)
+      return Fail(kErrIllegalFunctionCall,
+                  "Procedure return inside a GOSUB");
+    if (for_stack_.size() > frame.for_depth)
+      for_stack_.resize(frame.for_depth);
+    Value result;
+    if (in.a != 0) {
+      const Procedure& proc = program_.procedures_[static_cast<std::size_t>(frame.proc_index)];
+      const auto it = frame.locals.find(proc.result_name);
+      result = it == frame.locals.end()
+                   ? DefaultValueForKind(KindForName(proc.result_name))
+                   : it->second;
+    }
+    if (scope_stack_.empty() || scope_stack_.back().kind != ScopeKind::Sub ||
+        scope_stack_.back().sub_index != sub_stack_.size() - 1)
+      return Fail(kErrInternal, "Procedure scope stack mismatch");
+    scope_stack_.pop_back();
+    sub_stack_.pop_back();
+    pc_ = frame.return_pc;
+    if (in.a != 0)
+      Push(result);
     break;
   }
   case Op::OnError:
@@ -3205,17 +3588,26 @@ bool Vm::StepImpl() {
     if (!handling_error_ && error_pc_ < 0)
       return Fail(kErrResumeWithoutError);
     handling_error_ = false;
+    if (error_scope_barrier_) {
+      if (!scope_stack_.empty() && scope_stack_.back().kind == ScopeKind::GlobalBarrier)
+        scope_stack_.pop_back();
+      error_scope_barrier_ = false;
+    }
     switch (in.b) {
     case 0: // RESUME: retry the statement that failed
       pc_ = error_pc_;
       break;
     case 1: // RESUME NEXT
       pc_ = error_next_pc_;
+      if (!ReconcileSubScopes(pc_))
+        return false;
       break;
     default: // RESUME <line>
       if (in.a < 0)
         return Fail(kErrUndefinedLineNumber);
       pc_ = in.a;
+      if (!ReconcileSubScopes(pc_))
+        return false;
       break;
     }
     break;
@@ -3612,7 +4004,7 @@ bool Vm::StepImpl() {
       } else if (item.target->array) {
         item.array->data[item.offset] = std::move(item.value);
       } else {
-        vars_[item.target->name] = std::move(item.value);
+        StoreCanonicalValue(CanonicalVarName(item.target->name), std::move(item.value));
       }
     }
     if (pop) {
@@ -3769,7 +4161,7 @@ RunResult Vm::Run() {
         timer_last_ = now;
         main_step_done_ = false;
         in_event_ = true;
-        PushGosub(pc_);
+        PushGosub(pc_, true);
         pc_ = timer_handler_pc_;
       }
     }

@@ -38,6 +38,7 @@ add_executable(newbasic-tests
   test_graphics.cpp
   test_drawtext.cpp
   test_new_features.cpp
+  test_subs.cpp
   test_stack.cpp
   test_sound.cpp
   test_text_render.cpp
