@@ -468,7 +468,30 @@ DRAW command$
 
 ### Comments
 
-Commands include `U`, `D`, `L`, `R`, `E`, `F`, `G`, `H`, `M`, `B`, and `N`, with optional distances. The drawing starts at the current graphics point. `DRAW` requires a graphics mode. Unsupported macro letters raise **Illegal function call**.
+The command string is case-insensitive. The drawing starts at the current graphics point and requires a graphics mode. Unsupported macro letters, invalid numeric arguments, and `X` string expansion raise **Illegal function call**.
+
+The supported commands are:
+
+| Command | Abbreviation | Description |
+|---|---|---|
+| `U` | Up | Move up by the optional distance. The default is one unit. |
+| `D` | Down | Move down by the optional distance. The default is one unit. |
+| `L` | Left | Move left by the optional distance. The default is one unit. |
+| `R` | Right | Move right by the optional distance. The default is one unit. |
+| `E` | Northeast | Move diagonally up and right by the optional distance. |
+| `F` | Southeast | Move diagonally down and right by the optional distance. |
+| `G` | Southwest | Move diagonally down and left by the optional distance. |
+| `H` | Northwest | Move diagonally up and left by the optional distance. |
+| `M` | Move | Move to an absolute point. A signed `x` makes both coordinates relative to the current point. |
+| `A` | Angle | Set the direction to `0`, `1`, `2`, or `3` quarter-turns (0°, 90°, 180°, or 270°). |
+| `TA` | Turn | Turn the current direction by a signed angle in degrees. Positive values turn counter-clockwise. |
+| `C` | Color | Set the drawing colour for subsequent commands. The value is `0`–`15`. |
+| `S` | Scale | Set the movement scale from `1` to `255`. Distances use `S / 4` as their scale factor. |
+| `P` | Paint | Flood-fill from the current point using `paint,boundary` colours. Both values are `0`–`15`. |
+| `B` | Blank | Prefix the next movement command so it moves without drawing. |
+| `N` | Home | Prefix the next movement command so it draws and then returns the current point to its starting position. |
+
+`B` and `N` are prefixes, not standalone drawing commands. Movement commands accept an optional unsigned distance; omitted distances mean one unit. `TA` uses a signed angle, and `M` uses a signed `x` to select relative movement.
 
 ### Examples
 
