@@ -1,8 +1,9 @@
 # baslib — a generic BASIC control framework
 
-**Status:** Draft 0.2 — planning only. No library code has been written yet.  
+**Status:** Implemented 0.2 — shipped in [`baslib.bas`](baslib.bas).  
 **Target:** newbasic (GW-BASIC-compatible dialect in this repository)  
 **Implementation plan:** [`baslib-imp.md`](baslib-imp.md)  
+**Programmer reference:** [`baslib-prog-ref.md`](baslib-prog-ref.md)  
 **Last updated:** 2026-10-24
 
 This document records the design agreed so far. The existing sketches are in [`stackish.bas`](../samples/baslib/stackish.bas) and [`windows.bas`](../samples/baslib/windows.bas); they are prototypes, not the final implementation. The real library, demo, tests, and this plan live in the top-level `baslib/` directory.
@@ -27,7 +28,18 @@ Create a reusable BASIC source library that manages a tree of graphical controls
 - user controls that paint themselves (v0.1: button and label; v0.2: slider, gauge, dial);
 - click targets that respond to mouse input.
 
-Each control has a class. Every instance of a class shares one class handler. Instances have independent state, stored in arrays. Parameters and return values travel through the language `STACK`; class and verb handlers are reached through computed `GOSUB` and computed `GOTO`.
+Each control has a class. Instances have independent state, stored in arrays.
+The shipped 0.2 library uses `SUB`/`FUNCTION` procedures with per-call `LOCAL`
+variables for layout, painting, recursion, and text helpers. It does **not**
+use a frame protocol or class-handler dispatch; the public API uses request and
+result globals and the `blApi...` labels. The original design's `STACK`/computed
+`GOSUB` sections are retained as historical rationale, not as the implemented
+control flow.
+
+> **Implementation note (2026-10-24):** where this document and
+> [`baslib-prog-ref.md`](baslib-prog-ref.md) disagree, the programmer reference
+> and `baslib.bas` are authoritative. The frame, dispatch, and class-router
+> sections below are design history.
 
 The library is a *source fragment*, not an interpreter extension. A host
 program merges it with its own source and calls labelled entry points backed by

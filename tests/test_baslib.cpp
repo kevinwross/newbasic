@@ -84,7 +84,7 @@ TEST_CASE("baslib: init, constants, and labels", "[baslib]") {
   REQUIRE(RunHost(host, &screen, &result));
   CHECK(result.status == newbasic::RunResult::Status::Done);
   CHECK(Row(screen, 0) == " 0");
-  CHECK(Row(screen, 1) == "0.1 255");
+  CHECK(Row(screen, 1) == "0.2 255");
 }
 
 TEST_CASE("baslib: create, layout, paint, hit-test, and click event", "[baslib]") {
@@ -177,41 +177,35 @@ TEST_CASE("baslib: root uses the current canvas size", "[baslib]") {
   CHECK(Row(screen, 0) == " 320  200");
 }
 
-TEST_CASE("baslib: frame depth and balance", "[baslib]") {
+TEST_CASE("baslib: nested layout uses per-call locals", "[baslib]") {
+  // A horizontal panel inside a vertical panel used to let the inner layout
+  // clobber the outer cursor, so the sibling after it was misplaced. The
+  // SUB/LOCAL rewrite must keep each layout activation independent.
   const std::string host =
       "10 SCREEN 720\n"
       "20 GOSUB blApiInit\n"
-      "30 FOR I% = 1 TO 32\n"
-      "40 GOSUB blFramePush\n"
-      "50 NEXT I%\n"
-      "60 PRINT blFp%; blStatus%\n"
-      "70 GOSUB blFramePush : PRINT blFp%; blStatus%\n"
-      "80 FOR I% = 1 TO 32\n"
-      "90 GOSUB blFrameDrop : STACK POP X#, S$\n"
-      "100 NEXT I%\n"
-      "110 PRINT blFp%\n"
-      "120 END\n";
+      "30 blReqClass% = 2 : blReqParent% = 1 : blReqX% = 10 : blReqY% = 10\n"
+      "35 blReqW% = 400 : blReqH% = 300 : blReqMode% = 1 : blReqPad% = 4 : blReqGap% = 4\n"
+      "40 GOSUB blApiCreate : M% = blRetHandle%\n"
+      "50 blReqClass% = 2 : blReqParent% = M% : blReqX% = 0 : blReqY% = 0\n"
+      "55 blReqW% = 100 : blReqH% = 100 : blReqMode% = 2 : blReqPad% = 2 : blReqGap% = 2\n"
+      "60 GOSUB blApiCreate : R% = blRetHandle%\n"
+      "70 blReqClass% = 3 : blReqParent% = R% : blReqKind% = 1 : blReqX% = 0 : blReqY% = 0\n"
+      "75 blReqW% = 60 : blReqH% = 20 : GOSUB blApiCreate : B% = blRetHandle%\n"
+      "80 blReqClass% = 3 : blReqParent% = M% : blReqKind% = 2 : blReqX% = 0 : blReqY% = 0\n"
+      "85 blReqW% = 60 : blReqH% = 20 : GOSUB blApiCreate : S% = blRetHandle%\n"
+      "90 GOSUB blApiLayoutAll\n"
+      "100 PRINT blCtl%(R%,11); blCtl%(R%,12); blCtl%(R%,9); blCtl%(R%,10)\n"
+      "110 PRINT blCtl%(B%,11); blCtl%(B%,12); blCtl%(B%,9); blCtl%(B%,10)\n"
+      "120 PRINT blCtl%(S%,11); blCtl%(S%,12); blCtl%(S%,9); blCtl%(S%,10)\n"
+      "130 END\n";
   newbasic::screen::HeadlessScreen screen;
   newbasic::RunResult result;
   REQUIRE(RunHost(host, &screen, &result));
   CHECK(result.status == newbasic::RunResult::Status::Done);
-  CHECK(Row(screen, 0) == " 32  0");
-  CHECK(Row(screen, 1) == " 32  6");
-  CHECK(Row(screen, 2) == " 0");
-}
-
-TEST_CASE("baslib: blSend uses the frame protocol", "[baslib]") {
-  const std::string host = "10 SCREEN 720\n"
-                           "20 GOSUB blApiInit\n"
-                           "30 blCallCtl% = 1 : blCallVerb% = 1\n"
-                           "40 GOSUB blSend\n"
-                           "50 PRINT blStatus%; blFp%\n"
-                           "60 END\n";
-  newbasic::screen::HeadlessScreen screen;
-  newbasic::RunResult result;
-  REQUIRE(RunHost(host, &screen, &result));
-  CHECK(result.status == newbasic::RunResult::Status::Done);
-  CHECK(Row(screen, 0) == " 0  0");
+  CHECK(Row(screen, 0) == " 14  14  392  100");
+  CHECK(Row(screen, 1) == " 16  16  60  96");
+  CHECK(Row(screen, 2) == " 14  118  392  20");
 }
 
 TEST_CASE("baslib: 255-control ceiling", "[baslib]") {
@@ -326,7 +320,7 @@ TEST_CASE("baslib: dynamic class registration", "[baslib]") {
   const std::string host =
       "10 SCREEN 720\n"
       "20 GOSUB blApiInit\n"
-      "30 blReqClass% = 5 : blReqLine& = 500990 : blReqText$ = \"Extra\"\n"
+      "30 blReqClass% = 5 : blReqLine& = 502999 : blReqText$ = \"Extra\"\n"
       "40 GOSUB blApiRegisterClass\n"
       "50 PRINT blStatus%; blMethod&(5,1)\n"
       "60 END\n";
@@ -334,7 +328,7 @@ TEST_CASE("baslib: dynamic class registration", "[baslib]") {
   newbasic::RunResult result;
   REQUIRE(RunHost(host, &screen, &result));
   CHECK(result.status == newbasic::RunResult::Status::Done);
-  CHECK(Row(screen, 0) == " 0  500990");
+  CHECK(Row(screen, 0) == " 0  502999");
 }
 
 TEST_CASE("baslib: paint preserves the host viewport", "[baslib]") {
@@ -398,9 +392,12 @@ TEST_CASE("baslib: namespace, suffix, and API-label audit", "[baslib]") {
   std::istringstream input(ReadAll(std::string(NEWBASIC_BASLIB_DIR) + "/baslib.bas"));
   std::string line;
   std::set<std::string> labels;
+  std::set<std::string> procedures;
   std::map<int, std::string> api_labels;
   std::vector<std::string> lines;
   const std::regex label_re(R"(^(\d+)\s+LABEL\s+([A-Za-z_][A-Za-z0-9_]*))");
+  const std::regex proc_re(
+      R"(^(\d+)\s+(?:SUB|FUNCTION)\s+([A-Za-z_][A-Za-z0-9_]*[%#$&]?)(?:\s*\(.*\))?\s*$)");
   while (std::getline(input, line)) {
     lines.push_back(line);
     std::smatch match;
@@ -410,6 +407,8 @@ TEST_CASE("baslib: namespace, suffix, and API-label audit", "[baslib]") {
       if (std::stoi(match[1].str()) >= 510000 && std::stoi(match[1].str()) <= 511999 &&
           label_name.rfind("blApi", 0) == 0)
         api_labels[std::stoi(match[1].str())] = label_name;
+    } else if (std::regex_match(line, match, proc_re)) {
+      procedures.insert(match[2].str());
     }
   }
 
@@ -437,7 +436,7 @@ TEST_CASE("baslib: namespace, suffix, and API-label audit", "[baslib]") {
     for (std::sregex_iterator it(code.begin(), code.end(), token_re), end; it != end; ++it) {
       const std::string name = (*it)[1].str();
       const std::string suffix = (*it)[2].str();
-      if (suffix.empty() && labels.count(name) == 0) {
+      if (suffix.empty() && labels.count(name) == 0 && procedures.count(name) == 0) {
         INFO("unsuffixed baslib token: " << name << " in: " << source_line);
         CHECK(false);
       }

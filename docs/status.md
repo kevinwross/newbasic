@@ -1,4 +1,4 @@
-> **2026-10-24:** Tokenized and protected program-file support was removed. `SAVE`/`LOAD`/`MERGE` are plain-text only. Historical notes below are retained for provenance.
+> **2026-10-24:** Tokenized and protected program-file support was removed. `SAVE`/`LOAD`/`MERGE` are plain-text only. `SUB`/`FUNCTION`/`LOCAL` procedures and `CALL` were added; baslib 0.2 was migrated to `SUB`/`LOCAL`. Suite: 513 cases / 32,644 assertions, CTest 7/7. Historical notes below are retained for provenance.
 
 # Upstream status snapshot — 2026-10-17
 

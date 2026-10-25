@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $here = $PSScriptRoot
 $repo = (Resolve-Path (Join-Path $here "..\..")).Path
 if ([string]::IsNullOrWhiteSpace($Newbasic)) {
-    $Newbasic = Join-Path $repo "out\src\newbasic-cli\Release\newbasic.exe"
+    $Newbasic = Join-Path $repo "bin\Release\newbasic.exe"
 }
 $Newbasic = (Resolve-Path $Newbasic).Path
 $library = Join-Path $repo "baslib\baslib.bas"

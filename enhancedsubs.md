@@ -1,6 +1,6 @@
 # Enhanced SUB/FUNCTION and lexical locals — implementation plan
 
-**Status:** Proposal only. No implementation has started.  
+**Status:** Implemented; M1–M6 complete (2026-10-24).  
 **Date:** 2026-10-24  
 **Feature:** "Idea #1" — scoped procedures, parameters, local variables, and functions  
 **Primary motivation:** remove the frame protocol and shared-scratch workarounds in
@@ -8,6 +8,25 @@
 programs.  
 **Approval gate:** do not write code until this plan and the decisions in
 [§11](#11-decisions-needed) are approved.
+
+### Implementation status (2026-10-24)
+
+- **M1–M6: complete.** Keywords, procedure metadata, pre-scan, compile-time
+  checks, VM frames/scopes, functions, recursion, boundary checks, error
+  handling, snapshots, debugger and DAP support are implemented.
+- **M5: complete.** RefManual entries for `SUB`, `FUNCTION`, `LOCAL`, `CALL`,
+  `EXIT`, and `END`; README index/porting notes; `samples/subs.bas`; INCLUDE,
+  RENUM, ON TIMER, and RESUME coverage; `SELECT CASE` activation fix found
+  during the baslib migration.
+- **M6: complete.** baslib 0.2 rewrites its internals with `SUB`/`FUNCTION`/
+  `LOCAL`, removes the frame/dispatch protocol, keeps the public `blApi...`
+  ABI and numeric lines, and fixes nested-panel layout. baslib tests and demos
+  pass.
+- The shipped implementation follows the recommended defaults: named per-call
+  scopes, function result assignment, `LOCAL` at the top, no `BYREF`/local
+  arrays, strict procedure boundaries, main-only error/timer handlers, and a
+  256-call depth limit.
+- Full suite after M6: 513 cases / 32,644 assertions passing; CTest 7/7.
 
 ---
 
@@ -1240,25 +1259,30 @@ rewind through recursion.
 
 ### M5 — Documentation, inventory, samples, full regression
 
-- Update `RefManual` and index.
-- Add sample(s).
-- Update `test_inventory`.
-- Update project status docs.
-- Run the full suite on Windows and Linux.
-- Run baslib demos/tests (no baslib source changes yet).
+- Update `RefManual` and index. **Done.**
+- Add sample(s). **Done:** `samples/subs.bas`.
+- Update `test_inventory`. **Done.**
+- Update project status docs. **Done.**
+- Run the full suite on Windows and Linux. **Windows done:** 513 cases /
+  32,644 assertions, CTest 7/7. The Linux port remains a separate environment.
+- Run baslib demos/tests (no baslib source changes yet). **Done before M6.**
 - Final performance notes.
 
 **Gate:** all tests pass; docs are consistent; no known blocking issues.
 
-### M6 — baslib proof-of-concept and migration (separate)
+### M6 — baslib migration
 
 - Convert one or two baslib internals to `SUB`/`LOCAL` on a branch.
 - Verify nested layout and frame reduction.
 - Decide whether to migrate the full library.
 - Keep the public API and line contract stable.
 
-**Gate:** a deliberate go/no-go on full baslib migration, separate from the
-language feature.
+**Delivered:** full migration, not a proof-of-concept. All internal routines
+are `SUB`/`FUNCTION`/`LOCAL`; the frame/dispatch protocol and `STACK` use are
+gone; nested layout is fixed; the public API, line numbers, and action-line
+contract are unchanged. baslib is version 0.2 and its tests/demos pass.
+
+**Gate:** met; migration is complete and covered by the full suite.
 
 ---
 

@@ -42,8 +42,7 @@ NEWBASIC=/path/to/newbasic bash baslib/tests/run_cli.sh
 |---|---|
 | `baslib: init, constants, and labels` | M1 constants, init, API labels |
 | `baslib: create, layout, paint, hit-test, and click event` | M3/M5/M6/M7/M8 |
-| `baslib: frame depth and balance` | M2 |
-| `baslib: blSend uses the frame protocol` | M2/M4 |
+| `baslib: nested layout uses per-call locals` | M5/M6 (nested-panel regression) |
 | `baslib: 255-control ceiling` | M3 |
 | `baslib: action-line dispatch reaches host code` | M4/M9 |
 | `baslib: destroy, re-init, layout, and host sentinel` | M3/M5/M10 |

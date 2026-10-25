@@ -1,6 +1,6 @@
 # baslib Programmer's Reference and User Guide
 
-**Library version:** 0.1 (`blVersion$ = "0.1"`, `blVersionNum# = 0.1`)  
+**Library version:** 0.2 (`blVersion$ = "0.2"`, `blVersionNum# = 0.2`)  
 **Target dialect:** newbasic (GW-BASIC-compatible, plus newbasic extensions)  
 **Implementation:** [`baslib.bas`](baslib.bas)  
 **Design:** [`baslib-plan.md`](baslib-plan.md)  
@@ -9,10 +9,11 @@
 **Other library sources:** [`tests/`](tests/)
 
 > **Read this first.** This guide documents the **shipped implementation** in
-> `baslib.bas`, not only the intended design in `baslib-plan.md`. The library
-> still calls itself 0.1, although some plan-0.2 value controls are present.
-> Section 15 lists every place where the current build differs from the plan.
-> When the two disagree, the implementation is what runs.
+> `baslib.bas`, not only the intended design in `baslib-plan.md`. Version 0.2
+> replaces the old frame/`STACK` dispatch with `SUB`/`FUNCTION`/`LOCAL`
+> procedures; the public `blApi...` ABI and request/result globals are
+> unchanged. Section 15 lists every place where the current build differs from
+> the plan. When the two disagree, the implementation is what runs.
 
 ---
 
@@ -125,7 +126,8 @@ the project's reference manual.
 | `TEXTWIDTH`, `TEXTHEIGHT` | Centering, truncation, auto-size | [TEXTWIDTH](../RefManual/T.md#textwidth-function), [TEXTHEIGHT](../RefManual/T.md#textheight-function) |
 | `PUSH VIEW` / `POP VIEW` | Preserve the host viewport across paint | [PUSH VIEW](../RefManual/P.md#push-view-statement), [POP VIEW](../RefManual/P.md#pop-view-statement) |
 | `SCREENW`, `SCREENH` | Root size when the host does not supply one | [SCREENW](../RefManual/S.md#screenw-function), [SCREENH](../RefManual/S.md#screenh-function) |
-| `STACK` | Internal frame protocol and recursion sentinels | [STACK](../RefManual/S.md#stack-statement) |
+| `SUB` / `FUNCTION` / `LOCAL` | Internal procedures, recursion, per-call scratch | [SUB](../RefManual/S.md#sub-statement), [FUNCTION](../RefManual/F.md#function-statement), [LOCAL](../RefManual/L.md#local-statement) |
+| `CALL` / `EXIT SUB` / `EXIT FUNCTION` | Internal calls and early returns | [CALL](../RefManual/C.md#call-statement), [EXIT](../RefManual/E.md#exit-statement) |
 | `LABEL` | Public API entry points; host labels | [LABEL](../RefManual/L.md#label-statement) |
 | `CONST` | Read-only limits, statuses, IDs, flags | [CONST](../RefManual/C.md#const-statement) |
 | `MOUSEB`, `MOUSEX`, `MOUSEY` | Queued click and latched coordinates | [MOUSEB](../RefManual/M.md#mouseb-function), [MOUSEX](../RefManual/M.md#mousex-function), [MOUSEY](../RefManual/M.md#mousey-function) |
@@ -137,10 +139,10 @@ the project's reference manual.
 | `TIMER`, `TIME$` | Timestamps and on-screen clock text | [TIMER](../RefManual/T.md#timer-function), [TIME$](../RefManual/T.md#time-function) |
 | `SLEEP` | Host loop pacing in milliseconds | [SLEEP](../RefManual/S.md#sleep-statement) |
 
-`STACK` deserves one warning: the library uses it, and so may the host. baslib
-balances its own use, but a host that leaves an extra value on the stack will
-eventually cause a type mismatch or an underflow in its own code. The sentinel
-test in §3.5 catches this.
+baslib 0.2 uses no `STACK` at all. Layout, paint, destroy, and text helpers are
+ordinary `SUB`/`FUNCTION` calls with `LOCAL` variables, so recursive calls have
+private state. Host `STACK` use is therefore independent of baslib; a host may
+still use it for its own data, but the old frame sentinel no longer exists.
 
 ---
 
@@ -294,15 +296,18 @@ The host should use matching types in request globals. `blReqValue#` is double;
 | Do not call baslib from an `ON TIMER` handler | a timer can interrupt a library call and clobber shared scratch state |
 | Drain events every frame | `blApiPollInput` adds events; the ring holds only 64 |
 | Repaint after geometry changes | there is no damage compositor |
-| Keep host values on `STACK` balanced | baslib preserves them, but a host leak is still a host bug |
+| Keep host values on `STACK` balanced | baslib 0.2 never touches `STACK`; a leak is still a host bug |
 
 ### 3.5 STACK coexistence
 
-baslib uses `STACK` as a recursion/work sentinel in layout, paint, and destroy
-paths, and the internal dispatch protocol uses it too. Public API calls are
-balanced: a host value pushed before a call is still there afterward.
+baslib 0.2 does not touch `STACK`. Layout, paint, destroy, text fitting, and
+wrapping are procedures with `LOCAL` state, so a host value pushed before an
+API call is untouched by the call. The old frame-depth/sentinel protocol is
+gone; a host no longer needs to pop anything after `blApiCreate` or
+`blApiPaintAll`.
 
-A useful integration test is:
+The same integration check still works, and now simply proves that baslib is
+out of the stack's way:
 
 ```basic
 STACK PUSH 12345
@@ -312,8 +317,8 @@ STACK POP X%
 IF X% <> 12345 THEN PRINT "STACK leak": END
 ```
 
-`CLEAR`, `RUN`, `LOAD`, `NEW`, and `CHAIN` clear `STACK`. Re-run `blApiInit`
-after any of them.
+`CLEAR`, `RUN`, `LOAD`, `NEW`, and `CHAIN` clear `STACK` and reset library
+state. Re-run `blApiInit` after any of them, as before.
 
 ### 3.6 Status versus runtime errors
 
@@ -611,12 +616,12 @@ read-only, available before the first instruction, and safe to read in host code
 
 | Constant | Value | Meaning |
 |---|---:|---|
-| `blVersion$` | `"0.1"` | Library version string |
-| `blVersionNum#` | `0.1` | Numeric version |
+| `blVersion$` | `"0.2"` | Library version string |
+| `blVersionNum#` | `0.2` | Numeric version |
 | `blMaxControls%` | 255 | Handles 1-255; index 0 is null |
-| `blMaxFrames%` | 32 | Maximum internal dispatch depth |
-| `blMaxArgs%` | 8 | Numeric args per internal frame |
-| `blMaxStrArgs%` | 2 | String args per internal frame |
+| `blMaxFrames%` | 32 | Reserved compatibility constant; 0.2 has no frame protocol |
+| `blMaxArgs%` | 8 | Reserved compatibility constant |
+| `blMaxStrArgs%` | 2 | Reserved compatibility constant |
 | `blMaxClasses%` | 16 | Method-table rows |
 | `blMaxVerbs%` | 20 | Method-table columns |
 | `blMaxKinds%` | 8 | User-kind method rows |
@@ -634,8 +639,8 @@ read-only, available before the first instruction, and safe to read in host code
 | `blStatusControlTableFull%` | 2 | No free handle |
 | `blStatusInvalidHandle%` | 3 | Handle is 0, out of range, or free |
 | `blStatusInvalidClass%` | 4 | Class ID is not 2-4 for create, or wrong class for the call |
-| `blStatusInvalidVerb%` | 5 | Internal dispatch only |
-| `blStatusFrameOverflow%` | 6 | Internal dispatch depth exceeded |
+| `blStatusInvalidVerb%` | 5 | Reserved; no internal dispatch in 0.2 |
+| `blStatusFrameOverflow%` | 6 | Reserved; no frame protocol in 0.2 |
 | `blStatusInvalidParent%` | 7 | Parent handle is invalid or free |
 | `blStatusCannotDestroyRoot%` | 8 | Refused to destroy the root |
 | `blStatusInvalidGeometry%` | 9 | Reserved; current API does not validate geometry |
@@ -644,7 +649,7 @@ read-only, available before the first instruction, and safe to read in host code
 | `blStatusEventQueueFull%` | 12 | Event ring full; the event was dropped |
 | `blStatusEventQueueEmpty%` | 13 | `blApiNextEvent` called with no events |
 | `blStatusNoGraphics%` | 14 | Reserved; `blInit` falls back to 640x400 |
-| `blStatusFrameProtocol%` | 15 | Internal frame protocol only |
+| `blStatusFrameProtocol%` | 15 | Reserved; no frame protocol in 0.2 |
 | `blStatusMissingActionHandler%` | 16 | Reserved |
 | `blStatusClassTableFull%` | 17 | Reserved |
 
@@ -716,21 +721,23 @@ tooling; use the label in source.
 | 511300 | `blApiPaintAll` | `blPaintAll` | Lay out if needed and repaint everything |
 | 511400 | `blApiUpdate` | `blUpdate` | Repaint a control and its subtree |
 | 511500 | `blApiPollInput` | `blPollInput` | Poll mouse, dispatch clicks, queue events |
-| 511550 | `blApiPollMouse` | `blPollMouse` | Alias for `blApiPollInput` |
-| 511600 | `blApiNextEvent` | `blNextEvent` | Pop one event into the `blEvent...` globals |
-| 511700 | `blApiFindAt` | `blFindAt` | Hit test an absolute point |
-| 511800 | `blApiTestClickAt` | `blTestClickAt` | Synthetic click at absolute coordinates |
-| 511810 | `blApiTestMouseMove` | `blTestMouseMove` | Synthetic live move |
-| 511820 | `blApiTestMouseButton` | `blTestMouseButton` | Synthetic button down/up |
+| 511550 | `blApiPollMouse` | — | Alias: `GOTO blApiPollInput` |
+| 511600 | `blApiNextEvent` | `blReadEvent` | Pop one event into the `blEvent...` globals |
+| 511700 | `blApiFindAt` | `blHitTest%` | Hit test an absolute point |
+| 511800 | `blApiTestClickAt` | `blClickAt` | Synthetic click at absolute coordinates |
+| 511810 | `blApiTestMouseMove` | `blTestMove` | Synthetic live move |
+| 511820 | `blApiTestMouseButton` | `blTestButton` | Synthetic button down/up |
 | 511830 | `blApiTestWheel` | `blTestWheel` | Synthetic wheel |
 | 511900 | `blApiDump` | `blDump` | Print allocated controls (debug) |
 | 511910 | `blApiAutoSize` | `blAutoSize` | Size a user control to its text |
-| 511920 | `blApiSetActionLine` | `blSetActionLine` | Map an action ID to a host line |
+| 511920 | `blApiSetActionLine` | `blSetActionLineApi` | Map an action ID to a host line |
 | 511930 | `blApiRegisterClass` | `blRegisterClass` | Fill a host method-table row |
 | 511950 | `blApiSetEnabled` | `blSetEnabled` | Enable/disable a control |
 
-Routines with names like `blCreate`, `blPaintAll`, `blFramePush`, `blDispatch`,
-and `blSend` are **internal**. Host code calls only the `blApi...` labels.
+Routines with names like `blCreate`, `blPaintAll`, `blLayoutControl`, and
+`blHitTest%` are **internal** `SUB`/`FUNCTION` procedures. Host code calls only
+the `blApi...` labels with `GOSUB`. The old `blFramePush`/`blFrameDrop`/
+`blDispatch`/`blSend` frame protocol is removed in 0.2.
 
 ---
 
@@ -1361,12 +1368,12 @@ positive, otherwise 0.
 
 Important: the public API does **not** dispatch class methods. Paint, hit test,
 and click handling are implemented by numeric class/kind checks in the core,
-not by `blMethod&`. Registering a class therefore has no visible effect on
-normal host code. It is useful only if the host itself calls the internal
-`blDispatch`/`blSend` protocol. See §15.
+not by `blMethod&`. In 0.2 there is no `blDispatch`/`blSend` protocol at all;
+registering a class stores metadata only and has no visible effect on normal
+host code. See §15.
 
 ```basic
-blReqClass% = 5 : blReqLine& = 500990 : blReqText$ = "Extra"
+blReqClass% = 5 : blReqLine& = 502999 : blReqText$ = "Extra"
 GOSUB blApiRegisterClass
 ```
 
@@ -1419,11 +1426,10 @@ Important details:
 - The panel face is drawn unconditionally with `blPanel%(h,6)`; default 7.
 - Padding applies inside the panel's outer rectangle, not inside the border
   separately.
-- **Nested panels are unsafe in the current build** unless the nested panel is
-  the last child of its parent. The layout routine stores its mode, padding, gap,
-  and running cursor in shared globals; a nested layout overwrites them, so the
-  parent's remaining children are placed with the nested panel's settings. See
-  §9.2 and §15. The sample host uses one flat panel for this reason.
+- **Nested panels are supported in 0.2.** `blLayoutChildren` keeps its mode,
+  padding, gap, cursor, and clip state in `LOCAL` variables, so a nested layout
+  cannot overwrite the parent's remaining work. The sample host still uses a
+  flat panel because that is visually simpler, not because nesting is broken.
 
 ```basic
 GOSUB ResetReq
@@ -1726,19 +1732,12 @@ for each visible child:
 Absolute mode uses the child's stored local X/Y and does not modify width or
 height. Hidden children are skipped entirely; zero-size children are not.
 
-**Nested-container defect.** `blLayoutChildren` keeps `blMode%`, `blPad%`,
-`blGap%`, `blPX%`, `blPY%`, `blCW%`, `blCH%`, `blCX%`, and `blCY%` in shared
-globals. `blChild%` is saved across the recursive call, but the layout settings
-are not. After a nested panel lays out, the outer panel's remaining children use
-the nested mode/pad/gap and the wrong cursor. The visible symptom is that
-siblings after the nested panel overlap it or are arranged as a row.
-
-Workarounds in the current build:
-
-- use a **flat** panel (the sample host does this);
-- make the nested container the **last** child of its parent;
-- or bypass container layout for that area with absolute coordinates and no
-  deeper panels.
+**Nested containers (0.2).** `blLayoutChildren` is a `SUB` whose mode, padding,
+gap, parent rectangle, and running cursor are all `LOCAL`. Recursive calls get a
+fresh activation, so the outer panel resumes with its own state. A nested panel
+can be any child, not only the last one. The regression test in
+`tests/test_baslib.cpp` places a horizontal panel inside a vertical panel and
+checks the following sibling's position.
 
 ### 9.3 Paint order, viewport, and clipping
 
@@ -2311,7 +2310,7 @@ Before shipping a host:
 - [ ] No host names beginning with `bl`.
 - [ ] No `OPTION BASE 1`.
 - [ ] Host lines below 500000.
-- [ ] Host `STACK` sentinel still passes.
+- [ ] Host `STACK` non-interference check still passes.
 - [ ] `Esc` and a normal exit path tested.
 
 ---
@@ -2773,8 +2772,8 @@ and stays 0.
 | Clock updates only occasionally | `SLEEP` blocks timer servicing | Keep sleeps short (16 ms) |
 | Program seems to ignore keys | `INKEY$` not polled every frame, or key is a non-printable | Poll every frame; use printable keys and `Esc` |
 | Event queue seems stuck | Not draining every frame; move events fill the ring | Drain `WHILE blEventCount% > 0` |
-| Widgets overlap after adding a panel | Nested-panel layout defect | Keep the panel tree flat or nest last (§9.2) |
-| Host stack sentinel fails | A host `STACK` push/pop is unbalanced | Check the host, not baslib; run the sentinel test |
+| Widgets overlap after adding a panel | Parent mode/pad/gap or clip is wrong; 0.2 nesting itself is fixed | Check `blPanel%` fields and call `blApiLayoutAll` |
+| Host `STACK` check fails | A host `STACK` push/pop is unbalanced; baslib 0.2 does not use it | Check the host, not baslib |
 
 ### 14.3 Dump the tree
 
@@ -2793,18 +2792,21 @@ H 3 C 3 P 2 X 52 Y 36 W 616 H 24
 
 Use it to confirm class, parent, absolute position, and size after layout.
 
-### 14.4 Stack sentinel
+### 14.4 STACK non-interference
+
+0.2 does not use `STACK`, but the old integration check still proves that a
+host value survives library calls:
 
 ```basic
 STACK PUSH 12345
 GOSUB blApiInit
 GOSUB blApiPaintAll
 STACK POP X%
-IF X% <> 12345 THEN PRINT "STACK leak": END
+IF X% <> 12345 THEN PRINT "STACK changed": END
 ```
 
-Run this after adding new API calls. It catches a library or host imbalance
-quickly.
+Run this after adding new API calls. A failure now means the host itself
+unbalanced the stack, not that baslib used a frame.
 
 ### 14.5 Headless and synthetic testing
 
@@ -2842,18 +2844,19 @@ This exercises the same hit-test, bubble, and event code as a real click.
 
 ## 15. Current implementation notes and limitations
 
-The design in [`baslib-plan.md`](baslib-plan.md) describes a larger v0.2
-framework. The shipped build has the following concrete differences. Treat this
-table as part of the API contract until the implementation changes.
+The design in [`baslib-plan.md`](baslib-plan.md) is broader than the shipped
+0.2 build. The following concrete differences and limitations are part of the
+current API contract. Items marked **fixed in 0.2** were real defects or gaps in
+0.1 and are retained here so hosts can see what changed.
 
 ### 15.1 Dispatch and extension
 
 | Issue | Current behavior | Workaround |
 |---|---|---|
 | Class method dispatch | Public APIs use direct class/kind checks. `blMethod&` is not used for paint/hit/click. | Do not rely on class methods |
-| `blApiRegisterClass` | Fills a method-table row but has no effect on normal UI behavior | Use it only with the internal `blDispatch`/`blSend` protocol |
-| Class routers | `blTopRouter`, `blPanelRouter`, `blUserRouter`, `blClickRouter` are `RETURN` stubs | None needed for host code |
-| Version string | `blVersion$` is `"0.1"` even though some value controls are present | Report 0.1 behavior in bug reports |
+| `blApiRegisterClass` | Fills a method-table row for introspection only; there is no dispatch protocol | Treat it as metadata, not an extension hook |
+| Internal architecture | `SUB`/`FUNCTION`/`LOCAL` procedures; no class routers or frame protocol | Host code still calls only `blApi...` labels |
+| Version string | `blVersion$` is `"0.2"` | Report 0.2 behavior in bug reports |
 
 ### 15.2 Visual properties
 
@@ -2872,7 +2875,7 @@ table as part of the API contract until the implementation changes.
 
 | Issue | Current behavior | Workaround |
 |---|---|---|
-| Nested panels | Shared layout scratch globals corrupt the parent's remaining children | Flat panel tree, or nested container last |
+| Nested panels | Fixed in 0.2: each layout activation has `LOCAL` state, so nested panels no longer clobber the parent cursor | Nest normally |
 | Grid mode | Mode 3 is stored but behaves as absolute | Use modes 0/1/2 |
 | Per-control clipping | Clip rectangles are computed but not applied during paint | Keep children inside parents |
 | Host viewport | Paint preserves `VIEW` but does not rebase coordinates | Paint with the full-canvas viewport |
@@ -2955,7 +2958,7 @@ the geometry is stable.
 | Client area | Panel interior after padding |
 | Clip rectangle | Cached intersection of a control with its ancestors |
 | Control | One row in the tables, identified by a handle |
-| Frame | Internal `STACK` dispatch record (not used by host API calls) |
+| Procedure activation | One `SUB`/`FUNCTION` call with its own `LOCAL` variables |
 | Handle | Integer 1-255 identifying a control; 0 is null |
 | Hit test | Find the control under an absolute point |
 | Kind | User-control subtype: button, slider, gauge, dial, or label |
@@ -3002,10 +3005,12 @@ the geometry is stable.
 | 511930 | `blApiRegisterClass` |
 | 511950 | `blApiSetEnabled` |
 
-Internal labels used by baslib and tests but not part of the public contract:
-`blInit`, `blCreate`, `blDestroy`, `blPaintAll`, `blLayoutAll`, `blFramePush`,
-`blFrameLoad`, `blFrameClose`, `blFrameDrop`, `blDispatch`, `blSend`, `blNoop`,
-and the class routers.
+Internal procedures used by baslib and tests but not part of the public
+contract: `blInit`, `blCreate`, `blDestroy`, `blLayoutAll`,
+`blLayoutControl`, `blLayoutChildren`, `blPaintAll`, `blPaintTree`,
+`blPaintOne`, `blHitTest%`, `blClickAt`, `blPollInput`, `blNoop`, and the
+text/value helpers. They are `SUB`/`FUNCTION` definitions, not line-number
+entry points.
 
 ---
 

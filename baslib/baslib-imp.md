@@ -1,8 +1,8 @@
 # baslib implementation plan
 
-**Status:** Planning only — no baslib implementation has started.  
+**Status:** Implemented — baslib 0.2 ships in [`baslib.bas`](baslib.bas).  
 **Design source:** [`baslib-plan.md`](baslib-plan.md)  
-**Target release:** v0.1 first; v0.2 follows the same process.  
+**Current release:** 0.2 (SUB/FUNCTION/LOCAL rewrite; public ABI unchanged).  
 **Primary runtime:** newbasic on Windows and Linux.  
 **Last updated:** 2026-10-24
 
@@ -17,23 +17,23 @@ implemented, reviewed, and covered by the test named beside it.
 
 ## 0. Working rules
 
-- [ ] Read `baslib-plan.md` before starting a milestone.
-- [ ] Keep `baslib.bas` inside `500000–519999` and the host side inside `1–499999`.
-- [ ] Use the lowercase `bl` prefix for every baslib symbol and label.
-- [ ] Give every public entry point a `LABEL blApi...`; never call a public entry
+- [x] Keep `baslib.bas` inside `500000–519999` and the host side inside `1–499999`.
+- [x] Use the lowercase `bl` prefix for every baslib symbol, label, and procedure.
+- [x] Give every public entry point a `LABEL blApi...`; never call a public entry
       point by literal line from host code.
-- [ ] Keep the numeric API lines from `baslib-plan.md` §14.2 stable.
-- [ ] Use explicit type suffixes on every `bl` variable and array.
-- [ ] Keep `OPTION BASE` at the default `0`.
-- [ ] Never use `DIM` inside a paint, dispatch, or event loop.
-- [ ] Treat expected failures as `blStatus%`/`blError%` returns, not BASIC runtime
+- [x] Keep the numeric API lines from `baslib-plan.md` §14.2 stable.
+- [x] Use explicit type suffixes on every `bl` variable, array, and function.
+- [x] Keep `OPTION BASE` at the default `0`.
+- [x] Never `DIM` inside a paint, layout, or event loop.
+- [x] Treat expected failures as `blStatus%`/`blError%` returns, not BASIC runtime
       errors.
-- [ ] Keep host `STACK` values below baslib frames untouched.
-- [ ] Add or update a test for every behavior change.
-- [ ] Update this file and, when behavior changes, `baslib-plan.md` in the same
+- [x] Do not touch host `STACK` values; 0.2 has no frame protocol.
+- [x] Add or update a test for every behavior change.
+- [x] Update this file and, when behavior changes, `baslib-plan.md` in the same
       commit.
-- [ ] Do not begin a milestone until the previous milestone gate passes.
-- [ ] Prefer one milestone per commit and one focused test suite per milestone.
+- [x] Prefer one milestone per commit and one focused test suite per milestone.
+- [x] Put recursive/internal state in `LOCAL` variables, never shared scratch
+      globals.
 
 **Status legend:** `[ ]` not started · `[~]` in progress · `[x]` complete ·
 `[!]` blocked.
@@ -42,17 +42,15 @@ implemented, reviewed, and covered by the test named beside it.
 
 - `CONST name = literal` only. The constants block uses literal values; do not
   write computed constant expressions.
-- `LABEL` is compile-time. It is for direct `GOSUB`/`GOTO` calls; it cannot be
-  stored as a line value.
-- Method tables (`blMethod&`, `blUserMethod&`, `blPanelLayoutLine&`) and action
-  lines (`blActionLine&`) store numeric line values because dispatch uses
-  computed `GOSUB`/`GOTO`.
-- `blSetActionLine` therefore takes a numeric line, not a label. Document the
-  host action handler as a numeric line.
-- The library has no user-defined local variables; all state is explicit arrays
-  and the `STACK` frame protocol.
+- `LABEL` is compile-time. Public entry points are labels; internal routines are
+  `SUB`/`FUNCTION` definitions called with `CALL` or as functions.
+- Action lines (`blActionLine&`) store numeric host line values because the host
+  dispatches with a computed `GOSUB`. `blSetActionLine` therefore takes a numeric
+  line, not a label.
+- The library uses per-call `LOCAL` variables for recursion and scratch state.
+  Control data still lives in global arrays so handles and host inspection work.
 - `OPTION BASE 1` is unsupported; every array is base 0.
-- `STACK` has no depth query; track `blFp%` and work-item counts explicitly.
+- `STACK` is not used by baslib 0.2 and host values must survive library calls.
 - Do not use `ON ERROR` as expected control flow; return status codes.
 
 ---
@@ -61,67 +59,53 @@ implemented, reviewed, and covered by the test named beside it.
 
 The line map is a contract. Use `baslib-plan.md` §4.2 for the full description.
 
-| Range | Contents | Milestone |
-|---|---|---|
-| `1–499999` | Host program; never used by baslib | — |
-| `500000` | Hard `END` guard | M1 |
-| `500010–500099` | Version, limits, statuses, enums, flags, `blNoLine&` | M1 |
-| `500100–500299` | `STACK` frame protocol, depth state, argument cache/local storage | M2 |
-| `500300–500599` | Errors, validation, geometry, string and numeric helpers | M3 |
-| `500600–500999` | Method tables, action-line table, class/kind metadata | M4 |
-| `501000–501999` | Control table, handles, free list, tree links, create/destroy | M3 |
-| `502000–502999` | Dispatch, message helpers, result transport | M4 |
-| `503000–503999` | Layout pass, absolute rectangles, clipping, work-stack traversal | M5 |
-| `504000–504999` | Paint pass, `PUSH VIEW`/`VIEW`/`POP VIEW`, dirty/update plumbing | M6 |
-| `505000–505999` | Input polling, hit testing, hover/press/capture, event ring | M7 |
-| `506000–506999` | Top class methods | M8 |
-| `507000–507999` | Panel class methods | M8 |
-| `508000–508999` | User class and button/label kind methods | M8 |
-| `509000–509499` | Click-target class methods | M8 |
-| `509500–509999` | Shared drawing, text, geometry, event and value helpers | M8 |
-| `510000–511999` | Public API entry points and wrappers | M1 stubs, M8/M9 complete |
-| `512000–518999` | Debug/test helpers and example-only code | M9 |
-| `519000–519999` | Reserved for future public API | — |
+The actual 0.2 map is deliberately compact; the old per-milestone blocks below
+are retained only as history.
 
-### 1.1 Budget tracker
+| Range | Contents |
+|---|---|
+| `1–499999` | Host program; never used by baslib |
+| `500000` | Hard `END` guard |
+| `500010–500088` | Version, limits, statuses, enums, flags, `blNoLine&` |
+| `500100–500509` | Validation, allocation/linking, tables, create/destroy, setters |
+| `500700–501161` | Layout, paint, text fit/wrap, auto-size |
+| `501180–501521` | Hit test, event ring, pointer/click, poll and test hooks |
+| `502000–502056` | API-internal wrappers and dump/update/invalidate |
+| `502999–503000` | `blNoop` method-table target |
+| `510000–511953` | Public `LABEL blApi...` entry points |
+| `512000–512031` | `blTestErl` debug helper and final `END` |
+| `519000–519999` | Reserved |
 
-Update `Used` and `Status` after each milestone. The gate is **not** the estimate;
-the gate is that the code stays inside its block and inside `500000–519999`.
+### 1.1 Budget and size
 
-| Block | Budget | Used | Status |
-|---|---:|---:|---|
-| Guard and constants | 90 | 0 | `[ ]` |
-| Frame protocol | 200 | 0 | `[ ]` |
-| Core helpers | 300 | 0 | `[ ]` |
-| Method/action tables | 400 | 0 | `[ ]` |
-| Control table and tree | 1,000 | 0 | `[ ]` |
-| Dispatch | 1,000 | 0 | `[ ]` |
-| Layout | 1,000 | 0 | `[ ]` |
-| Paint | 1,000 | 0 | `[ ]` |
-| Input/events | 1,000 | 0 | `[ ]` |
-| Top/panel/user/click classes | 3,500 | 0 | `[ ]` |
-| Shared helpers | 500 | 0 | `[ ]` |
-| Public API | 2,000 | 0 | `[ ]` |
-| Debug/test/demo support | 7,000 | 0 | `[ ]` |
-| Reserve | 1,010 | 0 | `[ ]` |
-| **Total** | **20,000** | **0** | `[ ]` |
+The current file is about 1,100 source lines, all inside `500000–519999`.
+There is no `STACK` frame block and no dispatch block. The hard gate is the line
+range plus the test suite, not a per-block line budget.
 
-If a block overruns, first move only within its semantic block and re-check the
-adjacent boundaries. If the total approaches 20,000, stop feature work and
-reduce code duplication before consuming the reserve.
+### 1.2 Delivered in 0.2
 
-Current implementation: `baslib.bas` is 1,063 lines, all within
-`500000–519999`. Per-block counts are not split yet; the important gate is the
-hard range and the 20,000-line ceiling.
+- Internal routines are `SUB`/`FUNCTION` definitions with `LOCAL` scratch:
+  create/destroy, layout, paint, text fit/wrap, hit test, click/pointer, and
+  input test hooks.
+- Recursive layout and paint use per-call locals; the nested-panel cursor bug is
+  fixed and covered by a regression test.
+- The public `blApi...` labels, request/result globals, numeric API lines, and
+  action-line contract are unchanged.
+- The frame protocol, dispatch, class routers, and `STACK` use are removed.
+- `blVersion$`/`blVersionNum#` are `0.2`.
+- `tests/test_baslib.cpp` passes, including layout, paint, event, slider, demo,
+  line-block, and namespace audits. The old frame tests were replaced by the
+  nested-layout regression test.
 
 ---
 
 ## 2. Milestone overview
 
-The implementation order below differs from `baslib-plan.md` §21 in one place:
-the control table (M3) precedes dispatch (M4). Dispatch needs a real class/verb
-row from the control table; doing it the other way would create a temporary
-test-only shim and rework. The design behavior is unchanged.
+> **Historical note (0.2).** The milestone table below records the original
+> pre-`SUB` plan. It is kept for traceability. The shipped 0.2 implementation
+> does not use the M2 frame protocol or the M4 dispatch path: internal routines
+> are `SUB`/`FUNCTION` procedures with `LOCAL` state, and `blMethod&` is
+> introspection-only. The public API and tests are authoritative.
 
 | Milestone | Goal | Line blocks | Depends on | Exit evidence |
 |---|---|---|---|---|
