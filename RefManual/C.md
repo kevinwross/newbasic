@@ -520,6 +520,29 @@ COLOR [foreground] [, [background] [, border]]
 
 With no arguments, `COLOR` restores the mode defaults. In text mode, values are text attributes. In graphics mode, the colour is the drawing attribute. Border colour is parsed but ignored on the text renderer.
 
+The standard 16-colour CGA palette uses these attribute values:
+
+| Value | Colour | RGB |
+|---:|---|---|
+| 0 | Black | 0, 0, 0 |
+| 1 | Blue | 0, 0, 170 |
+| 2 | Green | 0, 170, 0 |
+| 3 | Cyan | 0, 170, 170 |
+| 4 | Red | 170, 0, 0 |
+| 5 | Magenta | 170, 0, 170 |
+| 6 | Brown | 170, 85, 0 |
+| 7 | Light gray | 170, 170, 170 |
+| 8 | Dark gray | 85, 85, 85 |
+| 9 | Light blue | 85, 85, 255 |
+| 10 | Light green | 85, 255, 85 |
+| 11 | Light cyan | 85, 255, 255 |
+| 12 | Light red | 255, 85, 85 |
+| 13 | Light magenta | 255, 85, 255 |
+| 14 | Yellow | 255, 255, 85 |
+| 15 | White | 255, 255, 255 |
+
+The table describes the default CGA display. A graphics mode may remap its attributes: `COLOR ,n` selects the alternate three-colour set in `SCREEN 1`, and `PALETTE` can change any entry's displayed RGB value without changing the stored attribute numbers.
+
 ### Examples
 
 #### Example 1 — Coloured text
