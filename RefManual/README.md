@@ -110,9 +110,10 @@ These differences cut across entries rather than belonging to one keyword. Follo
 | Random numbers | [RND](R.md#rnd-function) uses `std::mt19937`, so sequences differ from GW-BASIC but are reproducible after [RANDOMIZE](R.md#randomize-statement) with a seed. `RANDOMIZE` without an expression does not prompt. |
 | Program files | [SAVE](S.md#save-command), [LOAD](L.md#load-command), [MERGE](M.md#merge-command), and [INCLUDE](I.md#include-statement) use plain-text `.BAS` only. `INCLUDE` is expanded at load time; included files use ordinary numbered lines with globally unique numbers. Tokenized and protected formats are not supported and report **Bad file mode**. |
 | Named labels | [LABEL](L.md#label-statement) is a newbasic extension: a symbolic line target for `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are compile-time and survive `RENUM`. |
+| Procedures | [SUB](S.md#sub-statement), [FUNCTION](F.md#function-statement), [LOCAL](L.md#local-statement), [CALL](C.md#call-statement), and [EXIT](E.md#exit-statement) are newbasic extensions. They add per-call parameters/locals and recursion. `CALL` is a BASIC procedure call, not GW-BASIC's machine-language call. |
 | Constants | [CONST](C.md#const-statement) declares a read-only global with a literal value, installed before the program starts. Assignments to a constant are compile errors. |
 | File I/O | Sequential and random data files are supported. [BLOAD](B.md#bload-command)/[BSAVE](B.md#bsave-command), [OPEN "COM"](O.md#open-com-statement), [IOCTL](I.md#ioctl-statement), and [LOCK](L.md#lock-statement)/[UNLOCK](U.md#unlock-statement) are not. DOS commands such as [FILES](F.md#files-command), [CHDIR](C.md#chdir-command), [MKDIR](M.md#mkdir-command), [NAME](N.md#name-command), [RMDIR](R.md#rmdir-command), and [KILL](K.md#kill-command) are direct mode only. |
-| Machine memory and ports | [PEEK](P.md#peek-function), [POKE](P.md#poke-statement), [INP](I.md#inp-function), [OUT](O.md#out-statement), [WAIT](W.md#wait-statement), [DEF SEG](D.md#def-seg-statement), [CALL](C.md#call-statement), [USR](U.md#usr-function), `VARPTR`/`VARPTR$`, and [FRE](F.md#fre-function) are refused. |
+| Machine memory and ports | [PEEK](P.md#peek-function), [POKE](P.md#poke-statement), [INP](I.md#inp-function), [OUT](O.md#out-statement), [WAIT](W.md#wait-statement), [DEF SEG](D.md#def-seg-statement), [USR](U.md#usr-function), `VARPTR`/`VARPTR$`, and [FRE](F.md#fre-function) are refused. [CALL](C.md#call-statement) is a BASIC `SUB` call, not a machine-language call. |
 | Devices and events | No serial port, joystick, light pen, cassette, or note queue. [ON TIMER](O.md#on-timern-statement) works because the clock is portable. [PLAY](P.md#play-statement) and [SOUND](S.md#sound-statement) are synchronous. |
 | Keyboard | The [KEY](K.md#key-statement) family and function-key traps are removed. [INKEY$](I.md#inkey-function) returns characters and arrow-key codes, but does not deliver function keys. |
 | Screen and graphics | Graphics drawing is supported, including the newbasic [DRAWTEXT](D.md#drawtext-statement) canvas-text extension. [SCREEN](S.md#screen-statement) accepts 0–13 plus the 720 extension. The `SCREEN` function (text-buffer read) is absent, [WIDTH](W.md#width-statement) does not resize the physical window, and [VIEW PRINT](V.md#view-print-statement) defaults to the whole grid. |
@@ -132,7 +133,7 @@ There is no emulated 64K data space, no segment model, and no x86 I/O-port model
 - `PEEK`/`POKE` and `DEF SEG` have no address space to read or write.
 - `VARPTR`/`VARPTR$` cannot expose a host pointer as a GW-BASIC address.
 - `INP`/`OUT`/`WAIT` have no ports.
-- `CALL`/`DEF USR`/`USR` would need native machine code, which would break portability and could not be made safe.
+- `DEF USR`/`USR` would need native machine code, which would break portability and could not be made safe. `CALL` is reserved for calling a BASIC `SUB`, not a native routine.
 - `FRE` would report free space in a memory model that does not exist.
 - `CLEAR` with the GW-BASIC memory/stack arguments is refused; the no-argument form clears variables and open files.
 
@@ -176,7 +177,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 
 - Add spaces around keywords and operands: `FOR I = 1 TO 10`, not `FORI=1TO10`.
 - Keep names to 40 characters if the program must also run under GW-BASIC.
-- Replace `PEEK`/`POKE`/`VARPTR` with arrays and strings, and `CALL`/`USR` with `GOSUB`/`RETURN`. Use `OPEN`, `GET`, and `PUT` for data files.
+- Replace `PEEK`/`POKE`/`VARPTR` with arrays and strings, and `USR` with `GOSUB`/`RETURN`. `CALL` now calls a BASIC `SUB`; use `SUB`/`CALL` for procedure-style code. Use `OPEN`, `GET`, and `PUT` for data files.
 - Replace `INP` keyboard polling with `INKEY$`. The `KEY` family has no equivalent.
 - Remove COM, joystick, light-pen, and cassette code; there is no replacement.
 - Use `ON TIMER` for timer events, and [INKEY$](I.md#inkey-function) for keyboard polling.
@@ -196,7 +197,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [BEEP Statement](B.md#beep-statement) | Statement | Supported |
 | [BLOAD Command](B.md#bload-command) | Command | Not supported in newbasic |
 | [BSAVE Command](B.md#bsave-command) | Command | Not supported in newbasic |
-| [CALL Statement](C.md#call-statement) | Statement | Not supported in newbasic |
+| [CALL Statement](C.md#call-statement) | Statement | Supported (newbasic extension) |
 | [CDBL Function](C.md#cdbl-function) | Function | Supported |
 | [CHAIN Statement](C.md#chain-statement) | Statement | Partial |
 | [CHDIR Command](C.md#chdir-command) | Command | Direct mode only |
@@ -241,6 +242,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [ERL Variable](E.md#erl-variable) | Variable | Supported |
 | [ERR Variable](E.md#err-variable) | Variable | Supported |
 | [ERROR Statement](E.md#error-statement) | Statement | Supported |
+| [EXIT Statement](E.md#exit-statement) | Statement | Supported (newbasic extension) |
 | [EXP Function](E.md#exp-function) | Function | Supported |
 | [EXTERR Function](E.md#exterr-function) | Function | Not supported in newbasic |
 | [FIELD Statement](F.md#field-statement) | Statement | Supported |
@@ -248,6 +250,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [FIX Function](F.md#fix-function) | Function | Supported |
 | [FOR Statement](F.md#for-statement) | Statement | Supported |
 | [FRE Function](F.md#fre-function) | Function | Not supported in newbasic |
+| [FUNCTION Statement](F.md#function-statement) | Statement | Supported (newbasic extension) |
 | [GET Statement](G.md#get-statement) | Statement | Supported |
 | [GOSUB Statement](G.md#gosub-statement) | Statement | Supported |
 | [GOTO Statement](G.md#goto-statement) | Statement | Supported |
@@ -277,6 +280,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [LLIST Command](L.md#llist-command) | Command | Direct mode only |
 | [LOAD Command](L.md#load-command) | Command | Supported (text only) |
 | [LOC Function](L.md#loc-function) | Function | Supported |
+| [LOCAL Statement](L.md#local-statement) | Statement | Supported (newbasic extension) |
 | [LOCATE Statement](L.md#locate-statement) | Statement | Supported |
 | [LOCK Statement](L.md#lock-statement) | Statement | Not supported in newbasic |
 | [LOF Function](L.md#lof-function) | Function | Supported |
@@ -375,6 +379,7 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [STRIG Function](S.md#strig-function) | Function | Not supported in newbasic |
 | [STRIG Statement](S.md#strig-statement) | Statement | Not supported in newbasic |
 | [STRING$ Function](S.md#string-function) | Function | Supported |
+| [SUB Statement](S.md#sub-statement) | Statement | Supported (newbasic extension) |
 | [SWAP Statement](S.md#swap-statement) | Statement | Supported |
 | [SYSTEM Command](S.md#system-command) | Command | Direct mode only |
 | [TAB Function](T.md#tab-function) | Function | Supported in PRINT only |
@@ -415,7 +420,6 @@ The full reasons are in each letter file. This list is for quick lookup.
 |---|
 | [BLOAD Command](B.md#bload-command) |
 | [BSAVE Command](B.md#bsave-command) |
-| [CALL Statement](C.md#call-statement) |
 | [COM(n) Statement](C.md#comn-statement) |
 | [DEF SEG Statement](D.md#def-seg-statement) |
 | [DEF USR Statement](D.md#def-usr-statement) |

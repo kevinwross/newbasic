@@ -4,21 +4,86 @@
 ## CALL Statement
 
 **Type:** Statement  
-**Status:** Not supported in newbasic
+**Status:** Supported (newbasic extension)  
+**See also:** `SUB`, `FUNCTION`, `LOCAL`, `EXIT`
 
 ### Purpose
 
-Transfers control to a machine-language subroutine.
+Calls a `SUB` procedure. The call creates a fresh procedure frame with its own
+parameters and `LOCAL` variables.
 
 ### Syntax
 
 ```basic
-CALL address[(variable [, variable ...])]
+CALL name
+CALL name(argument [, argument ...])
 ```
 
-### Newbasic status
+### Arguments
 
-Recognised but deliberately refused with **Advanced Feature**. Newbasic has no machine-memory or native-call model. Use ordinary BASIC subroutines with `GOSUB`/`RETURN`.
+| Argument | Required | Description |
+|---|---|---|
+| `name` | Yes | A `SUB` name, not a `FUNCTION` name. |
+| `argument` | Depends | Expression passed by value, left to right. The count must match the `SUB` parameter list. |
+
+### Comments
+
+`CALL` is the newbasic BASIC-procedure call; it is not GW-BASIC's
+machine-language `CALL`. There is no native-code or memory-address model.
+`USR` remains unsupported.
+
+The target `SUB` may be defined later in the program. The compiler pre-scans
+procedure headers, so forward calls and exact argument-count checks work.
+
+Arguments are evaluated in the caller's scope before the frame is created and
+are converted to each parameter's declared type using normal assignment rules.
+A string/numeric mismatch raises **Type mismatch**.
+
+A procedure frame holds its parameters and `LOCAL` names. A callee cannot see
+the caller's locals; undeclared names resolve to globals. See `LOCAL`.
+
+A procedure may call itself or another procedure. The call depth is limited;
+exceeding it raises **Call stack overflow** (newbasic error 79).
+
+`CALL` is illegal in direct mode. `CALL` on a `FUNCTION` is a syntax error; use
+the function in an expression instead.
+
+### Examples
+
+#### Example 1 — Call a sub with a parameter
+
+```basic
+10 X% = 5
+20 CALL Show(X%)
+30 END
+100 SUB Show(N%)
+110 LOCAL T%
+120 T% = N% + 1
+130 PRINT T%
+140 END SUB
+```
+
+Output:
+
+```text
+ 6
+```
+
+#### Example 2 — Forward call
+
+```basic
+10 CALL Later
+20 END
+100 SUB Later
+110 PRINT "CALLED"
+120 END SUB
+```
+
+Output:
+
+```text
+CALLED
+```
 
 <a id="cdbl-function"></a>
 ## CDBL Function

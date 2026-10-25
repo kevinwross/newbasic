@@ -24,8 +24,8 @@ namespace {
 // exist only as direct-mode commands (FILES, KILL, MKDIR, CHDIR, RMDIR) stay,
 // because they are not available inside a program.
 const char* const kUnimplementedStatements[] = {
-    "CALL", "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
-    "NAME", "OUT",   "PEN", "POKE",    "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
+    "CHDIR", "COM", "ENVIRON", "FILES", "INP",   "IOCTL", "KEY", "KILL",   "MKDIR", "MOTOR",
+    "NAME",  "OUT", "PEN",     "POKE",  "RMDIR", "STICK", "STRIG", "USR", "VARPTR", "WAIT",
 };
 
 // Tab/SPC are only meaningful inside PRINT, so they are handled there.
@@ -3147,11 +3147,11 @@ private:
     // closes the block instead of skipping the pop via a case-body exit jump.
     const int pop_index = EmitPlaceholder(Op::SelectPop);
     out_->instrs_[static_cast<std::size_t>(pop_index)].a = entry.line;
-    if (entry.body_open)
-      entry.exit_jumps.push_back(EmitPlaceholder(Op::Jump));
-    const int end = Pc();
+    // Case bodies and a no-match path jump to the SelectPop. Do not add a jump
+    // after the pop here: patching it together with the case exits would run
+    // SelectPop twice.
     for (int jump : entry.exit_jumps)
-      PatchTarget(jump, end);
+      PatchTarget(jump, pop_index);
     select_stack_.pop_back();
     return true;
   }

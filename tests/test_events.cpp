@@ -86,6 +86,32 @@ TEST_CASE("Timer events: the poll's inputs are armed in the right order", "[even
   CHECK(vm.Step());
 }
 
+TEST_CASE("Timer events: handler sees globals, not procedure locals", "[events][firing][subs]") {
+  newbasic::ScriptedHost host;
+  host.timer_step = 10.0;
+  const std::vector<std::string> rows = lwtest::RunRowsWithInput(
+      "10 ON TIMER(1) GOSUB 500\n"
+      "20 TIMER ON\n"
+      "30 CALL Foo\n"
+      "40 TIMER OFF\n"
+      "50 END\n"
+      "100 SUB Foo\n"
+      "110 LOCAL X%\n"
+      "120 X% = 42\n"
+      "130 FOR I=1 TO 20: NEXT I\n"
+      "140 END SUB\n"
+      "500 PRINT X%\n"
+      "510 RETURN\n",
+      {}, &host);
+  bool ticked = false;
+  for (const std::string& row : rows) {
+    if (row == " 0")
+      ticked = true;
+    CHECK(row != " 42");
+  }
+  CHECK(ticked);
+}
+
 TEST_CASE("Timer events: a ready clock fires the handler (Run path)", "[events][firing]") {
   // The decisive test: the program is driven through Vm::Run (via the helper),
   // the clock advances 10 seconds per read against a 1 second interval, so the

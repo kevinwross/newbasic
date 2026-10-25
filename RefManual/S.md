@@ -988,6 +988,98 @@ Output:
 AAAAA
 ```
 
+<a id="sub-statement"></a>
+## SUB Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `CALL`, `FUNCTION`, `LOCAL`, `EXIT`, `GOSUB`
+
+### Purpose
+
+Defines a named procedure with parameters and per-call local variables.
+
+### Syntax
+
+```basic
+SUB name [(parameter [, parameter ...])]
+    [LOCAL name [, name ...]]...
+    statements
+END SUB
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | Yes | Procedure name without a type suffix. |
+| `parameter` | No | Parameter name with an optional type suffix. Parameters are passed by value. |
+
+### Comments
+
+A `SUB` is invoked with `CALL`:
+
+```basic
+CALL DrawButton(ButtonH%, 10, 20)
+```
+
+The header line must contain only the `SUB` header and an optional comment. The
+body ends at `END SUB`. Definitions are inert during normal sequential
+execution and may be called before their definition.
+
+Parameters and `LOCAL` names are private to each call; recursion works.
+Undeclared names are globals, and a callee does not see its caller's locals.
+Arguments are evaluated left to right, converted to the parameter types, and
+checked for exact count.
+
+A `SUB` has no return value. It cannot be called as a function. A `SUB` name may
+not also be used as a scalar or array.
+
+`SUB` definitions may not be nested, are illegal in direct mode, and cannot
+appear inside another procedure. `GOTO`/`GOSUB` may not enter or leave a
+procedure body; use `CALL` to cross procedures.
+
+A procedure return discards `FOR` loops opened by the procedure. Returning with
+an open `SELECT CASE` or `GOSUB` opened by the procedure is an error. See
+`EXIT`.
+
+### Examples
+
+#### Example 1 — A sub with a parameter and local
+
+```basic
+10 X% = 5
+20 CALL Show(X%)
+30 END
+100 SUB Show(N%)
+110 LOCAL T%
+120 T% = N% + 1
+130 PRINT T%
+140 END SUB
+```
+
+Output:
+
+```text
+ 6
+```
+
+#### Example 2 — Forward call
+
+```basic
+10 CALL Later
+20 END
+100 SUB Later
+110 PRINT "CALLED"
+120 END SUB
+```
+
+Output:
+
+```text
+CALLED
+```
+
 <a id="swap-statement"></a>
 ## SWAP Statement
 

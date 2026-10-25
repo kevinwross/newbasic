@@ -408,6 +408,8 @@ struct SelectFrame {
   Value selector{};
   int start_line = 0;
   int end_line = 0;
+  int owner_proc = -1; // procedure whose body opened the SELECT
+  std::uint64_t owner_seq = 0; // call activation; distinguishes recursion
 };
 
 // Array storage (M2): typed by the variable's type suffix, with a per-array

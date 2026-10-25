@@ -279,3 +279,26 @@ TEST_CASE("RENUM: rewrites every kind of line reference", "[renum]") {
   CHECK(rows[6] == "7000 RETURN");
   CHECK(rows[7] == "8000 RETURN");
 }
+
+TEST_CASE("RENUM: SUB/FUNCTION names survive renumbering", "[renum][subs]") {
+  newbasic::screen::HeadlessScreen screen;
+  newbasic::ScriptedHost host;
+  newbasic::Repl repl(screen, &host);
+  repl.Process("10 CALL Foo(2)");
+  repl.Process("20 PRINT Bar%(3)");
+  repl.Process("30 END");
+  repl.Process("100 SUB Foo(N%)");
+  repl.Process("110 PRINT N%");
+  repl.Process("120 END SUB");
+  repl.Process("200 FUNCTION Bar%(N%)");
+  repl.Process("210 Bar% = N% * 2");
+  repl.Process("220 END FUNCTION");
+  repl.Process("RENUM 1000,,100");
+  const std::vector<std::string> rows = ListProgram(&repl, &screen);
+  const std::string all = AllRows(screen);
+  CHECK(all.find("CALL Foo(2)") != std::string::npos);
+  CHECK(all.find("PRINT Bar%(3)") != std::string::npos);
+  CHECK(all.find("SUB Foo(N%)") != std::string::npos);
+  CHECK(all.find("FUNCTION Bar%(N%)") != std::string::npos);
+  CHECK(rows.size() >= 9);
+}

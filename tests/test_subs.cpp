@@ -1,6 +1,8 @@
 // SUB/FUNCTION, LOCAL variables, and the procedure calling convention.
 #include <catch2/catch_test_macros.hpp>
 
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -222,6 +224,84 @@ TEST_CASE("SUB: ON ERROR in main resumes inside the procedure", "[subs][errors]"
   REQUIRE(rows.size() >= 2);
   CHECK(rows[0] == " 5  130");
   CHECK(rows[1] == " 2");
+}
+
+TEST_CASE("SUB: RESUME can leave a procedure and return to main", "[subs][errors]") {
+  const std::vector<std::string> rows = RunRows(
+      "10 ON ERROR GOTO 500\n"
+      "20 CALL Foo\n"
+      "30 PRINT \"AFTER\": PRINT G%\n"
+      "40 END\n"
+      "100 SUB Foo\n"
+      "110 LOCAL X%\n"
+      "120 X% = 42\n"
+      "130 ERROR 5\n"
+      "140 G% = 1\n"
+      "150 END SUB\n"
+      "500 PRINT \"ERR\"\n"
+      "510 RESUME 30\n");
+  REQUIRE(rows.size() >= 3);
+  CHECK(rows[0] == "ERR");
+  CHECK(rows[1] == "AFTER");
+  CHECK(rows[2] == " 0"); // the abandoned procedure body never ran
+}
+
+TEST_CASE("SUB: shipped subs.bas sample runs", "[subs]") {
+  std::ifstream in(std::string(NEWBASIC_SAMPLES_DIR) + "/subs.bas");
+  REQUIRE(in.good());
+  std::ostringstream source;
+  source << in.rdbuf();
+  const std::vector<std::string> rows = RunRows(source.str());
+  REQUIRE(rows.size() >= 5);
+  CHECK(rows[0] == "Tick 1");
+  CHECK(rows[1] == "Tick 2");
+  CHECK(rows[2] == "Tick 3");
+  CHECK(rows[3] == "Clamp: 100");
+  CHECK(rows[4] == "Fact: 120");
+}
+
+TEST_CASE("SUB: SELECT CASE closes correctly across procedure calls", "[subs]") {
+  const std::vector<std::string> rows = RunRows(
+      "10 CALL Test\n"
+      "20 PRINT \"BACK\"\n"
+      "30 END\n"
+      "100 SUB Test\n"
+      "110 SELECT CASE 1\n"
+      "120 CASE 1\n"
+      "130 PRINT \"ONE\"\n"
+      "140 END SELECT\n"
+      "150 GOTO 170\n"
+      "160 PRINT \"NO\"\n"
+      "170 PRINT \"DONE\"\n"
+      "180 END SUB\n");
+  REQUIRE(rows.size() >= 3);
+  CHECK(rows[0] == "ONE");
+  CHECK(rows[1] == "DONE");
+  CHECK(rows[2] == "BACK");
+}
+
+TEST_CASE("SUB: each activation has its own SELECT CASE stack", "[subs]") {
+  const std::vector<std::string> rows = RunRows(
+      "10 CALL Outer\n"
+      "20 PRINT \"BACK\"\n"
+      "30 END\n"
+      "100 SUB Outer\n"
+      "110 SELECT CASE 1\n"
+      "120 CASE 1\n"
+      "130 CALL Inner\n"
+      "140 END SELECT\n"
+      "150 PRINT \"OUTER\"\n"
+      "160 END SUB\n"
+      "200 SUB Inner\n"
+      "210 SELECT CASE 2\n"
+      "220 CASE 2\n"
+      "230 PRINT \"INNER\"\n"
+      "240 END SELECT\n"
+      "250 END SUB\n");
+  REQUIRE(rows.size() >= 3);
+  CHECK(rows[0] == "INNER");
+  CHECK(rows[1] == "OUTER");
+  CHECK(rows[2] == "BACK");
 }
 
 TEST_CASE("SUB: call depth, locals, and stepping are visible to the debugger", "[subs][debug]") {

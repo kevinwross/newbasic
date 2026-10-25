@@ -596,10 +596,15 @@ void Vm::MapGraphicsPoint(double x, double y, int* sx, int* sy) const {
 bool Vm::LeavesSelect(int target_pc) const {
   if (select_stack_.empty())
     return false;
+  // A SELECT belongs to the procedure activation that opened it. A callee
+  // may use GOTO freely inside its own body even while its caller has a
+  // SELECT active; only a jump in the same activation can leave the block.
+  const SelectFrame& frame = select_stack_.back();
+  if (frame.owner_proc != CurrentProcIndex() || frame.owner_seq != call_sequence_)
+    return false;
   const std::optional<int> target_line = program_.LineForPc(target_pc);
   if (!target_line)
     return true;
-  const SelectFrame& frame = select_stack_.back();
   return *target_line < frame.start_line || *target_line > frame.end_line;
 }
 
@@ -3454,6 +3459,8 @@ bool Vm::StepImpl() {
     frame.selector = Pop();
     frame.start_line = in.a;
     frame.end_line = in.b;
+    frame.owner_proc = CurrentProcIndex();
+    frame.owner_seq = call_sequence_;
     select_stack_.push_back(std::move(frame));
     break;
   }

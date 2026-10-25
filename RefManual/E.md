@@ -46,6 +46,11 @@ None.
 
 `END` returns to direct mode. Variables and arrays remain available for inspection. Unlike `STOP`, it does not save a continue point for `CONT`.
 
+`END SUB` and `END FUNCTION` are procedure terminators, not program
+terminators. They close the matching `SUB`/`FUNCTION` and return to the caller.
+`END` alone still ends the program, including when executed inside a procedure.
+See `SUB`, `FUNCTION`, and `EXIT`.
+
 ### Examples
 
 #### Example 1 — Stop after output
@@ -386,6 +391,81 @@ Output:
 
 ```text
 CAUGHT 5
+```
+
+<a id="exit-statement"></a>
+## EXIT Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `SUB`, `FUNCTION`, `RETURN`, `END`
+
+### Purpose
+
+Returns early from a `SUB` or `FUNCTION`.
+
+### Syntax
+
+```basic
+EXIT SUB
+EXIT FUNCTION
+```
+
+### Arguments
+
+None.
+
+### Comments
+
+`EXIT SUB` is valid only inside a `SUB`; `EXIT FUNCTION` is valid only inside a
+`FUNCTION`. A mismatched form is a syntax error.
+
+`EXIT FUNCTION` returns the current function result. Assign the function-named
+variable before exiting, or accept the type's default value.
+
+A procedure return discards `FOR` loops opened by the procedure. It is an error
+to return while a `SELECT CASE` or a `GOSUB` opened by the procedure is still
+open. `RETURN` remains the `GOSUB` return statement; it is not a procedure
+return.
+
+`EXIT` is illegal in direct mode.
+
+### Examples
+
+#### Example 1 — Early return from a sub
+
+```basic
+10 CALL Show(0)
+20 CALL Show(1)
+30 END
+100 SUB Show(Flag%)
+110 IF Flag% = 0 THEN PRINT "SKIP" : EXIT SUB
+120 PRINT "RUN"
+130 END SUB
+```
+
+Output:
+
+```text
+SKIP
+RUN
+```
+
+#### Example 2 — Early return from a function
+
+```basic
+10 PRINT SafeDiv%(10, 0)
+20 END
+100 FUNCTION SafeDiv%(A%, B%)
+110 IF B% = 0 THEN SafeDiv% = 0 : EXIT FUNCTION
+120 SafeDiv% = A% / B%
+130 END FUNCTION
+```
+
+Output:
+
+```text
+ 0
 ```
 
 <a id="exp-function"></a>

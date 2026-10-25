@@ -199,7 +199,7 @@ processes, or containers are run in CI.
 | M10 | Program editing and chaining: `AUTO`/`EDIT`/`RENUM`/`MERGE`/`CHAIN`/`COMMON`/`CONT`/`TRON`/`TROFF`, and in-program `RUN`/`LIST`/`NEW`/`SAVE`/`LOAD` | ✅ (`AUTO`, `MERGE`, `RENUM` and `LLIST` are implemented: `RENUM` rewrites references after ELSE/GOTO/GOSUB/THEN/ON…GOTO/ON…GOSUB/RESTORE/RESUME, skipping strings and comments, refusing reordering and reporting undefined references. `EDIT` reports Illegal direct by design — a screen editor was deliberately not attempted. In-program `SAVE`/`LOAD` are a superset of GW-BASIC's direct-mode rule) |
 | M11 | Event trapping beyond the timer: `ON PLAY(n)`, `ON COM(n)`, `ON STRIG(n)`, note queue | ✅ (`ON TIMER` works; the `KEY`/`ON KEY` family is deliberately unsupported, and `ON PLAY`/`COM`/`STRIG`/`PEN` and `PLAY ON/OFF/STOP` report Advanced Feature — no note queue, COM port, joystick or light pen) |
 | M12 | Graphics (`SCREEN` modes, `PSET`/`LINE`/`CIRCLE`/`PAINT`/`DRAW`, `POINT`/`VIEW`/`WINDOW`/`PALETTE`/`PALETTE USING`, graphics `GET`/`PUT`) | ✅ except window presentation: canvas, `SCREEN 0/1/2/9`, `PSET`/`PRESET`/`POINT`, `LINE` (boxes, `BF`, omitted first point, `STEP`, style masks), `CIRCLE`, `PAINT`, `DRAW` (full GML), `VIEW`, `WINDOW`, `PMAP`, `PALETTE`, `PALETTE USING`, `COLOR ,n`, `GET`/`PUT` images with five actions, `PCOPY` pages. Verified by tests plus GPU pixel readback, and confirmed by eye on the maintainer's machine (see §D) |
-| M13 | Machine-level statements (`PEEK`/`POKE`/`INP`/`OUT`/`WAIT`/`USR`/`CALL`/`VARPTR`/`FRE`) | ✅ decision taken: **refuse clearly** rather than invent a 64K memory/port model that corresponds to nothing on the host. Statements already reported Advanced Feature; the functions (`PEEK`/`FRE`/`VARPTR`/`INP`/`POINT`/`STICK`/`STRIG`/`USR`) were syntax errors and now report Advanced Feature naming the function |
+| M13 | Machine-level statements (`PEEK`/`POKE`/`INP`/`OUT`/`WAIT`/`USR`/`VARPTR`/`FRE`) | ✅ decision taken: **refuse clearly** rather than invent a 64K memory/port model that corresponds to nothing on the host. Statements already reported Advanced Feature; the functions (`PEEK`/`FRE`/`VARPTR`/`INP`/`POINT`/`STICK`/`STRIG`/`USR`) were syntax errors and now report Advanced Feature naming the function. `CALL` is no longer machine-level; it calls a BASIC `SUB` (see §C). |
 
 **Status detail (kept here so the state survives between sessions).**
 
@@ -295,7 +295,7 @@ remembered.
 | `CLEAR` as a program statement | ~~Direct mode only~~ **done**: the compiler emits `Op::Clear` and `Vm` runs `ClearState()` — variables, arrays, stacks, open files, the DATA pointer and print state — then continues at the next instruction. The argument form is refused as Advanced Feature. Tested: variables, arrays and strings are emptied mid-program, and an array written after CLEAR does not touch the old one | — |
 | `SWAP` of array elements | ~~Found 2026-10-17 by testing~~ **done**: both sides may be scalars or array elements, in any combination; subscript counts travel with the instruction, both slots are resolved before either value moves, and the value is converted for its destination. Tested: two elements, a scalar and an element, 2D elements with expression subscripts, and the plain scalar form. | — |
 | `LLIST` with a range | **Still open**, found 2026-10-17 by testing: `LLIST 20-30` prints the whole program. The machine side now filters on `a`/`b`, but the compiler still skips the argument list, and my edits to that handler would not match. | Parse `[[first][-[last]]]` in the `LLIST` branch of the statement dispatcher (six-space indent, just above the `LPRINT` branch) and put the bounds in `in.a`/`in.b`; the `Op::LList` side is ready. Then reinstate the range test in `test_printer.cpp`. |
-| `PEEK`/`POKE`/`INP`/`OUT`/`WAIT`/`USR`/`CALL`/`VARPTR`/`FRE` | See M13: a scope decision, not an oversight | ~~Decision~~ **done**: refused clearly (no machine model); the functions used to be syntax errors and now name themselves |
+| `PEEK`/`POKE`/`INP`/`OUT`/`WAIT`/`USR`/`VARPTR`/`FRE` | See M13: a scope decision, not an oversight. `CALL` is no longer in this list: it now calls a BASIC `SUB`. | ~~Decision~~ **done**: refused clearly (no machine model); the functions used to be syntax errors and now name themselves |
 
 ### B. Engineering debt
 
@@ -336,6 +336,12 @@ remembered.
 - **`SCREEN` accepts every reference mode, 0 to 13**, plus the extension mode 720. Modes 4, 5, 6, 10 and 11 used to be refused for want of a canvas size; each now maps to one that already existed (4/5 to 320x200, 6 to 640x200, 10 to the mode 9 canvas, 11 to the mode 12 canvas), and 3 is a text mode, so it stays text. Tested at each mode far corner, which is what proves the size.
   depends on them.
 - **Protected-file and tokenized byte fidelity: deferred by the maintainer, 2026-10-17.** `SAVE ,P` and `SAVE,B` are implemented and round-trip through this interpreter, but byte-for-byte agreement with Microsoft-produced files cannot be checked without samples, and the maintainer has none to test with. Nothing is known to be wrong; the claim is simply unproven.
+- **Procedures are a newbasic extension (2026-10-24).** `SUB`/`FUNCTION` add
+  per-call parameters and `LOCAL` variables, recursion, `EXIT`, and `CALL`
+  as a BASIC procedure call. `CALL` is no longer the GW-BASIC machine-language
+  call; `USR` remains refused. V1 requires procedure `END` lines, keeps
+  handlers in main, and does not implement `BYREF`, array parameters, or local
+  arrays. See [`enhancedsubs.md`](../enhancedsubs.md).
 
 ### D. Awaiting the maintainer
 
@@ -375,10 +381,11 @@ remembered.
   now out of the list, and tested: false before reading a file, true after its last line, Bad file
   number for an unopened handle, and reading past the end raises Input past end (62), which is the
   error EOF exists to avoid.
-- **Deliberate refusals** remain for `PEN`, `CALL`, `CHDIR`, `COM`, `ENVIRON`,
+- **Deliberate refusals** remain for `PEN`, `CHDIR`, `COM`, `ENVIRON`,
   `FILES`, `INP`, `IOCTL`, `KILL`, `LINE` styling expressions that are not constant,
   `MKDIR`, `MOTOR`, `NAME`, `OUT`, `POKE`, `RMDIR`, `STICK`, `STRIG`, `USR`, `VARPTR`,
-  `WAIT`, and the machine-level functions (M13 decision).
+  `WAIT`, and the machine-level functions (M13 decision). `CALL` is no longer a
+  refusal; it now calls a BASIC `SUB`.
 - **Protected-file fidelity: deferred** by the maintainer (no samples to test with); see section C.
 - **M12 graphics**: decided **in**, and complete — phases 1–2, `PALETTE`, the D3D11
   presentation and phase 3 (`VIEW`/`WINDOW`/`PMAP`/`PCOPY`, graphics `GET`/`PUT`) are all done,

@@ -486,6 +486,88 @@ For sequential files the value is the current byte position; for random files it
 50 END
 ```
 
+<a id="local-statement"></a>
+## LOCAL Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `SUB`, `FUNCTION`, `CALL`, `EXIT`
+
+### Purpose
+
+Declares variables that are private to one `SUB` or `FUNCTION` activation.
+
+### Syntax
+
+```basic
+LOCAL name [, name ...]
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `name` | Yes | Local variable name, with an optional type suffix. |
+
+### Comments
+
+`LOCAL` must appear inside a procedure and before the first executable
+statement. Multiple `LOCAL` lines are allowed.
+
+Each name is initialized on every call: numeric locals to `0` of their declared
+kind, string locals to `""`. Parameters are also private to the call and share
+the same name space as `LOCAL` names; duplicates are errors.
+
+A local shadows a global of the same name for the duration of the call. A
+callee does not see its caller's locals; undeclared names inside a procedure
+are globals.
+
+Local arrays are not implemented. `DIM` inside a procedure still creates a
+global array. `LOCAL` is illegal in direct mode.
+
+### Examples
+
+#### Example 1 — Local shadows a global
+
+```basic
+10 X% = 99
+20 CALL Show
+30 PRINT X%
+40 END
+100 SUB Show
+110 LOCAL X%
+120 X% = 42
+130 PRINT X%
+140 END SUB
+```
+
+Output:
+
+```text
+ 42
+ 99
+```
+
+#### Example 2 — Locals are reinitialized per call
+
+```basic
+10 CALL Count
+20 CALL Count
+30 END
+100 SUB Count
+110 LOCAL N%
+120 N% = N% + 1
+130 PRINT N%
+140 END SUB
+```
+
+Output:
+
+```text
+ 1
+ 1
+```
+
 <a id="locate-statement"></a>
 ## LOCATE Statement
 

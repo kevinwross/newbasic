@@ -208,3 +208,99 @@ FRE(string$)
 ### Newbasic status
 
 Recognised but refused with **Advanced Feature**. Newbasic uses host memory rather than a fixed 64K BASIC data space, so a free-byte count would be meaningless.
+
+<a id="function-statement"></a>
+## FUNCTION Statement
+
+**Type:** Statement  
+**Status:** Supported (newbasic extension)  
+**See also:** `SUB`, `CALL`, `LOCAL`, `EXIT`, `DEF FN`
+
+### Purpose
+
+Defines a statement-bodied function with parameters, local variables, and a
+typed return value.
+
+### Syntax
+
+```basic
+FUNCTION name%(parameter [, parameter ...])
+    [LOCAL name [, name ...]]...
+    statements
+    name% = expression
+END FUNCTION
+```
+
+`name%` may use `%`, `&`, `!`, `#`, or `$`; the suffix is required and selects
+the result type.
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `name%` | Yes | Function name, including its type suffix. |
+| `parameter` | No | Parameter name with an optional type suffix. Parameters are passed by value. |
+
+### Comments
+
+A function is called in an expression:
+
+```basic
+PRINT Twice%(4)
+```
+
+The result is the function-named local variable. Assign it before `END
+FUNCTION`, or use `EXIT FUNCTION`. Falling into `END FUNCTION` with no
+assignment returns the type's zero value (`0` or `""`).
+
+Parameters and `LOCAL` names are private to each call, so recursion works.
+Undeclared names are globals; a callee cannot see its caller's locals.
+
+A function may call itself and may call `SUB`s. `CALL` cannot be used on a
+function. `FUNCTION` definitions may not be nested, may not appear in direct
+mode, and cannot be used inside another procedure.
+
+A function name may not also be used as a scalar or array. Array parameters,
+`BYREF`, optional parameters, and local arrays are not implemented in this
+release.
+
+See `SUB`, `LOCAL`, and `EXIT` for the shared procedure rules.
+
+### Examples
+
+#### Example 1 — A typed function
+
+```basic
+10 PRINT Clamp%(150, 0, 100)
+20 END
+100 FUNCTION Clamp%(V%, LO%, HI%)
+110 LOCAL R%
+120 R% = V%
+130 IF R% < LO% THEN R% = LO%
+140 IF R% > HI% THEN R% = HI%
+150 Clamp% = R%
+160 END FUNCTION
+```
+
+Output:
+
+```text
+ 100
+```
+
+#### Example 2 — Recursion
+
+```basic
+10 PRINT Fact%(5)
+20 END
+100 FUNCTION Fact%(N%)
+110 IF N% <= 1 THEN Fact% = 1 : EXIT FUNCTION
+120 Fact% = N% * Fact%(N% - 1)
+130 END FUNCTION
+```
+
+Output:
+
+```text
+ 120
+```
