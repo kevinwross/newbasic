@@ -1,113 +1,75 @@
 10 REM baslib control gallery: panel, button, label, click target, slider, gauge, dial.
 20 REM Host lines stay below 500000; merge baslib.bas before RUN.
 30 SCREEN 720
-40 blReqW% = 0 : blReqH% = 0
-50 GOSUB blApiInit
-60 IF blStatus% <> blStatusOk% THEN GOTO 9000
-70 REM --- panel ---
-80 blReqClass% = blClassPanel% : blReqParent% = blRoot%
-90 blReqX% = 40 : blReqY% = 30 : blReqW% = 640 : blReqH% = 520
-100 blReqMode% = 1 : blReqPad% = 12 : blReqGap% = 8
-110 GOSUB blApiCreate : blPanel% = blRetHandle%
-120 IF blStatus% <> blStatusOk% THEN GOTO 9000
-130 REM --- header ---
-140 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindLabel%
-150 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 24
-160 blReqText$ = "baslib control gallery" : blReqPad% = 4 : blReqAction% = 0
-170 GOSUB blApiCreate : blHeader% = blRetHandle%
-180 IF blStatus% <> blStatusOk% THEN GOTO 9000
-190 REM --- button ---
-200 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindButton%
-210 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 32
-220 blReqText$ = "Click me" : blReqPad% = 6 : blReqAction% = 100
-230 GOSUB blApiCreate : blButton% = blRetHandle%
-240 IF blStatus% <> blStatusOk% THEN GOTO 9000
-250 REM --- slider ---
-260 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindLabel%
-270 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 20
-280 blReqText$ = "Slider - click at a position" : blReqPad% = 2 : blReqAction% = 0
-290 GOSUB blApiCreate : IF blStatus% <> blStatusOk% THEN GOTO 9000
-300 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindSlider%
-310 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 28
-320 blReqValue# = 25 : blReqPad% = 6 : blReqAction% = 150
-330 GOSUB blApiCreate : blSlider% = blRetHandle%
-340 IF blStatus% <> blStatusOk% THEN GOTO 9000
-350 REM --- gauge ---
-360 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindLabel%
-370 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 20
-380 blReqText$ = "Gauge - read only" : blReqPad% = 2 : blReqAction% = 0
-390 GOSUB blApiCreate : IF blStatus% <> blStatusOk% THEN GOTO 9000
-400 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindGauge%
-410 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 28
-420 blReqValue# = 60 : blReqPad% = 6 : blReqAction% = 0
-430 GOSUB blApiCreate : blGauge% = blRetHandle%
-440 IF blStatus% <> blStatusOk% THEN GOTO 9000
-450 REM --- dial ---
-460 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindLabel%
-470 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 20
-480 blReqText$ = "Dial - click at a position" : blReqPad% = 2 : blReqAction% = 0
-490 GOSUB blApiCreate : IF blStatus% <> blStatusOk% THEN GOTO 9000
-500 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindDial%
-510 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 96
-520 blReqValue# = 35 : blReqPad% = 6 : blReqAction% = 160
-530 GOSUB blApiCreate : blDial% = blRetHandle%
-540 IF blStatus% <> blStatusOk% THEN GOTO 9000
-550 REM --- readout ---
-560 blReqClass% = blClassUser% : blReqParent% = blPanel% : blReqKind% = blKindLabel%
-570 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 76
-580 blReqText$ = "Slider 25" + CHR$(13) + "Gauge 60" + CHR$(13) + "Dial 35"
-590 blReqPad% = 6 : blReqAction% = 0
-600 GOSUB blApiCreate : blReadout% = blRetHandle%
-610 IF blStatus% <> blStatusOk% THEN GOTO 9000
-620 REM --- invisible click target ---
-630 blReqClass% = blClassClickTarget% : blReqParent% = blPanel%
-640 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 48
-650 blReqText$ = "" : blReqAction% = 200 : blReqButtonMask% = 1
-660 GOSUB blApiCreate : blTarget% = blRetHandle%
-670 IF blStatus% <> blStatusOk% THEN GOTO 9000
-680 GOSUB blApiPaintAll
-690 REM --- action-line table ---
-700 blReqActionId% = 100 : blReqLine& = 1010 : GOSUB blApiSetActionLine
-710 blReqActionId% = 200 : blReqLine& = 2010 : GOSUB blApiSetActionLine
-720 blReqActionId% = 150 : blReqLine& = 3010 : GOSUB blApiSetActionLine
-730 blReqActionId% = 160 : blReqLine& = 4010 : GOSUB blApiSetActionLine
-740 REM --- main loop ---
-750 GOSUB blApiPollInput
-760 WHILE blEventCount% > 0
-770   GOSUB blApiNextEvent
-780   IF blEventAction% <> blActionNone% THEN GOSUB blActionLine&(blEventAction%)
-790 WEND
-800 K$ = INKEY$ : IF K$ = CHR$(27) THEN END
-810 IF blNeedsPaint% THEN GOSUB blApiPaintAll
-820 SLEEP 16
-830 GOTO 750
+40 CALL blInit(0, 0)
+50 IF blStatus% <> blStatusOk% THEN GOTO 9000
+60 REM --- panel ---
+70 P% = blCreate%(1, 2, 0, 40, 30, 640, 520, "", 0, 0, 0)
+80 CALL blSetLayout(P%, 1, 12, 8)
+90 IF blStatus% <> blStatusOk% THEN GOTO 9000
+100 REM --- header ---
+110 H% = blCreate%(P%, 3, 5, 0, 0, 100, 24, "baslib control gallery", 0, 0, 0)
+120 blUser#(H%,13) = 4
+130 REM --- button ---
+140 B% = blCreate%(P%, 3, 1, 0, 0, 100, 32, "Click me", 100, 0, 0)
+150 blUser#(B%,13) = 6
+160 REM --- slider ---
+170 S1% = blCreate%(P%, 3, 5, 0, 0, 100, 20, "Slider - click at a position", 0, 0, 0)
+180 blUser#(S1%,13) = 2
+190 S% = blCreate%(P%, 3, 2, 0, 0, 100, 28, "", 150, 0, 0)
+200 CALL blSetValue(S%, 25)
+210 REM --- gauge ---
+220 G1% = blCreate%(P%, 3, 5, 0, 0, 100, 20, "Gauge - read only", 0, 0, 0)
+230 blUser#(G1%,13) = 2
+240 G% = blCreate%(P%, 3, 3, 0, 0, 100, 28, "", 0, 0, 0)
+250 CALL blSetValue(G%, 60)
+260 REM --- dial ---
+270 D1% = blCreate%(P%, 3, 5, 0, 0, 100, 20, "Dial - click at a position", 0, 0, 0)
+280 blUser#(D1%,13) = 2
+290 D% = blCreate%(P%, 3, 4, 0, 0, 100, 96, "", 160, 0, 0)
+300 CALL blSetValue(D%, 35)
+310 REM --- readout ---
+320 R% = blCreate%(P%, 3, 5, 0, 0, 100, 76, "Slider 25" + CHR$(13) + "Gauge 60" + CHR$(13) + "Dial 35", 0, 0, 0)
+330 blUser#(R%,13) = 6
+340 REM --- invisible click target ---
+350 T% = blCreate%(P%, 4, 0, 0, 0, 100, 48, "", 200, 0, 0)
+360 CALL blSetClickMask(T%, 1)
+370 CALL blPaintAll
+380 REM --- action-line table ---
+390 CALL blSetActionLine(100, 1010)
+400 CALL blSetActionLine(200, 2010)
+410 CALL blSetActionLine(150, 3010)
+420 CALL blSetActionLine(160, 4010)
+430 REM --- main loop ---
+440 C% = blPollInput%()
+450 WHILE blEventCount%() > 0
+460   E% = blNextEvent%()
+470   A% = blEventAction%()
+480   IF A% <> blActionNone% THEN GOSUB blActionLine&(A%)
+490 WEND
+500 K$ = INKEY$ : IF K$ = CHR$(27) THEN END
+510 CALL blPaintAll
+520 SLEEP 16
+530 GOTO 440
 1000 REM --- button action ---
-1010 blReqHandle% = blReadout%
-1020 blReqText$ = "Button clicked" + CHR$(13) + "at " + TIME$
-1030 GOSUB blApiSetText
-1040 GOSUB blApiPaintAll
-1050 RETURN
+1010 CALL blSetText(R%, "Button clicked" + CHR$(13) + "at " + TIME$)
+1020 CALL blPaintAll
+1030 RETURN
 2000 REM --- click-target action ---
-2010 blReqHandle% = blReadout%
-2020 blReqText$ = "Target clicked" + CHR$(13) + "at " + TIME$
-2030 GOSUB blApiSetText
-2040 GOSUB blApiPaintAll
-2050 RETURN
+2010 CALL blSetText(R%, "Target clicked" + CHR$(13) + "at " + TIME$)
+2020 CALL blPaintAll
+2030 RETURN
 3000 REM --- slider action ---
-3010 blReqHandle% = blSlider% : GOSUB blApiGetValue : blSliderV# = blRetValue#
-3020 GOSUB 8000
-3030 RETURN
+3010 GOSUB 8000
+3020 RETURN
 4000 REM --- dial action ---
-4010 blReqHandle% = blDial% : GOSUB blApiGetValue : blDialV# = blRetValue#
-4020 GOSUB 8000
-4030 RETURN
+4010 GOSUB 8000
+4020 RETURN
 8000 REM --- refresh the value readout ---
-8010 blReqHandle% = blSlider% : GOSUB blApiGetValue : blSliderV# = blRetValue#
-8020 blReqHandle% = blGauge% : GOSUB blApiGetValue : blGaugeV# = blRetValue#
-8030 blReqHandle% = blDial% : GOSUB blApiGetValue : blDialV# = blRetValue#
-8040 blReqHandle% = blReadout%
-8050 blReqText$ = "Slider " + STR$(INT(blSliderV#)) + CHR$(13) + "Gauge " + STR$(INT(blGaugeV#)) + CHR$(13) + "Dial " + STR$(INT(blDialV#))
-8060 GOSUB blApiSetText
-8070 GOSUB blApiPaintAll
-8080 RETURN
+8010 SV# = blGetValue#(S%)
+8020 GV# = blGetValue#(G%)
+8030 DV# = blGetValue#(D%)
+8040 CALL blSetText(R%, "Slider " + STR$(INT(SV#)) + CHR$(13) + "Gauge " + STR$(INT(GV#)) + CHR$(13) + "Dial " + STR$(INT(DV#)))
+8050 CALL blPaintAll
+8060 RETURN
 9000 PRINT "Control gallery failed at status"; blStatus% : END

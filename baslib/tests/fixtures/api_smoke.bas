@@ -1,19 +1,15 @@
 10 OPEN "O", #1, "result.txt"
 20 SCREEN 720
-30 blReqW% = 640 : blReqH% = 400
-40 GOSUB blApiInit
-50 PRINT #1, "INIT"; blStatus%
-60 blReqClass% = 3 : blReqParent% = 1 : blReqKind% = 1
-70 blReqX% = 10 : blReqY% = 10 : blReqW% = 100 : blReqH% = 24
-80 blReqText$ = "OK" : blReqAction% = 100 : blReqPad% = 2
-90 GOSUB blApiCreate
-100 PRINT #1, "BUTTON"; blStatus%; blRetHandle%
-110 GOSUB blApiPaintAll
-120 PRINT #1, "PAINT"; blStatus%
-130 blReqX% = 20 : blReqY% = 20 : GOSUB blApiFindAt
-140 PRINT #1, "FIND"; blRetHandle%
-150 blReqX% = 20 : blReqY% = 20 : blReqButton% = 1 : GOSUB blApiTestClickAt
-160 GOSUB blApiNextEvent
-170 PRINT #1, "EVENT"; blEventType%; blEventCtl%; blEventAction%
-180 CLOSE #1
-190 END
+30 CALL blInit(640, 400)
+40 PRINT #1, "INIT"; blStatus%
+50 B% = blCreate%(1, 3, 1, 10, 10, 100, 24, "OK", 100, 0, 0)
+60 PRINT #1, "BUTTON"; blStatus%; B%
+70 CALL blPaintAll
+80 PRINT #1, "PAINT"; blStatus%
+90 F% = blFindAt%(20, 20)
+100 PRINT #1, "FIND"; F%
+110 H% = blTestClickAt%(20, 20, 1)
+120 T% = blNextEvent%()
+130 PRINT #1, "EVENT"; T%; blEventCtl%(); blEventAction%()
+140 CLOSE #1
+150 END

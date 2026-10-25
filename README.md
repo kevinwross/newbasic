@@ -155,8 +155,9 @@ Both use the same platform-neutral extension and locate the platform's
   initialized before the program starts. Assigning to it is a compile error.
 - **Named labels.** `LABEL name` gives a line a symbolic target for
   `GOTO`/`GOSUB`/`IF ... THEN`/`ON ... GOTO`/`ON ... GOSUB`. Labels are
-  compile-time, RENUM-safe, and documented in the reference manual. They are
-  used by the baslib host API (`GOSUB blApiCreate`, etc.).
+  compile-time, RENUM-safe, and documented in the reference manual. Hosts use
+  labels for action dispatch and their own control flow; baslib's public API is
+  parameterized `SUB`/`FUNCTION` calls.
 - **Procedures.** `SUB` and `FUNCTION` define named procedures with parameters,
   `LOCAL` variables, recursion, and `EXIT`; `CALL` invokes a `SUB`. They are
   newbasic extensions; `CALL` is no longer the GW-BASIC machine-language call.

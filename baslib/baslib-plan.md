@@ -1,14 +1,14 @@
 # baslib — a generic BASIC control framework
 
-**Status:** Implemented 0.2 — shipped in [`baslib.bas`](baslib.bas).  
+**Status:** Implemented 0.3 — shipped in [`baslib.bas`](baslib.bas).  
 **Target:** newbasic (GW-BASIC-compatible dialect in this repository)  
 **Implementation plan:** [`baslib-imp.md`](baslib-imp.md)  
 **Programmer reference:** [`baslib-prog-ref.md`](baslib-prog-ref.md)  
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 
 This document records the design agreed so far. The existing sketches are in [`stackish.bas`](../samples/baslib/stackish.bas) and [`windows.bas`](../samples/baslib/windows.bas); they are prototypes, not the final implementation. The real library, demo, tests, and this plan live in the top-level `baslib/` directory.
 
-> **Draft 0.2.** newbasic now has computed `GOTO`/`GOSUB`, a user-visible
+> **Draft 0.3.** newbasic now has computed `GOTO`/`GOSUB`, a user-visible
 > `STACK`, `SELECT CASE`, `SLEEP`, live mouse state, `TEXTWIDTH`/`TEXTHEIGHT`,
 > `SCREENW`/`SCREENH`, viewport queries, `PUSH VIEW`/`POP VIEW`, symbolic
 > `LABEL` targets, read-only `CONST` values, and signed 32-bit integers and line
@@ -36,10 +36,11 @@ result globals and the `blApi...` labels. The original design's `STACK`/computed
 `GOSUB` sections are retained as historical rationale, not as the implemented
 control flow.
 
-> **Implementation note (2026-10-24):** where this document and
+> **Implementation note (2026-10-25):** where this document and
 > [`baslib-prog-ref.md`](baslib-prog-ref.md) disagree, the programmer reference
-> and `baslib.bas` are authoritative. The frame, dispatch, and class-router
-> sections below are design history.
+> and `baslib.bas` are authoritative. The shipped 0.3 public API is fully
+> parameterized (`SUB`/`FUNCTION`, no `blReq...`/`blRet...`); the frame,
+> dispatch, and class-router sections below are design history.
 
 The library is a *source fragment*, not an interpreter extension. A host
 program merges it with its own source and calls labelled entry points backed by

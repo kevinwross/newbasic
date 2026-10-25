@@ -1,7 +1,7 @@
 10 REM baslib complete host sample: one of every control, mouse + keyboard loop.
 20 REM Host lines stay below 500000. Merge baslib.bas before RUN:
 30 REM   LOAD "baslib/samplehost.bas" : MERGE "baslib/baslib.bas" : RUN
-40 REM No baslib source is included here; only public blApi... calls and bl constants.
+40 REM Public calls are parameterized SUB/FUNCTION calls.
 50 CONST ActButton% = 100
 60 CONST ActSlider% = 150
 70 CONST ActDial% = 160
@@ -10,87 +10,48 @@
 100 SCREEN 720
 110 CLS
 120 ON TIMER(1) GOSUB 6010
-130 blReqW% = 0 : blReqH% = 0
-140 GOSUB blApiInit
-150 IF blStatus% <> blStatusOk% THEN GOTO 9000
-200 GOSUB ResetReq
-210 blReqClass% = blClassPanel% : blReqParent% = blRoot%
-220 blReqX% = 40 : blReqY% = 24 : blReqW% = 640 : blReqH% = 480
-230 blReqMode% = 1 : blReqPad% = 12 : blReqGap% = 8
-240 GOSUB blApiCreate : MainH% = blRetHandle%
-250 IF blStatus% <> blStatusOk% THEN GOTO 9000
-300 GOSUB ResetReq
-310 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindLabel%
-320 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 24
-330 blReqText$ = "baslib sample host - one of every control" : blReqPad% = 4
-340 GOSUB blApiCreate : HeaderH% = blRetHandle%
-350 IF blStatus% <> blStatusOk% THEN GOTO 9000
-400 GOSUB ResetReq
-410 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindLabel%
-420 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 28
-430 blReqText$ = "Clock: " + TIME$ : blReqPad% = 4
-440 GOSUB blApiCreate : ClockH% = blRetHandle%
-450 IF blStatus% <> blStatusOk% THEN GOTO 9000
-500 GOSUB ResetReq
-510 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindLabel%
-520 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 60
-530 blReqText$ = "Button clicks: 0" + CHR$(13) + "Target hits: 0" + CHR$(13) + "Slider: 25   Dial: 35" : blReqPad% = 4
-540 GOSUB blApiCreate : StatusH% = blRetHandle%
-550 IF blStatus% <> blStatusOk% THEN GOTO 9000
-700 GOSUB ResetReq
-710 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindButton%
-720 blReqX% = 0 : blReqY% = 0 : blReqW% = 180 : blReqH% = 28
-730 blReqText$ = "Click me" : blReqAction% = ActButton% : blReqPad% = 6
-740 GOSUB blApiCreate : ButtonH% = blRetHandle%
-750 IF blStatus% <> blStatusOk% THEN GOTO 9000
-800 GOSUB ResetReq
-810 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindSlider%
-820 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 28
-830 blReqValue# = 25 : blReqAction% = ActSlider% : blReqPad% = 6
-840 GOSUB blApiCreate : SliderH% = blRetHandle%
-850 IF blStatus% <> blStatusOk% THEN GOTO 9000
-900 GOSUB ResetReq
-910 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindGauge%
-920 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 28
-930 blReqValue# = 60 : blReqPad% = 6
-940 GOSUB blApiCreate : GaugeH% = blRetHandle%
-950 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1000 GOSUB ResetReq
-1010 blReqClass% = blClassUser% : blReqParent% = MainH% : blReqKind% = blKindDial%
-1020 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 96
-1030 blReqValue# = 35 : blReqAction% = ActDial% : blReqPad% = 6
-1040 GOSUB blApiCreate : DialH% = blRetHandle%
-1050 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1100 GOSUB ResetReq
-1110 blReqClass% = blClassClickTarget% : blReqParent% = MainH%
-1120 blReqX% = 0 : blReqY% = 0 : blReqW% = 100 : blReqH% = 40
-1130 blReqAction% = ActTarget% : blReqButtonMask% = 1
-1140 GOSUB blApiCreate : TargetH% = blRetHandle%
-1150 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1200 GOSUB blApiPaintAll
-1210 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1220 blReqActionId% = ActButton% : blReqLine& = 2010 : GOSUB blApiSetActionLine
-1230 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1240 blReqActionId% = ActSlider% : blReqLine& = 2210 : GOSUB blApiSetActionLine
-1250 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1260 blReqActionId% = ActDial% : blReqLine& = 2310 : GOSUB blApiSetActionLine
-1270 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1280 blReqActionId% = ActTarget% : blReqLine& = 2110 : GOSUB blApiSetActionLine
-1290 IF blStatus% <> blStatusOk% THEN GOTO 9000
-1295 TIMER ON
-1298 GOTO MainLoop
-1300 LABEL MainLoop
-1310 IF ClockFlag% <> 0 THEN ClockFlag% = 0 : GOSUB UpdateClock
-1320 GOSUB blApiPollInput
-1330 WHILE blEventCount% > 0
-1340   GOSUB blApiNextEvent
-1350   GOSUB DispatchAction
-1360 WEND
-1370 K$ = INKEY$
-1380 IF K$ <> "" THEN GOSUB HandleKey
-1390 IF blNeedsPaint% <> 0 THEN GOSUB blApiPaintAll
-1395 SLEEP 16
-1398 GOTO MainLoop
+130 CALL blInit(0, 0)
+140 IF blStatus% <> blStatusOk% THEN GOTO 9000
+150 MainH% = blCreate%(1, 2, 0, 40, 24, 640, 480, "", 0, 0, 0)
+160 CALL blSetLayout(MainH%, 1, 12, 8)
+170 IF blStatus% <> blStatusOk% THEN GOTO 9000
+180 HeaderH% = blCreate%(MainH%, 3, 5, 0, 0, 100, 24, "baslib sample host - one of every control", 0, 0, 0)
+190 blUser#(HeaderH%,13) = 4
+200 ClockH% = blCreate%(MainH%, 3, 5, 0, 0, 100, 28, "Clock: " + TIME$, 0, 0, 0)
+210 blUser#(ClockH%,13) = 4
+220 StatusH% = blCreate%(MainH%, 3, 5, 0, 0, 100, 60, "Button clicks: 0" + CHR$(13) + "Target hits: 0" + CHR$(13) + "Slider: 25   Dial: 35", 0, 0, 0)
+230 blUser#(StatusH%,13) = 4
+240 ButtonH% = blCreate%(MainH%, 3, 1, 0, 0, 180, 28, "Click me", ActButton%, 0, 0)
+250 blUser#(ButtonH%,13) = 6
+260 SliderH% = blCreate%(MainH%, 3, 2, 0, 0, 100, 28, "", ActSlider%, 0, 0)
+270 CALL blSetValue(SliderH%, 25)
+280 GaugeH% = blCreate%(MainH%, 3, 3, 0, 0, 100, 28, "", 0, 0, 0)
+290 CALL blSetValue(GaugeH%, 60)
+300 DialH% = blCreate%(MainH%, 3, 4, 0, 0, 100, 96, "", ActDial%, 0, 0)
+310 CALL blSetValue(DialH%, 35)
+320 TargetH% = blCreate%(MainH%, 4, 0, 0, 0, 100, 40, "", ActTarget%, 0, 0)
+330 CALL blSetClickMask(TargetH%, 1)
+340 IF blStatus% <> blStatusOk% THEN GOTO 9000
+350 CALL blPaintAll
+360 CALL blSetActionLine(ActButton%, 2010)
+370 CALL blSetActionLine(ActSlider%, 2210)
+380 CALL blSetActionLine(ActDial%, 2310)
+390 CALL blSetActionLine(ActTarget%, 2110)
+400 IF blStatus% <> blStatusOk% THEN GOTO 9000
+410 TIMER ON
+420 GOTO MainLoop
+430 LABEL MainLoop
+440 IF ClockFlag% <> 0 THEN ClockFlag% = 0 : GOSUB UpdateClock
+450 R% = blPollInput%()
+460 WHILE blEventCount%() > 0
+470   E% = blNextEvent%()
+480   GOSUB DispatchAction
+490 WEND
+500 K$ = INKEY$
+510 IF K$ <> "" THEN GOSUB HandleKey
+520 CALL blPaintAll
+530 SLEEP 16
+540 GOTO MainLoop
 2000 REM action 100: button click
 2010 ButtonCount% = ButtonCount% + 1
 2020 GOSUB RefreshStatus
@@ -108,60 +69,44 @@
 6000 REM 1-second timer tick: set a flag and return. Do not call baslib here.
 6010 ClockFlag% = 1
 6020 RETURN
-7000 LABEL ResetReq
-7010 blReqClass% = 0 : blReqParent% = 0 : blReqHandle% = 0
-7020 blReqX% = 0 : blReqY% = 0 : blReqW% = 0 : blReqH% = 0
-7030 blReqFlags% = 0 : blReqAction% = 0 : blReqTag% = 0
-7040 blReqKind% = 0 : blReqMode% = 0 : blReqPad% = 0 : blReqGap% = 0 : blReqCols% = 0
-7050 blReqButtonMask% = 1 : blReqText$ = "" : blReqValue# = 0 : blReqEnabled% = 1
-7060 RETURN
-7100 LABEL RefreshStatus
-7110 blReqHandle% = SliderH% : GOSUB blApiGetValue : SliderV# = blRetValue#
-7120 blReqHandle% = DialH% : GOSUB blApiGetValue : DialV# = blRetValue#
-7130 blReqHandle% = StatusH%
-7140 StatusText$ = "Button clicks: " + MID$(STR$(ButtonCount%),2)
-7142 StatusText$ = StatusText$ + CHR$(13) + "Target hits: " + MID$(STR$(TargetCount%),2)
-7144 StatusText$ = StatusText$ + CHR$(13) + "Slider: " + MID$(STR$(INT(SliderV#)),2)
-7146 StatusText$ = StatusText$ + "   Dial: " + MID$(STR$(INT(DialV#)),2)
-7148 blReqText$ = StatusText$
-7150 GOSUB blApiSetText
-7160 GOSUB blApiPaintAll
-7170 RETURN
-7200 LABEL UpdateClock
-7210 blReqHandle% = ClockH%
-7220 blReqText$ = "Clock: " + TIME$
-7230 GOSUB blApiSetText
-7240 GOSUB blApiPaintAll
-7250 RETURN
-7300 LABEL DispatchAction
-7310 IF blEventAction% = blActionNone% THEN RETURN
-7320 ActLine& = blActionLine&(blEventAction%)
-7330 IF ActLine& = blNoLine& THEN RETURN
-7340 GOSUB ActLine&
-7350 RETURN
-7400 LABEL HandleKey
-7410 IF K$ = CHR$(27) THEN TIMER OFF : END
-7420 IF K$ = "R" OR K$ = "r" THEN ButtonCount% = 0 : TargetCount% = 0 : GOSUB RefreshStatus
-7430 IF K$ = "+" OR K$ = "=" THEN GOSUB NudgeUp
-7440 IF K$ = "-" OR K$ = "_" THEN GOSUB NudgeDown
-7450 IF K$ = "C" OR K$ = "c" THEN GOSUB UpdateClock
-7460 RETURN
-7500 LABEL NudgeUp
-7510 blReqHandle% = SliderH% : GOSUB blApiGetValue
-7520 NewV# = blRetValue# + 5
-7530 IF NewV# > 100 THEN NewV# = 100
-7540 blReqValue# = NewV# : GOSUB blApiSetValue
-7550 GOSUB RefreshStatus
-7560 RETURN
-7600 LABEL NudgeDown
-7610 blReqHandle% = SliderH% : GOSUB blApiGetValue
-7620 NewV# = blRetValue# - 5
-7630 IF NewV# < 0 THEN NewV# = 0
-7640 blReqValue# = NewV# : GOSUB blApiSetValue
-7650 GOSUB RefreshStatus
-7660 RETURN
-9000 LABEL Fail
-9010 TIMER OFF
-9020 PRINT "baslib sample host failed; status ="; blStatus%
-9030 END
-9040 END
+7000 LABEL RefreshStatus
+7010 SliderV# = blGetValue#(SliderH%)
+7020 DialV# = blGetValue#(DialH%)
+7030 StatusText$ = "Button clicks: " + MID$(STR$(ButtonCount%),2)
+7040 StatusText$ = StatusText$ + CHR$(13) + "Target hits: " + MID$(STR$(TargetCount%),2)
+7050 StatusText$ = StatusText$ + CHR$(13) + "Slider: " + MID$(STR$(INT(SliderV#)),2)
+7060 StatusText$ = StatusText$ + "   Dial: " + MID$(STR$(INT(DialV#)),2)
+7070 CALL blSetText(StatusH%, StatusText$)
+7080 CALL blPaintAll
+7090 RETURN
+7100 LABEL UpdateClock
+7110 CALL blSetText(ClockH%, "Clock: " + TIME$)
+7120 CALL blPaintAll
+7130 RETURN
+7200 LABEL DispatchAction
+7210 A% = blEventAction%()
+7220 IF A% = blActionNone% THEN RETURN
+7230 ActLine& = blActionLine&(A%)
+7240 IF ActLine& = blNoLine& THEN RETURN
+7250 GOSUB ActLine&
+7260 RETURN
+7300 LABEL HandleKey
+7310 IF K$ = CHR$(27) THEN TIMER OFF : END
+7320 IF K$ = "R" OR K$ = "r" THEN ButtonCount% = 0 : TargetCount% = 0 : GOSUB RefreshStatus
+7330 IF K$ = "+" OR K$ = "=" THEN GOSUB NudgeUp
+7340 IF K$ = "-" OR K$ = "_" THEN GOSUB NudgeDown
+7350 IF K$ = "C" OR K$ = "c" THEN GOSUB UpdateClock
+7360 RETURN
+7400 LABEL NudgeUp
+7410 NewV# = blGetValue#(SliderH%) + 5
+7420 IF NewV# > 100 THEN NewV# = 100
+7430 CALL blSetValue(SliderH%, NewV#)
+7440 GOSUB RefreshStatus
+7450 RETURN
+7500 LABEL NudgeDown
+7510 NewV# = blGetValue#(SliderH%) - 5
+7520 IF NewV# < 0 THEN NewV# = 0
+7530 CALL blSetValue(SliderH%, NewV#)
+7540 GOSUB RefreshStatus
+7550 RETURN
+9000 PRINT "sample host failed at status"; blStatus% : END

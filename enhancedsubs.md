@@ -18,15 +18,16 @@ programs.
   `EXIT`, and `END`; README index/porting notes; `samples/subs.bas`; INCLUDE,
   RENUM, ON TIMER, and RESUME coverage; `SELECT CASE` activation fix found
   during the baslib migration.
-- **M6: complete.** baslib 0.2 rewrites its internals with `SUB`/`FUNCTION`/
-  `LOCAL`, removes the frame/dispatch protocol, keeps the public `blApi...`
-  ABI and numeric lines, and fixes nested-panel layout. baslib tests and demos
-  pass.
+- **M6: complete.** baslib 0.3 rewrites its internals with `SUB`/`FUNCTION`/
+  `LOCAL`, removes the frame/dispatch protocol, replaces the request/result
+  globals with a fully parameterized public API, and fixes nested-panel layout.
+  baslib tests and demos pass.
 - The shipped implementation follows the recommended defaults: named per-call
   scopes, function result assignment, `LOCAL` at the top, no `BYREF`/local
   arrays, strict procedure boundaries, main-only error/timer handlers, and a
   256-call depth limit.
-- Full suite after M6: 513 cases / 32,644 assertions passing; CTest 7/7.
+- Full suite after the parameterized baslib API: 515 cases / 31,921 assertions
+  passing; CTest 7/7.
 
 ---
 
@@ -1076,9 +1077,10 @@ After the language feature is stable, migrate baslib in a separate phase:
    are locals.
 3. Decide whether to replace the `blFramePush`/`blFrameLoad`/`blFrameClose`/
    `blFrameDrop` protocol with direct `CALL`s.
-4. Keep the public `blApi...` labels and the host ABI unchanged.
-5. Preserve the line-number contract; do not renumber the library in the same
-   change.
+4. Replace the `blApi...`/`blReq...`/`blRet...` ABI with parameterized
+   `SUB`/`FUNCTION` calls; no shipping host depends on the old shape yet.
+5. Preserve the public procedure line map; do not renumber the library in the
+   same change.
 6. Re-run the baslib test suite and the windowed demos.
 7. Update `baslib-prog-ref.md` and `baslib-plan.md` after the migration, not
    before.
@@ -1263,8 +1265,8 @@ rewind through recursion.
 - Add sample(s). **Done:** `samples/subs.bas`.
 - Update `test_inventory`. **Done.**
 - Update project status docs. **Done.**
-- Run the full suite on Windows and Linux. **Windows done:** 513 cases /
-  32,644 assertions, CTest 7/7. The Linux port remains a separate environment.
+- Run the full suite on Windows and Linux. **Windows done:** 515 cases /
+  31,921 assertions, CTest 7/7. The Linux port remains a separate environment.
 - Run baslib demos/tests (no baslib source changes yet). **Done before M6.**
 - Final performance notes.
 
@@ -1272,15 +1274,16 @@ rewind through recursion.
 
 ### M6 — baslib migration
 
-- Convert one or two baslib internals to `SUB`/`LOCAL` on a branch.
+- Convert the baslib internals to `SUB`/`FUNCTION`/`LOCAL`.
 - Verify nested layout and frame reduction.
-- Decide whether to migrate the full library.
-- Keep the public API and line contract stable.
+- Replace the request/result-global public API with parameterized calls.
+- Keep the public procedure line map stable.
 
-**Delivered:** full migration, not a proof-of-concept. All internal routines
-are `SUB`/`FUNCTION`/`LOCAL`; the frame/dispatch protocol and `STACK` use are
-gone; nested layout is fixed; the public API, line numbers, and action-line
-contract are unchanged. baslib is version 0.2 and its tests/demos pass.
+**Delivered:** full migration, not a proof-of-concept. All routines are
+`SUB`/`FUNCTION`/`LOCAL`; the frame/dispatch protocol and `STACK` use are gone;
+nested layout is fixed; the public API is parameterized; `blReq...`/`blRet...`
+staging globals are gone. The action-line and numeric procedure-line contracts
+remain. baslib is version 0.3 and its tests/demos pass.
 
 **Gate:** met; migration is complete and covered by the full suite.
 

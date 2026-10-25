@@ -1,10 +1,10 @@
 # baslib implementation plan
 
-**Status:** Implemented — baslib 0.2 ships in [`baslib.bas`](baslib.bas).  
+**Status:** Implemented — baslib 0.3 ships in [`baslib.bas`](baslib.bas).  
 **Design source:** [`baslib-plan.md`](baslib-plan.md)  
-**Current release:** 0.2 (SUB/FUNCTION/LOCAL rewrite; public ABI unchanged).  
+**Current release:** 0.3 (fully parameterized `SUB`/`FUNCTION` API).  
 **Primary runtime:** newbasic on Windows and Linux.  
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 
 This document converts the design in `baslib-plan.md` into an ordered,
 testable implementation effort. The design remains authoritative for behavior;
@@ -19,15 +19,15 @@ implemented, reviewed, and covered by the test named beside it.
 
 - [x] Keep `baslib.bas` inside `500000–519999` and the host side inside `1–499999`.
 - [x] Use the lowercase `bl` prefix for every baslib symbol, label, and procedure.
-- [x] Give every public entry point a `LABEL blApi...`; never call a public entry
-      point by literal line from host code.
-- [x] Keep the numeric API lines from `baslib-plan.md` §14.2 stable.
+- [x] Expose the public surface as parameterized `SUB`/`FUNCTION` procedures;
+      never call a public entry point by literal line from host code.
+- [x] Keep the public procedure line map stable.
 - [x] Use explicit type suffixes on every `bl` variable, array, and function.
 - [x] Keep `OPTION BASE` at the default `0`.
 - [x] Never `DIM` inside a paint, layout, or event loop.
 - [x] Treat expected failures as `blStatus%`/`blError%` returns, not BASIC runtime
       errors.
-- [x] Do not touch host `STACK` values; 0.2 has no frame protocol.
+- [x] Do not touch host `STACK` values; 0.3 has no frame protocol.
 - [x] Add or update a test for every behavior change.
 - [x] Update this file and, when behavior changes, `baslib-plan.md` in the same
       commit.
@@ -50,7 +50,7 @@ implemented, reviewed, and covered by the test named beside it.
 - The library uses per-call `LOCAL` variables for recursion and scratch state.
   Control data still lives in global arrays so handles and host inspection work.
 - `OPTION BASE 1` is unsupported; every array is base 0.
-- `STACK` is not used by baslib 0.2 and host values must survive library calls.
+- `STACK` is not used by baslib 0.3 and host values must survive library calls.
 - Do not use `ON ERROR` as expected control flow; return status codes.
 
 ---
@@ -59,7 +59,7 @@ implemented, reviewed, and covered by the test named beside it.
 
 The line map is a contract. Use `baslib-plan.md` §4.2 for the full description.
 
-The actual 0.2 map is deliberately compact; the old per-milestone blocks below
+The actual 0.3 map is deliberately compact; the old per-milestone blocks below
 are retained only as history.
 
 | Range | Contents |
@@ -72,40 +72,42 @@ are retained only as history.
 | `501180–501521` | Hit test, event ring, pointer/click, poll and test hooks |
 | `502000–502056` | API-internal wrappers and dump/update/invalidate |
 | `502999–503000` | `blNoop` method-table target |
-| `510000–511953` | Public `LABEL blApi...` entry points |
+| `510000–510552` | Public `SUB`/`FUNCTION` entry points |
 | `512000–512031` | `blTestErl` debug helper and final `END` |
 | `519000–519999` | Reserved |
 
 ### 1.1 Budget and size
 
-The current file is about 1,100 source lines, all inside `500000–519999`.
+The current file is about 860 source lines, all inside `500000–519999`.
 There is no `STACK` frame block and no dispatch block. The hard gate is the line
 range plus the test suite, not a per-block line budget.
 
-### 1.2 Delivered in 0.2
+### 1.2 Delivered in 0.3
 
+- The public API is fully parameterized. `CALL` passes control values;
+  `FUNCTION` returns handles, text, numbers, event fields, and counts.
+- `blReq...` and `blRet...` staging globals are removed. `blStatus%` is the one
+  shared result code.
 - Internal routines are `SUB`/`FUNCTION` definitions with `LOCAL` scratch:
   create/destroy, layout, paint, text fit/wrap, hit test, click/pointer, and
   input test hooks.
 - Recursive layout and paint use per-call locals; the nested-panel cursor bug is
   fixed and covered by a regression test.
-- The public `blApi...` labels, request/result globals, numeric API lines, and
-  action-line contract are unchanged.
 - The frame protocol, dispatch, class routers, and `STACK` use are removed.
-- `blVersion$`/`blVersionNum#` are `0.2`.
-- `tests/test_baslib.cpp` passes, including layout, paint, event, slider, demo,
-  line-block, and namespace audits. The old frame tests were replaced by the
-  nested-layout regression test.
+- `blVersion$`/`blVersionNum#` are `0.3`.
+- `tests/test_baslib.cpp` passes, including layout, paint, events, values,
+  slider drag, demos, RENUM, namespace, and no-request-global audits.
 
 ---
 
 ## 2. Milestone overview
 
-> **Historical note (0.2).** The milestone table below records the original
-> pre-`SUB` plan. It is kept for traceability. The shipped 0.2 implementation
+> **Historical note.** The milestone table below records the original
+> pre-`SUB` plan. It is kept for traceability. The shipped 0.3 implementation
 > does not use the M2 frame protocol or the M4 dispatch path: internal routines
-> are `SUB`/`FUNCTION` procedures with `LOCAL` state, and `blMethod&` is
-> introspection-only. The public API and tests are authoritative.
+> are `SUB`/`FUNCTION` procedures with `LOCAL` state, the public API is
+> parameterized, and `blMethod&` is introspection-only. The public API and
+> tests are authoritative.
 
 | Milestone | Goal | Line blocks | Depends on | Exit evidence |
 |---|---|---|---|---|
