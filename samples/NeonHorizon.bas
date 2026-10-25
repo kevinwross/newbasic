@@ -195,6 +195,7 @@
 8000 REM ---- INPUT ----
 8010 C = ASC(K$)
 8020 IF C = 27 THEN END
+8025 IF K$ = "q" THEN END
 8030 IF K$ = " " THEN PS = 1 - PS: RETURN
 8040 IF K$ = "+" OR K$ = "=" THEN SP = SP * 1.25: IF SP > 4 THEN SP = 4
 8050 IF K$ = "-" OR K$ = "_" THEN SP = SP / 1.25: IF SP < .15 THEN SP = .15
