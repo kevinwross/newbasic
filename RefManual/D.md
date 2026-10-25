@@ -504,6 +504,78 @@ The supported commands are:
 40 END
 ```
 
+#### Example 2 — Hexagon
+
+```basic
+10 SCREEN 1
+20 PSET (160,100), 2
+30 DRAW "R60 TA60 R60 TA60 R60 TA60 R60 TA60 R60 TA60 R60"
+40 END
+```
+
+#### Example 3 — Blue square with a red center square
+
+```basic
+10 SCREEN 1
+20 PSET (80,80), 1
+30 DRAW "C1 R100 D100 L100 U100"
+40 DRAW "M130,130 P1,1"
+50 DRAW "C4 M105,105 R50 D50 L50 U50"
+60 DRAW "M130,130 P4,4"
+70 END
+```
+
+The outer square is 100×100; the red square is 50×50, one quarter of its area.
+
+#### Example 4 — Colour gradient
+
+```basic
+10 SCREEN 9
+20 FOR I=0 TO 15
+30 DRAW "C" + STR$(I) + " M0," + STR$(I*20) + " R639"
+40 NEXT I
+50 END
+```
+
+Each of the 16 CGA colours is drawn as a horizontal line.
+
+#### Example 5 — Dashed line
+
+```basic
+10 SCREEN 1
+20 PSET (20,100), 2
+30 FOR I=1 TO 10
+40 DRAW "R8 B R8"
+50 NEXT I
+60 END
+```
+
+`B` moves without drawing, producing an 8-pixel gap between 8-pixel segments.
+
+#### Example 6 — Zig-zag line
+
+```basic
+10 SCREEN 1
+20 PSET (20,100), 3
+30 FOR I=1 TO 10
+40 DRAW "E10 F10"
+50 NEXT I
+60 END
+```
+
+`E` draws up-right and `F` draws down-right.
+
+#### Example 7 — Five-point star
+
+```basic
+10 SCREEN 1
+20 PSET (160,100), 4
+30 DRAW "TA144 R80 TA144 R80 TA144 R80 TA144 R80 TA144 R80"
+40 END
+```
+
+Repeated 144° turns trace a five-point star.
+
 <a id="drawtext-statement"></a>
 ## DRAWTEXT Statement
 
