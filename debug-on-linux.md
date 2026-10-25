@@ -1,6 +1,8 @@
 # Debugging newbasic from VS Code on Linux
 
 **Status:** verified on Linux (Debian 13, arm64) on 2026-10-22 at `d7536e1`.
+The adapter path below was updated for the `bin/Release` layout introduced after
+that commit.
 **Audience:** AI coding agents (and humans) asked to make VS Code debugging work
 on a Linux machine for this repository.
 **Scope:** build the interpreter and DAP adapter, install the VS Code
@@ -17,7 +19,7 @@ Windows; only the `newbasic-dap` executable is platform-specific. See
 
 A successful run produces all of the following:
 
-- `build-sdl/src/newbasic-dap/newbasic-dap` exists and is executable.
+- `bin/Release/newbasic-dap` exists and is executable.
 - `build-sdl/tests/newbasic-tests` passes (CTest: 7 of 7, 0 failures).
 - `code --list-extensions --show-versions` contains
   `newbasic.newbasic-debug@0.1.0`.
@@ -141,14 +143,14 @@ installed.
 Required artifact:
 
 ```bash
-test -x build-sdl/src/newbasic-dap/newbasic-dap && echo "adapter OK"
+test -x bin/Release/newbasic-dap && echo "adapter OK"
 ```
 
 Run the process-level DAP smoke test:
 
 ```bash
 cmake \
-  -DDAP_EXE="$PWD/build-sdl/src/newbasic-dap/newbasic-dap" \
+  -DDAP_EXE="$PWD/bin/Release/newbasic-dap" \
   -DTMP_DIR=/tmp/newbasic-dap-smoke \
   -P tests/dap_smoke.cmake
 ```
@@ -239,10 +241,12 @@ otherwise verify their contents and do not overwrite unrelated settings.
 Deliberately **no** `newbasic.adapterPath`. The extension searches, in order:
 
 1. `newbasic.adapterPath`, if set (supports `${workspaceFolder}`);
-2. `build-sdl/src/newbasic-dap/newbasic-dap`;
-3. `build/src/newbasic-dap/newbasic-dap`;
-4. `out/src/newbasic-dap/Release/newbasic-dap.exe`;
-5. `out/src/newbasic-dap/Debug/newbasic-dap.exe`.
+2. `bin/Release/newbasic-dap`;
+3. `bin/Debug/newbasic-dap`;
+4. `build-sdl/src/newbasic-dap/newbasic-dap` (legacy build tree);
+5. `build/src/newbasic-dap/newbasic-dap` (legacy build tree);
+6. `out/src/newbasic-dap/Release/newbasic-dap.exe` (legacy, Windows);
+7. `out/src/newbasic-dap/Debug/newbasic-dap.exe` (legacy, Windows).
 
 Only set `newbasic.adapterPath` if the adapter lives elsewhere, and make it a
 platform-correct path. A Linux path in that setting will break the same
@@ -269,7 +273,7 @@ workspace on Windows.
    newbasic debugger on linux/arm64, VS Code 1.142.0
    registered debug configuration provider and adapter factory
    launch: type=newbasic program=/home/.../fixtures/m0/hello.bas cwd=/home/.../newbasic
-   adapter: /home/.../build-sdl/src/newbasic-dap/newbasic-dap args=[] cwd=/home/.../newbasic
+   adapter: /home/.../bin/Release/newbasic-dap args=[] cwd=/home/.../newbasic
    ```
 
 6. Set a breakpoint by clicking the **gutter** next to **file line 2**, the
@@ -343,7 +347,7 @@ This copies the VM at every line boundary and is off by default.
 | `program not found: .../${file}` | Output shows a literal `${file}` | The extension is older than the post-substitution validation. Repackage/reinstall the current `editors/vscode`, then reload the window. |
 | `Invalid debug adapter` | **Output → newbasic** and whether a `newbasic-dap` process exists | Usually a missing/non-executable adapter or a launch-time program error. The Output channel now names the path. |
 | `newbasic-dap was not found` | Output lists the searched paths | Build `build-sdl/` or `build/`, or set `newbasic.adapterPath` to the real executable. |
-| `Permission denied` starting the adapter | `ls -l build-sdl/src/newbasic-dap/newbasic-dap` | `chmod +x build-sdl/src/newbasic-dap/newbasic-dap`. |
+| `Permission denied` starting the adapter | `ls -l bin/Release/newbasic-dap` | `chmod +x bin/Release/newbasic-dap`. |
 | Session starts, no output window | SDL2/display available? | Install `libsdl2-dev`, check `DISPLAY`/`WAYLAND_DISPLAY`, or use `newbasic.showWindow: false`. PRINT is not in the Debug Console. |
 | No breakpoint menu | Window not reloaded; language not `vb` | Reload, confirm extension version, keep `debug.allowBreakpointsEverywhere` true. |
 | `code: command not found` | `command -v code` | Install the VS Code CLI or add it to `PATH`; use `/usr/bin/code` explicitly. |
@@ -379,7 +383,7 @@ arm64, with VS Code 1.142.0, CMake 3.31.6, g++ 14.2.0, SDL2 2.32.4 and Node
 | Check | Observed |
 | --- | --- |
 | Configure `build-sdl` with `NEWBASIC_WINDOW_SDL=ON` | success |
-| `test -x build-sdl/src/newbasic-dap/newbasic-dap` | `adapter OK` |
+| `test -x build-sdl/src/newbasic-dap/newbasic-dap` (layout at that commit) | `adapter OK` |
 | `tests/dap_smoke.cmake` | `newbasic-dap smoke test passed` |
 | `ctest --test-dir build-sdl` | 7/7 passed, 0 failed |
 | `build-sdl/tests/newbasic-tests` | 385 cases, 31,275 assertions |
@@ -387,6 +391,9 @@ arm64, with VS Code 1.142.0, CMake 3.31.6, g++ 14.2.0, SDL2 2.32.4 and Node
 | Breakpoint on file line 2 (BASIC line 20) | verified; stopped at line 20 |
 | F10 / step over | stopped at BASIC line 30 (file line 3) |
 | `newbasic` window | `HELLO FROM NEWBASIC`, then `5  10` |
+
+At `d7536e1` the adapter lived under `build-sdl/src/newbasic-dap/`; current
+builds put the same executable in `bin/Release/`.
 
 The first attempt used gutter row 20 (the BASIC line number, not the file line).
 The adapter returned `verified: false`, and the session ran to completion and
