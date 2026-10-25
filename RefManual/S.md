@@ -622,11 +622,15 @@ STACK PUSH source [, source]...
 STACK POP target [, target]...
 STACK TOP target [, target]...
 STACK PEEK target [, target]...
+STACK PEEK index, target
+STACK DROP [count]
+STACKAT(index)
+STACKDEPTH
 ```
 
 Each `source` is an expression or an array name followed by empty parentheses, such as `A()`. Each `target` is a scalar variable, an array element, or an array name followed by empty parentheses.
 
-`STACK PEEK` is an alias for `STACK TOP`.
+`STACK PEEK` with a target list is an alias for `STACK TOP`. `STACK PEEK index, target` is the indexed, non-destructive form.
 
 ### Arguments
 
@@ -636,6 +640,8 @@ Each `source` is an expression or an array name followed by empty parentheses, s
 | `array()` | Yes, for whole arrays | Pushes a copy of the whole array. `A` without parentheses remains the scalar `A`; `A()` is the array. |
 | `variable` | Yes, for `POP`/`TOP` | Assignable scalar variable or array element. Targets are assigned left-to-right. |
 | `array()` target | Yes, for whole arrays | Creates or replaces the target array with a copy of the source array. |
+| `index` | Yes, for indexed `PEEK`/`STACKAT` | Zero-based position from the top: `0` is the top entry, `1` the next entry down, and so on. |
+| `count` | No, for `DROP` | Number of top entries to remove. Default is `1`. |
 
 ### Comments
 
@@ -649,6 +655,16 @@ STACK POP  c, b, a
 ```
 
 `POP` removes the values; `TOP`/`PEEK` leaves the stack unchanged.
+
+<a id="stackat-function"></a>
+`STACKAT(index)` reads a scalar from the stack without removing it. Index `0` is the top. It preserves the stored scalar type, so a string entry can be printed or assigned to a string variable. An out-of-range index raises **Subscript out of range**. A whole-array entry raises **Type mismatch** because a function cannot return a whole array; use indexed `PEEK` with an array target for that case.
+
+<a id="stackdepth-function"></a>
+`STACKDEPTH` returns the number of stack entries as a long integer. It takes no parentheses.
+
+`STACK DROP` removes the top entry, or the top `count` entries when a count is given. `STACK DROP 0` is a no-op. A negative count raises **Illegal function call**. If `count` exceeds the number of entries, the statement raises **Stack empty** and leaves the entire stack intact. Fractional counts round to the nearest integer. Dropping whole-array entries also updates the internal element accounting.
+
+The indexed form `STACK PEEK index, target` copies one entry without removing it. It supports scalar, array-element and whole-array targets, including `STACK PEEK 1, A()`. The index is zero-based from the top. Use parentheses for a computed index, for example `STACK PEEK (I), A`, because a bare variable as the first argument retains the old top-down target-list meaning.
 
 Scalars keep their BASIC kind on the stack (integer, long, single, double, or string). Assigning to a scalar target uses the normal conversion rules: `A%` rounds and may raise **Overflow**, `A$` raises **Type mismatch** for a numeric value, and so on. Array-element targets work too, and an undeclared array element target creates the array at the default size with the current `OPTION BASE`.
 
@@ -757,6 +773,41 @@ Output:
 
 ```text
  7  8  7  8
+```
+
+#### Example 6 — Index, inspect and drop
+
+```basic
+10 STACK PUSH 10, "B", 30
+20 IF STACKAT(0)=30 AND STACKAT(1)="B" AND STACKAT(2)=10 THEN PRINT "READ"
+30 STACK DROP 2
+40 IF STACKDEPTH=1 THEN PRINT "DROP"
+50 END
+```
+
+Output:
+
+```text
+READ
+DROP
+```
+
+#### Example 7 — Indexed PEEK of a whole array
+
+```basic
+10 DIM A(2)
+20 A(1) = 7 : A(2) = 8
+30 STACK PUSH 5, A()
+40 STACK PEEK 0, B()
+50 STACK PEEK 1, X
+60 PRINT B(1); B(2); X; STACKDEPTH
+70 END
+```
+
+Output:
+
+```text
+ 7  8  5  2
 ```
 
 <a id="stick-function"></a>

@@ -217,6 +217,80 @@ TEST_CASE("STACK: syntax errors", "[stack]") {
   CHECK(lwtest::CompileCode("10 STACK WAT 1\n") == newbasic::kErrSyntax);
 }
 
+TEST_CASE("STACK: STACKAT reads from the top without removing", "[stack]") {
+  CHECK(lwtest::Row0("10 STACK PUSH 10, 20, 30\n"
+                     "20 IF STACKAT(0)=30 AND STACKAT(1)=20 AND STACKAT(2)=10 THEN PRINT \"A\";\n"
+                     "30 IF STACKDEPTH=3 THEN PRINT \"D\"\n") == "AD");
+}
+
+TEST_CASE("STACK: STACKAT preserves string values", "[stack]") {
+  CHECK(lwtest::Row0("10 STACK PUSH \"A\", \"B\"\n"
+                     "20 IF STACKAT(0)=\"B\" AND STACKAT(1)=\"A\" THEN PRINT \"S\"\n") == "S");
+}
+
+TEST_CASE("STACK: STACKAT rejects whole arrays and out-of-range indexes", "[stack]") {
+  CHECK(lwtest::RunErrorCode("10 DIM A(1)\n"
+                             "20 A(1)=7\n"
+                             "30 STACK PUSH A()\n"
+                             "40 PRINT STACKAT(0)\n") == newbasic::kErrTypeMismatch);
+  CHECK(lwtest::RunErrorCode("10 STACK PUSH 1\n"
+                             "20 PRINT STACKAT(1)\n") == newbasic::kErrSubscriptOutOfRange);
+}
+
+TEST_CASE("STACK: DROP removes the requested number of entries", "[stack]") {
+  CHECK(lwtest::Row0("10 STACK PUSH 1, 2, 3\n"
+                     "20 STACK DROP 2\n"
+                     "30 STACK POP A\n"
+                     "40 IF A=1 AND STACKDEPTH=0 THEN PRINT \"OK\"\n") == "OK");
+  CHECK(lwtest::Row0("10 STACK PUSH 1, 2, 3\n"
+                     "20 STACK DROP\n"
+                     "30 STACK POP B, A\n"
+                     "40 IF A=1 AND B=2 THEN PRINT \"OK\"\n") == "OK");
+}
+
+TEST_CASE("STACK: DROP 0 is a no-op and an overlarge DROP is atomic", "[stack]") {
+  CHECK(lwtest::Row0("10 STACK PUSH 1\n"
+                     "20 STACK DROP 0\n"
+                     "30 STACK POP A\n"
+                     "40 IF A=1 THEN PRINT \"OK\"\n") == "OK");
+  CHECK(lwtest::Row0("10 ON ERROR GOTO 100\n"
+                     "20 STACK PUSH 1, 2\n"
+                     "30 STACK DROP 3\n"
+                     "40 END\n"
+                     "100 STACK POP B, A\n"
+                     "110 IF A=1 AND B=2 THEN PRINT \"OK\"\n") == "OK");
+}
+
+TEST_CASE("STACK: DROP updates whole-array accounting", "[stack]") {
+  CHECK(lwtest::Row0("10 DIM A(2)\n"
+                     "20 A(1)=7\n"
+                     "30 STACK PUSH A(), 5\n"
+                     "40 STACK DROP 1\n"
+                     "50 STACK POP B()\n"
+                     "60 IF B(1)=7 THEN PRINT \"OK\"\n") == "OK");
+}
+
+TEST_CASE("STACK: indexed PEEK copies scalars without removing them", "[stack]") {
+  CHECK(lwtest::Row0("10 STACK PUSH 10, 20, 30\n"
+                     "20 STACK PEEK 1, B\n"
+                     "30 STACK PEEK (2), C\n"
+                     "40 IF B=20 AND C=10 AND STACKDEPTH=3 THEN PRINT \"OK\"\n") == "OK");
+}
+
+TEST_CASE("STACK: indexed PEEK copies a whole array", "[stack]") {
+  CHECK(lwtest::Row0("10 DIM A(2)\n"
+                     "20 A(1)=7\n"
+                     "30 STACK PUSH 5, A()\n"
+                     "40 STACK PEEK 0, B()\n"
+                     "50 STACK PEEK 1, X\n"
+                     "60 IF B(1)=7 AND X=5 AND STACKDEPTH=2 THEN PRINT \"OK\"\n") == "OK");
+}
+
+TEST_CASE("STACK: negative DROP count is rejected", "[stack]") {
+  CHECK(lwtest::RunErrorCode("10 STACK PUSH 1\n20 STACK DROP -1\n") ==
+        newbasic::kErrIllegalFunctionCall);
+}
+
 TEST_CASE("STACK: direct mode persists until CLEAR", "[stack]") {
   HeadlessScreen screen;
   newbasic::ScriptedHost host;

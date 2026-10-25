@@ -347,10 +347,10 @@ TEST_CASE("Live mouse state and wheel", "[mouse-live]") {
 
 TEST_CASE("Lexer: the new names are reserved words", "[new-features][lexer]") {
   const char* const names[] = {"SELECT",     "CASE",       "SLEEP",     "PUSH",      "POP",
-                               "LABEL",      "CONST",      "STACK",     "TEXTWIDTH", "TEXTHEIGHT",
-                               "MOUSEPOSX",  "MOUSEPOSY",  "MOUSEBUTTONS", "MOUSEWHEEL",
-                               "SCREENW",    "SCREENH",    "VIEWX1",    "VIEWY1",    "VIEWX2",
-                               "VIEWY2"};
+                               "LABEL",      "CONST",      "STACK",     "STACKAT",   "STACKDEPTH",
+                               "TEXTWIDTH",  "TEXTHEIGHT", "MOUSEPOSX", "MOUSEPOSY", "MOUSEBUTTONS",
+                               "MOUSEWHEEL", "SCREENW",    "SCREENH",   "VIEWX1",    "VIEWY1",
+                               "VIEWX2",     "VIEWY2"};
   for (const char* name : names) {
     INFO("name: " << name);
     CHECK(newbasic::Lexer::IsKeyword(name));

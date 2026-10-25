@@ -72,6 +72,8 @@ const FuncEntry kFuncTable[] = {
     {"SIN", Func::Sin},
     {"SPACE$", Func::Space},
     {"SQR", Func::Sqr},
+    {"STACKAT", Func::StackAt},
+    {"STACKDEPTH", Func::StackDepth},
     {"STR$", Func::Str},
     {"STRING$", Func::String},
     {"TAN", Func::Tan},
@@ -825,7 +827,8 @@ private:
     }
     if (keyword == "STACK") {
       // STACK PUSH expr[, expr]... / STACK POP var[, var]... /
-      // STACK TOP var[, var]... (PEEK is accepted as an alias for TOP).
+      // STACK TOP var[, var]... / STACK PEEK var[, var]... /
+      // STACK PEEK index, var / STACK DROP [count]
       Advance();
       if (TakeWord("PUSH")) {
         const std::int32_t start = static_cast<std::int32_t>(out_->stack_sources_.size());
@@ -853,11 +856,48 @@ private:
         out_->instrs_.push_back(in);
         return true;
       }
+      if (TakeWord("DROP")) {
+        if (AtListEnd()) {
+          EmitPush(Value::Int(1));
+        } else if (!ParseExpression()) {
+          return false;
+        }
+        Emit(Op::StackDrop);
+        return true;
+      }
       bool pop = false;
+      bool peek = false;
       if (TakeWord("POP")) {
         pop = true;
-      } else if (!TakeWord("TOP") && !TakeWord("PEEK")) {
-        return Syntax("Expected PUSH, POP, or TOP after STACK");
+      } else if (TakeWord("PEEK")) {
+        peek = true;
+      } else if (!TakeWord("TOP")) {
+        return Syntax("Expected PUSH, POP, TOP, PEEK, or DROP after STACK");
+      }
+      // A numeric or parenthesized first expression is an indexed PEEK. A
+      // variable first argument remains the existing top-down target list, so
+      // STACK PEEK B, A keeps its original meaning.
+      const bool indexed_peek =
+          peek &&
+          (Cur().kind == Tok::Number || IsOp("(") || IsOp("+") || IsOp("-") ||
+           (Cur().kind == Tok::Keyword &&
+            (Cur().text == "STACKAT" || Cur().text == "STACKDEPTH")));
+      if (indexed_peek) {
+        if (!ParseExpression())
+          return false;
+        if (!TakeOp(","))
+          return Syntax("Expected ',' after the STACK PEEK index");
+        const std::int32_t start = static_cast<std::int32_t>(out_->stack_targets_.size());
+        if (!ParseStackTarget(true))
+          return false;
+        if (TakeOp(","))
+          return Syntax("Indexed STACK PEEK takes one target");
+        Instr in;
+        in.op = Op::StackPeekAt;
+        in.a = start;
+        in.b = 1;
+        out_->instrs_.push_back(in);
+        return true;
       }
       const std::int32_t start = static_cast<std::int32_t>(out_->stack_targets_.size());
       int count = 0;

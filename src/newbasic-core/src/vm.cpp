@@ -282,6 +282,10 @@ const char* FuncName(Func f) {
     return "VIEWX2";
   case Func::ViewY2:
     return "VIEWY2";
+  case Func::StackAt:
+    return "STACKAT";
+  case Func::StackDepth:
+    return "STACKDEPTH";
   case Func::Err:
     return "ERR";
   case Func::Eof:
@@ -364,6 +368,7 @@ int FuncArity(Func f) {
   case Func::ViewY1:
   case Func::ViewX2:
   case Func::ViewY2:
+  case Func::StackDepth:
     return 0;
   case Func::Instr:      // INSTR([start,] haystack, needle)
   case Func::Mid:        // MID$(s, start[, length])
@@ -1209,6 +1214,25 @@ bool Vm::CallFunction(Func f, int argc) {
                                                   ? -1
                                                   : screen_.ViewY() + screen_.ViewHeight() - 1)));
     return true;
+  case Func::StackDepth:
+    Push(Value::Long(static_cast<std::int32_t>(user_stack_.size())));
+    return true;
+  case Func::StackAt: {
+    if (!numeric(0, &a))
+      return false;
+    if (!std::isfinite(a))
+      return Fail(kErrIllegalFunctionCall);
+    const double index_value = RoundToInt(a);
+    if (index_value < 0.0 ||
+        index_value >= static_cast<double>(user_stack_.size()))
+      return Fail(kErrSubscriptOutOfRange);
+    const std::size_t index = static_cast<std::size_t>(index_value);
+    const StackItem& item = user_stack_[user_stack_.size() - 1 - index];
+    if (item.is_array)
+      return Fail(kErrTypeMismatch, "STACKAT cannot return a whole array");
+    Push(item.scalar);
+    return true;
+  }
   case Func::Point: {
     // POINT(x,y) reads a pixel's palette index and returns -1 out of range;
     // POINT(n) with one argument returns the current graphics position (0 = x).
@@ -3447,8 +3471,10 @@ bool Vm::StepImpl() {
     return true;
   }
   case Op::StackPop:
-  case Op::StackTop: {
+  case Op::StackTop:
+  case Op::StackPeekAt: {
     const bool pop = in.op == Op::StackPop;
+    const bool peek_at = in.op == Op::StackPeekAt;
     const int start = in.a;
     const int count = in.b;
     if (start < 0 || count <= 0 ||
@@ -3456,6 +3482,8 @@ bool Vm::StepImpl() {
             program_.stack_targets_.size()) {
       return Fail(kErrInternal);
     }
+    if (peek_at && count != 1)
+      return Fail(kErrInternal);
     if (user_stack_.size() < static_cast<std::size_t>(count))
       return Fail(kErrStackEmpty);
     for (int i = 0; i < count; ++i) {
@@ -3490,18 +3518,35 @@ bool Vm::StepImpl() {
       }
     }
 
+    const std::size_t depth = user_stack_.size();
+    std::vector<std::size_t> source_indexes(static_cast<std::size_t>(count));
+    if (peek_at) {
+      const Value index_value = Pop();
+      double index_number = 0.0;
+      if (!Number(index_value, &index_number))
+        return false;
+      if (!std::isfinite(index_number))
+        return Fail(kErrIllegalFunctionCall);
+      const double rounded = RoundToInt(index_number);
+      if (rounded < 0.0 || rounded >= static_cast<double>(depth))
+        return Fail(kErrSubscriptOutOfRange);
+      source_indexes[0] = depth - 1 - static_cast<std::size_t>(rounded);
+    } else {
+      for (int i = 0; i < count; ++i)
+        source_indexes[static_cast<std::size_t>(i)] = depth - 1 - static_cast<std::size_t>(i);
+    }
+
     std::vector<std::string> created_arrays;
     const auto cleanup = [&] {
       for (const std::string& name : created_arrays)
         arrays_.erase(name);
     };
-    const std::size_t depth = user_stack_.size();
     // Preflight every conversion, array lookup and subscript before changing any
     // variable or removing a value. A failed POP must leave the stack intact.
     for (int i = 0; i < count; ++i) {
       ResolvedTarget& item = resolved[static_cast<std::size_t>(i)];
       const StackTarget& target = *item.target;
-      const StackItem& source = user_stack_[depth - 1 - static_cast<std::size_t>(i)];
+      const StackItem& source = user_stack_[source_indexes[static_cast<std::size_t>(i)]];
       if (target.whole_array) {
         if (!source.is_array) {
           cleanup();
@@ -3573,10 +3618,32 @@ bool Vm::StepImpl() {
     if (pop) {
       std::size_t removed_elements = 0;
       for (int i = 0; i < count; ++i)
-        removed_elements += user_stack_[depth - 1 - static_cast<std::size_t>(i)].Elements();
+        removed_elements += user_stack_[source_indexes[static_cast<std::size_t>(i)]].Elements();
       user_stack_.resize(depth - static_cast<std::size_t>(count));
       user_stack_elements_ -= removed_elements;
     }
+    return true;
+  }
+  case Op::StackDrop: {
+    const Value count_value = Pop();
+    double count_number = 0.0;
+    if (!Number(count_value, &count_number))
+      return false;
+    if (!std::isfinite(count_number))
+      return Fail(kErrIllegalFunctionCall);
+    const double rounded = RoundToInt(count_number);
+    if (rounded < 0.0)
+      return Fail(kErrIllegalFunctionCall);
+    if (rounded == 0.0)
+      return true;
+    if (rounded > static_cast<double>(user_stack_.size()))
+      return Fail(kErrStackEmpty);
+    const std::size_t count = static_cast<std::size_t>(rounded);
+    std::size_t removed_elements = 0;
+    for (std::size_t i = 0; i < count; ++i)
+      removed_elements += user_stack_[user_stack_.size() - 1 - i].Elements();
+    user_stack_.resize(user_stack_.size() - count);
+    user_stack_elements_ -= removed_elements;
     return true;
   }
   case Op::Swap: {

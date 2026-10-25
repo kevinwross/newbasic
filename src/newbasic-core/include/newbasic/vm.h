@@ -83,6 +83,8 @@ enum class Func : std::int32_t {
   ViewY1,
   ViewX2,
   ViewY2,
+  StackAt,
+  StackDepth,
   // Machine-level functions (M13): recognised so they produce a clear refusal
   // instead of a syntax error. There is no machine model to expose.
   Fre,
@@ -223,6 +225,8 @@ enum class Op : std::uint8_t {
   StackPush,  // a = first StackSource, b = item count; push copies left-to-right
   StackPop,   // a = first StackTarget, b = target count; assign top-down and pop
   StackTop,   // a = first StackTarget, b = target count; assign top-down without pop
+  StackPeekAt,// a = first StackTarget, b = 1; index is on top of the operand stack
+  StackDrop,  // pop a count and remove that many entries from the top
   Read,       // name = comma-separated variable list
   ReadArray,  // name = array, a = subscript count already pushed, value from DATA
   Restore,    // a = line number, 0 = first DATA item

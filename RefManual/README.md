@@ -367,6 +367,8 @@ A silent no-op or a fabricated value is more dangerous than an error. `PEEK(0)` 
 | [SPC Function](S.md#spc-function) | Function | Supported in PRINT only |
 | [SQR Function](S.md#sqr-function) | Function | Supported |
 | [STACK Statement](S.md#stack-statement) | Statement | Supported |
+| [STACKAT Function](S.md#stackat-function) | Function | Supported |
+| [STACKDEPTH Function](S.md#stackdepth-function) | Function | Supported |
 | [STICK Function](S.md#stick-function) | Function | Not supported in newbasic |
 | [STOP Statement](S.md#stop-statement) | Statement | Supported |
 | [STR$ Function](S.md#str-function) | Function | Supported |
