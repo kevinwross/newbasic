@@ -10,17 +10,15 @@ everyone else commits locally and records the result here so the push session kn
 
 ## 1. Waiting to be pushed
 
-Ordered oldest → newest. Count at last update: **4 commits ahead of `origin/main`**
-(`git rev-list --count origin/main..main`).
+**Nothing pending.** The four commits recorded in the previous ledger
+(`cd35000`, `4d58222`, `48e1db9`, `cc827da`) were pushed successfully:
 
-| # | Commit | Session | Files | Subject |
-|---|---|---|---|---|
-| 1 | `cd35000` | (DRAW / RefManual session) | `RefManual/D.md` (+72) | Add DRAW examples for shapes, fills and patterns |
-| 2 | `4d58222` | **`stng`** | `stng-handoff.md`, `bigpush.md` | Session handoff + push ledger |
-| 3 | `48e1db9` | **`baslib`** | `baslib-handoff.md`, `bigpush.md` | Baslib session handoff + push ledger entry |
-| 4 | this general commit, parent `48e1db9` | **`general`** | `general-handoff.md`, `bigpush.md` | General session handoff + push ledger entry |
+```text
+d66efed..cc827da  main -> main
+```
 
-`origin/main` was at `d66efed` when this file was written. Push the four local commits in order; no force-push.
+`origin/main` was `cc827da` at push completion. This ledger-update commit is
+the only follow-up; it records the completion and is pushed immediately after.
 
 ## 2. Committed by session `stng`
 
@@ -111,14 +109,15 @@ full suite **516 cases / 32,037 assertions**, CTest **7/7**, baslib suite
 ### Push-session note
 
 The baslib code commits (`b36137f`, `514ce87`, `d66efed`) are already on
-`origin/main`. The local commits still waiting are `cd35000`, `4d58222`, and
-this handoff commit. Push in that order; do not force-push.
+`origin/main`. The local commits in this ledger (`cd35000`, `4d58222`,
+`48e1db9`, `cc827da`) were pushed by the `general` session; this historical
+section is retained for context. Do not force-push.
 
 ## 8. Session `general` handoff record
 
 **Handoff:** `general-handoff.md`  
 **Commit:** this ledger commit, parent `48e1db9`  
-**Push:** this session will push after committing the handoff; no force-push.
+**Push:** pushed by this session; no force-push.
 
 ### Files in this local commit
 
@@ -145,12 +144,15 @@ Nothing else was uncommitted. `git status --porcelain` reported only
   wrote `general-handoff.md`, and updated this ledger.
 - **2026-10-25 10:43** — `general`: made one local commit containing
   `general-handoff.md` and `bigpush.md`. Push is the next step.
+- **2026-10-25 10:43** — `general`: pushed the four pending commits:
+  `d66efed..cc827da  main -> main`. `origin/main` is now `cc827da`.
+- **2026-10-25 10:43** — `general`: updated §1 to “nothing pending” and is
+  committing this completion entry for the follow-up push.
 - **Last observed tests:** `32,032 assertions in 515 test cases passed` from
   `build-clean-20261025`; re-run CTest on the next machine.
 
 ### Push-session note
 
-Push the four commits in §1 in order. After a successful push, update §1 to
-“nothing pending” with the new `origin/main` hash, then commit and push that
-ledger update as well.
+The pending push is complete. The only follow-up is this ledger-completion
+commit; push it normally and do not force-push.
 
