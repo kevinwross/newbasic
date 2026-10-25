@@ -136,6 +136,44 @@ TEST_CASE("DAP: launch loads a program and runs to a breakpoint", "[dap]") {
   CHECK(FirstEvent(outgoing, "terminated") != nullptr);
 }
 
+TEST_CASE("DAP: Step Over skips a GOSUB and Step Out returns from it", "[dap]") {
+  Adapter adapter;
+  adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 A=0\\n20 GOSUB 100\\n30 A=2\\n40 END\\n100 A=1\\n110 RETURN\\n\"}}");
+  adapter.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
+                  "\"arguments\":{\"breakpoints\":[{\"line\":2}]}}");
+  const std::vector<Json> configured =
+      adapter.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
+  REQUIRE(FirstEvent(configured, "stopped") != nullptr);
+  CHECK(adapter.debugger.CurrentLine() == 20);
+
+  const std::vector<Json> over =
+      adapter.Request("{\"seq\":4,\"type\":\"request\",\"command\":\"next\"}");
+  const Json* over_stop = FirstEvent(over, "stopped");
+  REQUIRE(over_stop != nullptr);
+  CHECK(adapter.debugger.CurrentLine() == 30);
+  CHECK(adapter.debugger.Variable("A")->AsNumber() == 1.0);
+
+  Adapter stepped;
+  stepped.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"
+                  "{\"programText\":\"10 A=0\\n20 GOSUB 100\\n30 A=2\\n40 END\\n100 A=1\\n110 RETURN\\n\"}}");
+  stepped.Request("{\"seq\":2,\"type\":\"request\",\"command\":\"setBreakpoints\","
+                  "\"arguments\":{\"breakpoints\":[{\"line\":2}]}}");
+  stepped.Request("{\"seq\":3,\"type\":\"request\",\"command\":\"configurationDone\"}");
+  const std::vector<Json> into =
+      stepped.Request("{\"seq\":4,\"type\":\"request\",\"command\":\"stepIn\"}");
+  CHECK(FirstEvent(into, "stopped") != nullptr);
+  CHECK(stepped.debugger.CurrentLine() == 100);
+
+  const std::vector<Json> out =
+      stepped.Request("{\"seq\":5,\"type\":\"request\",\"command\":\"stepOut\"}");
+  REQUIRE(!out.empty());
+  CHECK(out[0].Find("success")->AsBool());
+  CHECK(FirstEvent(out, "stopped") != nullptr);
+  CHECK(stepped.debugger.CurrentLine() == 30);
+  CHECK(stepped.debugger.Variable("A")->AsNumber() == 1.0);
+}
+
 TEST_CASE("DAP: arrays appear in Variables and expand", "[dap]") {
   Adapter adapter;
   adapter.Request("{\"seq\":1,\"type\":\"request\",\"command\":\"launch\",\"arguments\":"

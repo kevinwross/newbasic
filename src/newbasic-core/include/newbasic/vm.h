@@ -447,6 +447,9 @@ public:
     }
     return frames;
   }
+  // Number of active GOSUB activations, used by the debugger to step over or
+  // out of a subroutine rather than into it.
+  std::size_t GosubDepth() const { return gosub_stack_.size(); }
 
   // Dimensioned (or auto-created) arrays.
   struct ArrayInfo {

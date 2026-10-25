@@ -94,6 +94,11 @@ public:
   StopState StepInstruction();
   // Executes until execution reaches a different source line (or ends).
   StopState StepLine();
+  // Executes a source line without entering a GOSUB called by that line.
+  StopState StepOver();
+  // Executes until the current GOSUB returns to its caller, or the program
+  // ends when there is no active GOSUB.
+  StopState StepOut();
 
   // --- inspection ---
   int CurrentPc() const { return vm_.Pc(); }

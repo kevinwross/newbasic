@@ -35,7 +35,15 @@ public:
   // and continued event before calling RunActionNow, so a client enters its
   // running state before the VM blocks; tests can keep the old immediate
   // behaviour by leaving run_immediately at its default.
-  enum class RunAction { None, Continue, StepLine, StepBack, ReverseContinue };
+  enum class RunAction {
+    None,
+    Continue,
+    StepLine,
+    StepOver,
+    StepOut,
+    StepBack,
+    ReverseContinue
+  };
 
   Handler(Vm& vm, debug::Debugger& debugger, bool history = true)
       : vm_(vm), debugger_(debugger), history_enabled_(history) {
@@ -183,11 +191,19 @@ public:
       return RunAction::Continue;
     }
     if (command == "next" || command == "stepIn" || command == "stepOver") {
+      const bool step_over = command != "stepIn";
       Respond(request, Json::Object(), outgoing);
       PushContinued(outgoing);
       if (run_immediately)
-        ReportStop(debugger_.StepLine(), "step", outgoing);
-      return RunAction::StepLine;
+        ReportStop(step_over ? debugger_.StepOver() : debugger_.StepLine(), "step", outgoing);
+      return step_over ? RunAction::StepOver : RunAction::StepLine;
+    }
+    if (command == "stepOut") {
+      Respond(request, Json::Object(), outgoing);
+      PushContinued(outgoing);
+      if (run_immediately)
+        ReportStop(debugger_.StepOut(), "step", outgoing);
+      return RunAction::StepOut;
     }
     if (command == "stepBack" || command == "reverseContinue") {
       if (!history_enabled_) {
@@ -383,6 +399,12 @@ public:
       return;
     case RunAction::StepLine:
       ReportStop(debugger_.StepLine(), "step", outgoing);
+      return;
+    case RunAction::StepOver:
+      ReportStop(debugger_.StepOver(), "step", outgoing);
+      return;
+    case RunAction::StepOut:
+      ReportStop(debugger_.StepOut(), "step", outgoing);
       return;
     case RunAction::StepBack:
       ReportStop(debugger_.StepBack(), "step", outgoing);

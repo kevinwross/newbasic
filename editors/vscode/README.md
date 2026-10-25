@@ -4,7 +4,9 @@ A thin extension that lets VS Code debug GW-BASIC programs with the `newbasic` i
 the `newbasic` debug type; when a session starts it runs `newbasic-dap` (`newbasic-dap.exe` on
 Windows), which speaks the Debug Adapter Protocol over stdin/stdout. Breakpoints, stepping, pause,
 variable inspection and reverse debugging (`stepBack`, `reverseContinue`) all come from the adapter -
-see `docs/m5-dap-debugger.md`.
+see `docs/m5-dap-debugger.md`. Step Over uses `next`, Step Into uses `stepIn`, and Step Out uses
+`stepOut`; the adapter maps `next` to step-over semantics so a GOSUB is executed without entering its
+subroutine.
 
 ## Before you start
 

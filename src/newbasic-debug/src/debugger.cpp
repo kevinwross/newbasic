@@ -57,6 +57,41 @@ StopState Debugger::StepLine() {
   }
 }
 
+StopState Debugger::StepOver() {
+  const int start_line = CurrentLine();
+  const std::size_t start_depth = vm_.GosubDepth();
+  for (;;) {
+    const StopState state = StepInstruction();
+    if (state.AtEnd()) {
+      vm_.PresentNow();
+      return state;
+    }
+    // Stop at the next line only after any GOSUB called from the starting line
+    // has returned. A line inside the callee is not a step-over stop.
+    if (vm_.GosubDepth() <= start_depth && CurrentLine() != start_line) {
+      vm_.PresentNow();
+      return state;
+    }
+  }
+}
+
+StopState Debugger::StepOut() {
+  const std::size_t start_depth = vm_.GosubDepth();
+  for (;;) {
+    const StopState state = StepInstruction();
+    if (state.AtEnd()) {
+      vm_.PresentNow();
+      return state;
+    }
+    // A top-level Step Out has no caller: run to the end. Otherwise stop as
+    // soon as the current GOSUB activation has returned.
+    if (start_depth > 0 && vm_.GosubDepth() < start_depth) {
+      vm_.PresentNow();
+      return state;
+    }
+  }
+}
+
 StopState Debugger::Continue() {
   // A breakpoint on the line we are stopped at is not re-reported until
   // execution leaves that line (so continuing always makes progress), while

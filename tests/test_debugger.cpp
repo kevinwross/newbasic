@@ -158,6 +158,63 @@ TEST_CASE("Debugger: variables set inside a subroutine stay visible", "[debug]")
   CHECK(debugger.Variable("B")->AsNumber() == 42.0);
 }
 
+TEST_CASE("Debugger: Step Over runs a GOSUB without entering it", "[debug]") {
+  DebugSession s("10 GOSUB 100\n"
+                 "20 A=2\n"
+                 "30 END\n"
+                 "100 A=1\n"
+                 "110 RETURN\n");
+  newbasic::debug::Debugger debugger(s.vm);
+
+  const newbasic::debug::StopState state = debugger.StepOver();
+  CHECK(state.reason == newbasic::debug::StopReason::Step);
+  CHECK(state.line == 20);
+  CHECK(debugger.Variable("A")->AsNumber() == 1.0);
+}
+
+TEST_CASE("Debugger: Step Into enters a GOSUB and Step Out returns", "[debug]") {
+  DebugSession s("10 GOSUB 100\n"
+                 "20 A=2\n"
+                 "30 END\n"
+                 "100 A=1\n"
+                 "110 RETURN\n");
+  newbasic::debug::Debugger debugger(s.vm);
+
+  CHECK(debugger.StepLine().line == 100);
+  // StepLine stops before the subroutine's first line executes, so A has not
+  // been created yet.
+  CHECK_FALSE(debugger.Variable("A").has_value());
+
+  const newbasic::debug::StopState returned = debugger.StepOut();
+  CHECK(returned.reason == newbasic::debug::StopReason::Step);
+  CHECK(returned.line == 20);
+  CHECK(debugger.Variable("A")->AsNumber() == 1.0);
+}
+
+TEST_CASE("Debugger: Step Out returns through nested GOSUB calls", "[debug]") {
+  DebugSession s("10 GOSUB 100\n"
+                 "20 END\n"
+                 "100 GOSUB 200\n"
+                 "110 RETURN\n"
+                 "200 A=1\n"
+                 "210 RETURN\n");
+  newbasic::debug::Debugger debugger(s.vm);
+
+  CHECK(debugger.StepLine().line == 100);
+  CHECK(debugger.StepLine().line == 200);
+  // The inner return lands at 110 in the outer subroutine, not at the caller.
+  CHECK(debugger.StepOut().line == 110);
+  CHECK(debugger.StepOut().line == 20);
+}
+
+TEST_CASE("Debugger: Step Out at top level runs to the end", "[debug]") {
+  DebugSession s("10 A=1\n20 A=2\n30 END\n");
+  newbasic::debug::Debugger debugger(s.vm);
+  const newbasic::debug::StopState state = debugger.StepOut();
+  CHECK(state.reason == newbasic::debug::StopReason::ProgramEnd);
+  CHECK(debugger.Variable("A")->AsNumber() == 2.0);
+}
+
 TEST_CASE("Inspection: GOSUB and FOR call frames", "[debug]") {
   DebugSession s("10 DIM A(3)\n"
                  "20 A(2)=7\n"
